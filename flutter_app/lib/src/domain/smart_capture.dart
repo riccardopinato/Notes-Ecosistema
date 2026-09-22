@@ -277,7 +277,7 @@ class WebCapture {
     final canonicalRaw = _first(
       cleaned,
       RegExp(
-        r'<link\b(?=[^>]*\brel\s*=\s*["\']?canonical["\']?)[^>]*\bhref\s*=\s*["\']([^"\']+)["\'][^>]*>',
+        "<link\\b(?=[^>]*\\brel\\s*=\\s*[\"']?canonical[\"']?)[^>]*\\bhref\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>",
         caseSensitive: false,
         dotAll: true,
       ),
