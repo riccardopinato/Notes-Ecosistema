@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+const _unsetNoteValue = Object();
+
 enum VisualDocumentKind { sketch, whiteboard }
 
 class Note {
@@ -116,30 +118,38 @@ class Note {
   Note copyWith({
     String? title,
     String? body,
-    String? collectionId,
+    Object? collectionId = _unsetNoteValue,
     bool? favorite,
     int? updatedAt,
-    int? deletedAt,
+    Object? deletedAt = _unsetNoteValue,
     bool? pinned,
     bool? archived,
     List<String>? tags,
-    String? taskJson,
-    String? sketchJson,
+    Object? taskJson = _unsetNoteValue,
+    Object? sketchJson = _unsetNoteValue,
   }) =>
       Note(
         id: id,
         title: title ?? this.title,
         body: body ?? this.body,
-        collectionId: collectionId ?? this.collectionId,
+        collectionId: identical(collectionId, _unsetNoteValue)
+            ? this.collectionId
+            : collectionId as String?,
         favorite: favorite ?? this.favorite,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt ?? this.deletedAt,
+        deletedAt: identical(deletedAt, _unsetNoteValue)
+            ? this.deletedAt
+            : deletedAt as int?,
         pinned: pinned ?? this.pinned,
         archived: archived ?? this.archived,
         tags: tags ?? this.tags,
-        taskJson: taskJson ?? this.taskJson,
-        sketchJson: sketchJson ?? this.sketchJson,
+        taskJson: identical(taskJson, _unsetNoteValue)
+            ? this.taskJson
+            : taskJson as String?,
+        sketchJson: identical(sketchJson, _unsetNoteValue)
+            ? this.sketchJson
+            : sketchJson as String?,
       );
 }
 
