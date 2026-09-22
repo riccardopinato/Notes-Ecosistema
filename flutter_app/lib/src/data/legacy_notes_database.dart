@@ -1,5 +1,6 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import '../domain/note.dart';
 
@@ -96,7 +97,74 @@ class LegacyNotesDatabase {
 
   Future<void> saveNote(Note note) async {
     final db = await database;
-    await db.insert('notes', note.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.transaction((txn) async {
+      final currentRows = await txn.query(
+        'notes',
+        where: 'id = ?',
+        whereArgs: [note.id],
+        limit: 1,
+      );
+      final old = currentRows.isEmpty ? null : Note.fromMap(currentRows.first);
+
+      if (old != null &&
+          !old.isTask &&
+          !old.isVisual &&
+          !note.isTask &&
+          !note.isVisual) {
+        final latest = await txn.query(
+          'note_revisions',
+          where: 'noteId = ?',
+          whereArgs: [old.id],
+          orderBy: 'savedAt DESC, revisionId DESC',
+          limit: 1,
+        );
+        final oldTags = old.toMap()['tagsJson'];
+        final alreadyPreserved = latest.isNotEmpty &&
+            latest.first['title'] == old.title &&
+            latest.first['body'] == old.body &&
+            latest.first['collectionId'] == old.collectionId &&
+            latest.first['tagsJson'] == oldTags;
+
+        if (!alreadyPreserved) {
+          await txn.insert('note_revisions', {
+            'revisionId': const Uuid().v4(),
+            'noteId': old.id,
+            'title': old.title,
+            'body': old.body,
+            'collectionId': old.collectionId,
+            'savedAt': DateTime.now().millisecondsSinceEpoch,
+            'tagsJson': oldTags,
+          });
+          await txn.rawDelete(
+            'DELETE FROM note_revisions '
+            'WHERE noteId = ? AND revisionId NOT IN ('
+            'SELECT revisionId FROM note_revisions '
+            'WHERE noteId = ? '
+            'ORDER BY savedAt DESC, revisionId DESC LIMIT 50'
+            ')',
+            [old.id, old.id],
+          );
+        }
+      }
+
+      await txn.insert(
+        'notes',
+        note.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await txn.delete('drafts', where: 'id = ?', whereArgs: [note.id]);
+    });
+  }
+
+  Future<List<Map<String, Object?>>> loadHistory(String noteId) async {
+    final db = await database;
+    return db.query(
+      'note_revisions',
+      where: 'noteId = ?',
+      whereArgs: [noteId],
+      orderBy: 'savedAt DESC, revisionId DESC',
+      limit: 50,
+    );
   }
 
   Future<void> createCollection(NoteCollection collection) async {
