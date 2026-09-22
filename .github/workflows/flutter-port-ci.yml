@@ -1,0 +1,75 @@
+name: Flutter Port CI
+
+on:
+  push:
+    branches: [ "flutter-port" ]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter-port-ci.yml"
+  pull_request:
+    branches: [ "flutter-port" ]
+    paths:
+      - "flutter_app/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-port-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: flutter_app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android platform shell
+        shell: bash
+        run: |
+          rm -rf /tmp/notes_flutter_platform
+          flutter create --platforms=android --org it.notes.ecosystem --project-name notes_ecosistema --no-pub /tmp/notes_flutter_platform
+          rm -rf android
+          cp -R /tmp/notes_flutter_platform/android ./android
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+          s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
+          p.write_text(s)
+          PY
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-debug
+          path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
