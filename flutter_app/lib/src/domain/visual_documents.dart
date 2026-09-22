@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
-enum VisualDocumentKind { sketch, whiteboard }
+enum VisualInfoKind { sketch, whiteboard }
 
 class VisualInfo {
   const VisualInfo({this.linkedNoteId, required this.kind});
   final String? linkedNoteId;
-  final VisualDocumentKind kind;
+  final VisualInfoKind kind;
 
   String encode() => jsonEncode({
         'linkedNoteId': linkedNoteId,
@@ -20,8 +20,8 @@ class VisualInfo {
     return VisualInfo(
       linkedNoteId: map['linkedNoteId']?.toString(),
       kind: kindRaw == 'whiteboard'
-          ? VisualDocumentKind.whiteboard
-          : VisualDocumentKind.sketch,
+          ? VisualInfoKind.whiteboard
+          : VisualInfoKind.sketch,
     );
   }
 }
