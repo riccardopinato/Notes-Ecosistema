@@ -24,9 +24,9 @@ class NotesApplication : Application() {
     val attachments by lazy {
         it.notes.ecosystem.media.AttachmentFiles(java.io.File(filesDir, "attachments"))
     }
-    val cloudSessions by lazy { it.notes.ecosystem.cloud.CloudSessionStore(this) }
-    val repository by lazy { LocalNotesRepository(database, { cloudSessions.writeContext() }, { cloudSync.schedule() }) }
-    val cloudSync by lazy {
+    val cloudSessions: it.notes.ecosystem.cloud.CloudSessionStore by lazy { it.notes.ecosystem.cloud.CloudSessionStore(this) }
+    val repository: LocalNotesRepository by lazy { LocalNotesRepository(database, { cloudSessions.writeContext() }, { cloudSync.schedule() }) }
+    val cloudSync: it.notes.ecosystem.cloud.CloudSync by lazy {
         it.notes.ecosystem.cloud.CloudSync(
             context = this,
             database = database,
