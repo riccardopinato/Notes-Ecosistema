@@ -48,7 +48,17 @@ jobs:
           p = Path("android/app/build.gradle.kts")
           s = p.read_text()
           s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
+          s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
           p.write_text(s)
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          ms = manifest.read_text()
+          if 'android.permission.INTERNET' not in ms:
+              ms = ms.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.INTERNET"/>'
+              )
+          manifest.write_text(ms)
           PY
 
       - name: Dependencies
