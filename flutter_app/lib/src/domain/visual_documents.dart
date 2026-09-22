@@ -320,7 +320,7 @@ abstract final class SketchCodec {
             InkPoint(
               rawPoints[i].toInt(),
               rawPoints[i + 1].toInt(),
-              rawPoints[i + 2].toInt().clamp(0, 1000),
+              rawPoints[i + 2].toInt().clamp(0, 1000).toInt(),
             ),
           );
         }
@@ -391,7 +391,7 @@ abstract final class SketchCodec {
       SketchDocument(
         pages: pages,
         activePage: ((root['activePage'] as num?)?.toInt() ?? 0)
-            .clamp(0, pages.length - 1),
+            .clamp(0, pages.length - 1).toInt(),
       ),
     );
   }
@@ -587,8 +587,8 @@ abstract final class WhiteboardOps {
           BoardNode(
             kind: kind,
             text: text,
-            x: x.clamp(-100000, 100000),
-            y: y.clamp(-100000, 100000),
+            x: x.clamp(-100000, 100000).toInt(),
+            y: y.clamp(-100000, 100000).toInt(),
             color: color,
             linkedNoteId: linkedNoteId,
           ),
