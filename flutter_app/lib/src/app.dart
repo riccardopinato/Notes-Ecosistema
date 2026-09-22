@@ -202,7 +202,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         onNotes: () => setState(() => _index = 1),
         onAgenda: () => setState(() => _index = 3),
         onTasks: () => setState(() => _index = 3),
-        onSketch: () => _showPending('Sketchbook'),
+        onSketch: () => _createVisual(kind: VisualInfoKind.sketch),
       );
     } else if (_index == 1 || _index == 4) {
       body = NotesScreen(
