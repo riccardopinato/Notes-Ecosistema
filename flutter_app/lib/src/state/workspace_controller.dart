@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../domain/note.dart';
@@ -52,6 +53,15 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
 
   Future<void> save(Note note) async {
     await _database.saveNote(note);
+    await refresh();
+  }
+
+  Future<void> createCollection(String name) async {
+    final clean = name.trim();
+    if (clean.isEmpty) return;
+    await _database.createCollection(
+      NoteCollection(id: const Uuid().v4(), name: clean),
+    );
     await refresh();
   }
 
