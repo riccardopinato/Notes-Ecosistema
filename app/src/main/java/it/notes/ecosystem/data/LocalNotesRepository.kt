@@ -416,6 +416,7 @@ class LocalNotesRepository(
         val old = dao.get(id) ?: error("Nota non trovata.")
         check(old.deletedAt == null) { "La nota è nel cestino." }
         upsertLocal(old.copy(favorite = !old.favorite, updatedAt = System.currentTimeMillis()))
+        Unit
     } }
     override suspend fun trash(id: String) = writes.withLock {
         database.withTransaction {
