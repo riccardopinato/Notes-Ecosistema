@@ -91,6 +91,15 @@ class LegacyNotesDatabase {
     await db.insert('notes', note.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  Future<void> createCollection(NoteCollection collection) async {
+    final db = await database;
+    await db.insert(
+      'collections',
+      {'id': collection.id, 'name': collection.name},
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+  }
+
   Future<void> toggleFavorite(String id) async {
     final db = await database;
     await db.rawUpdate(
