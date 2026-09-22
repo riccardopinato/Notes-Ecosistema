@@ -31,14 +31,17 @@ void main() {
       fence,
       '- [ ] codice',
       fence,
+      '- [ ] padre',
       '  - [x] figlia',
     ].join('\n');
 
     final items = Checklist.parse(body);
-    expect(items, hasLength(2));
+    expect(items, hasLength(3));
     expect(items.first.label, 'vera');
+    expect(items[1].label, 'padre');
     expect(items.last.label, 'figlia');
     expect(items.last.depth, 1);
+    expect(items.last.parentLine, items[1].lineIndex);
 
     final checked = Checklist.setCompleted(body, 0, true);
     expect(checked.startsWith('- [x] vera'), isTrue);
