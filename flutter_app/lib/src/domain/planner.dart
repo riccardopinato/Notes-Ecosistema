@@ -318,7 +318,7 @@ class TaskDetails {
 
   String? _string(String key) {
     final value = _data[key];
-    return value == null ? null : value.toString();
+    return value?.toString();
   }
 
   int? _int(String key) {
