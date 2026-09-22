@@ -306,7 +306,7 @@ private fun LibraryScreen(model: NotesViewModel, repository: NotesRepository, on
                 item { ListItem(headlineContent = { Text("Tema scuro") }, trailingContent = {
                     Switch(checked = dark, onCheckedChange = model::setDarkMode)
                 }) }
-                item { Text("Questa versione salva le note sul dispositivo, senza account. Puoi esportare i dati qui sotto. La sincronizzazione GitHub si può attivare qui sotto.") }
+                item { Text("Notes resta local-first: l'account è facoltativo. Puoi attivare Notes Cloud esplicitamente oppure continuare a usare solo il dispositivo e i backup locali/GitHub.") }
                 item { QuickCaptureSettings() }
                 item { GitHubSettings((androidx.compose.ui.platform.LocalContext.current.applicationContext as it.notes.ecosystem.NotesApplication).githubSync) }
                 item { Text("Notes · versione ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge) }
