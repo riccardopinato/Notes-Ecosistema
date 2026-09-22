@@ -44,9 +44,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     try {
       await action();
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString().replaceFirst('FormatException: ', ''));
+      if (mounted) {\n        setState(() => _error = error.toString().replaceFirst('FormatException: ', ''));\n      }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {\n        setState(() => _busy = false);\n      }
     }
   }
 
@@ -682,7 +682,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               onPressed: () {
                 try {
                   final day = parseDate(date.text.trim());
-                  if (day == null) throw const FormatException('Data non valida.');
+                  if (day == null) {\n                    throw const FormatException('Data non valida.');\n                  }
                   Navigator.pop(
                     context,
                     task.schedule(date: day, time: time.text, minutes: minutes),
