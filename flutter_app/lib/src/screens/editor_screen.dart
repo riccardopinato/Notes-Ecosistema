@@ -1,17 +1,21 @@
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/attachments.dart';
+import '../domain/blocks.dart';
 import '../domain/diary.dart';
 import '../domain/editing.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
+import '../widgets/universal_block_editor.dart';
 
-enum _EditorMode { text, checklist }
+enum _EditorMode { text, blocks, checklist }
 
 class EditorScreen extends ConsumerStatefulWidget {
   const EditorScreen({
@@ -33,6 +37,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   late final TextEditingController _body;
   late String? _collectionId;
   late List<String> _tags;
+  List<ContentBlock> _blocks = const [];
+  bool _blocksInitialized = false;
   _EditorMode _mode = _EditorMode.text;
   bool _saving = false;
   bool _dirty = false;
@@ -98,6 +104,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             );
 
       await ref.read(workspaceProvider.notifier).save(note);
+      if (_blocksInitialized) {
+        final normalized = _blocks.isEmpty
+            ? BlockEditorCodec.parse(_id, _body.text)
+            : BlockEditorCodec.canonicalize(_id, _blocks);
+        await ref.read(databaseProvider).replaceNoteBlocks(_id, normalized);
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) {
@@ -107,6 +119,116 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         });
       }
     }
+  }
+
+  Future<void> _enableBlocks() async {
+    if (_saving) return;
+    try {
+      final stored = _blocksInitialized
+          ? _blocks
+          : await ref.read(databaseProvider).loadNoteBlocks(_id);
+      final storedMarkdown =
+          stored.isEmpty ? null : BlockEditorCodec.toMarkdown(stored);
+      final source = stored.isNotEmpty && storedMarkdown == _body.text
+          ? stored
+          : BlockEditorCodec.parse(_id, _body.text);
+      if (!mounted) return;
+      setState(() {
+        _blocks = source.isEmpty
+            ? [BlockEditorCodec.newBlock(_id, ContentBlockType.text, 0)]
+            : source;
+        _blocksInitialized = true;
+        _mode = _EditorMode.blocks;
+        _error = null;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.toString().replaceFirst('FormatException: ', '');
+        });
+      }
+    }
+  }
+
+  void _blocksChanged(List<ContentBlock> blocks) {
+    final normalized = BlockEditorCodec.canonicalize(_id, blocks);
+    final markdown = BlockEditorCodec.toMarkdown(normalized);
+    setState(() {
+      _blocks = normalized;
+      _blocksInitialized = true;
+      _body.text = markdown;
+      _body.selection = TextSelection.collapsed(offset: markdown.length);
+      _dirty = true;
+      _error = null;
+    });
+  }
+
+  Future<void> _attachFiles() async {
+    if (_saving) return;
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const [
+          'jpg',
+          'jpeg',
+          'png',
+          'webp',
+          'm4a',
+          'mp3',
+          'wav',
+          'ogg',
+          'pdf',
+          'txt',
+          'docx',
+          'xlsx',
+          'pptx',
+        ],
+      );
+      if (picked == null || picked.files.isEmpty) return;
+      final store = await AttachmentStore.open();
+      var body = _body.text;
+
+      for (final file in picked.files) {
+        final bytes = file.bytes;
+        final type = Attachments.typeFromName(file.name);
+        if (bytes == null || type == null) {
+          throw FormatException('Formato non supportato: ${file.name}');
+        }
+        final key = await store.ingest(bytes, type);
+        body = Attachments.append(body, key, file.name);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _body.text = body;
+        _body.selection = TextSelection.collapsed(offset: body.length);
+        _dirty = true;
+        if (_blocksInitialized) {
+          _blocks = BlockEditorCodec.parse(_id, body);
+        }
+        _error = null;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.toString().replaceFirst('FormatException: ', '');
+        });
+      }
+    }
+  }
+
+  void _removeAttachment(String key) {
+    final body = Attachments.remove(_body.text, key);
+    setState(() {
+      _body.text = body;
+      _body.selection = TextSelection.collapsed(offset: body.length);
+      _dirty = true;
+      if (_blocksInitialized) {
+        _blocks = BlockEditorCodec.parse(_id, body);
+      }
+    });
   }
 
   void _applyMarkdown(MarkdownAction action) {
@@ -625,6 +747,46 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _attachFiles,
+                        icon: const Icon(Icons.attach_file),
+                        label: const Text('Allega'),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${Attachments.refs(_body.text).length}/20 allegati',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ],
+                  ),
+                  if (Attachments.refs(_body.text).isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    ...Attachments.refs(_body.text).map(
+                      (ref) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          ref.type.category == AttachmentCategory.image
+                              ? Icons.image
+                              : ref.type.category == AttachmentCategory.audio
+                                  ? Icons.audio_file
+                                  : Icons.insert_drive_file,
+                        ),
+                        title: Text(ref.name),
+                        subtitle: Text(ref.key, maxLines: 1),
+                        trailing: IconButton(
+                          onPressed: _saving
+                              ? null
+                              : () => _removeAttachment(ref.key),
+                          icon: const Icon(Icons.close),
+                          tooltip: 'Rimuovi riferimento',
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     children: [
@@ -635,6 +797,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             : (_) =>
                                 setState(() => _mode = _EditorMode.text),
                         label: const Text('Testo'),
+                      ),
+                      ChoiceChip(
+                        selected: _mode == _EditorMode.blocks,
+                        onSelected: _saving
+                            ? null
+                            : (_) => _enableBlocks(),
+                        label: const Text('Blocchi'),
                       ),
                       ChoiceChip(
                         selected: _mode == _EditorMode.checklist,
@@ -670,6 +839,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       minLines: 18,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
+                    ),
+                  ] else if (_mode == _EditorMode.blocks) ...[
+                    UniversalBlockEditor(
+                      noteId: _id,
+                      blocks: _blocks,
+                      enabled: !_saving,
+                      onChanged: _blocksChanged,
                     ),
                   ] else ...[
                     Row(
