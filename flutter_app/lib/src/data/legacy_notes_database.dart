@@ -66,6 +66,14 @@ class LegacyNotesDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS index_content_blocks_ownerType_ownerId ON content_blocks(ownerType, ownerId)');
     await db.execute('CREATE INDEX IF NOT EXISTS index_content_blocks_parentBlockId ON content_blocks(parentBlockId)');
     await db.execute('CREATE INDEX IF NOT EXISTS index_content_blocks_type ON content_blocks(type)');
+
+    // Keep databases created by Flutter valid for the canonical Kotlin Room v8 client.
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)',
+    );
+    await db.execute(
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c30a9f36c85605f785dca3d9557b5ed0')",
+    );
   }
 
   Future<List<Note>> loadNotes() async {
