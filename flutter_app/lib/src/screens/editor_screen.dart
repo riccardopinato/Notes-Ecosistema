@@ -11,6 +11,9 @@ import '../domain/diary.dart';
 import '../domain/editing.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../domain/visual_documents.dart';
+import '../screens/sketch_screen.dart';
+import '../screens/whiteboard_screen.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/universal_block_editor.dart';
@@ -161,6 +164,129 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _dirty = true;
       _error = null;
     });
+  }
+
+  Future<void> _openVisual(Note note) async {
+    if (note.visualKind == VisualDocumentKind.whiteboard) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => WhiteboardScreen(
+            note: note,
+            onSave: (updated) =>
+                ref.read(workspaceProvider.notifier).save(updated),
+          ),
+        ),
+      );
+    } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SketchScreen(
+            note: note,
+            onSave: (updated) =>
+                ref.read(workspaceProvider.notifier).save(updated),
+          ),
+        ),
+      );
+    }
+    await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  Future<void> _openVisualById(String id) async {
+    final notes = ref.read(workspaceProvider).notes;
+    Note? target;
+    for (final note in notes) {
+      if (note.id == id && note.isVisual && !note.isDeleted) {
+        target = note;
+        break;
+      }
+    }
+    if (target == null) {
+      setState(() => _error = 'Documento visuale non disponibile.');
+      return;
+    }
+    await _openVisual(target);
+  }
+
+  Future<void> _createDrawing(String blockId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = const Uuid().v4();
+    final note = Note(
+      id: id,
+      title: 'Disegno',
+      body: SketchCodec.encode(SketchDocument()),
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: false,
+      tags: const [],
+      sketchJson: const VisualInfo(
+        kind: VisualInfoKind.sketch,
+      ).encode(),
+    );
+    final linked = note.copyWith(
+      sketchJson: VisualInfo(
+        linkedNoteId: _id,
+        kind: VisualInfoKind.sketch,
+      ).encode(),
+    );
+    await ref.read(workspaceProvider.notifier).save(linked);
+    _attachVisualBlock(
+      blockId,
+      ContentBlockType.drawing,
+      BlockEditorCodec.drawingMetadata(id),
+      'Disegno',
+    );
+    await _openVisual(linked);
+  }
+
+  Future<void> _createWhiteboard(String blockId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = const Uuid().v4();
+    final note = Note(
+      id: id,
+      title: 'Lavagna',
+      body: WhiteboardCodec.encode(
+        WhiteboardOps.empty(WhiteboardMode.freeform),
+      ),
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: false,
+      tags: const [],
+      sketchJson: VisualInfo(
+        linkedNoteId: _id,
+        kind: VisualInfoKind.whiteboard,
+      ).encode(),
+    );
+    await ref.read(workspaceProvider.notifier).save(note);
+    _attachVisualBlock(
+      blockId,
+      ContentBlockType.whiteboard,
+      BlockEditorCodec.whiteboardMetadata(id),
+      'Lavagna',
+    );
+    await _openVisual(note);
+  }
+
+  void _attachVisualBlock(
+    String blockId,
+    ContentBlockType type,
+    String metadata,
+    String fallbackTitle,
+  ) {
+    final next = _blocks.map((block) {
+      if (block.id != blockId) return block;
+      return block.copyWith(
+        type: type,
+        checked: null,
+        text: block.text.trim().isEmpty ? fallbackTitle : block.text,
+        metadataJson: metadata,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+    }).toList();
+    _blocksChanged(next);
   }
 
   Future<void> _attachFiles() async {
@@ -846,6 +972,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       blocks: _blocks,
                       enabled: !_saving,
                       onChanged: _blocksChanged,
+                      onCreateDrawing: _createDrawing,
+                      onOpenDrawing: _openVisualById,
+                      onCreateWhiteboard: _createWhiteboard,
+                      onOpenWhiteboard: _openVisualById,
                     ),
                   ] else ...[
                     Row(
