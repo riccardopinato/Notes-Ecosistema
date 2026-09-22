@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "v0.26-cloud-core" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -52,6 +52,9 @@ jobs:
       - name: Unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
+      - name: Compile instrumentation tests
+        run: gradle --no-daemon :app:compileDebugAndroidTestKotlin
+
       - name: Debug APK
         run: gradle --no-daemon :app:assembleDebug
 
@@ -64,5 +67,14 @@ jobs:
         with:
           name: Notes-Ecosistema-debug
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Room schemas
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-room-schemas
+          path: app/schemas/it.notes.ecosystem.data.NotesDatabase/*.json
           if-no-files-found: error
           retention-days: 14
