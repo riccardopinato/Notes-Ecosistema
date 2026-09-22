@@ -16,6 +16,7 @@ class NotesApplication : Application() {
                 NotesDatabase.MIGRATION_5_6,
                 NotesDatabase.MIGRATION_6_7,
                 NotesDatabase.MIGRATION_7_8,
+                NotesDatabase.MIGRATION_8_9,
             )
             .build()
     }
@@ -23,7 +24,17 @@ class NotesApplication : Application() {
     val attachments by lazy {
         it.notes.ecosystem.media.AttachmentFiles(java.io.File(filesDir, "attachments"))
     }
-    val repository by lazy { LocalNotesRepository(database) }
+    val cloudSessions by lazy { it.notes.ecosystem.cloud.CloudSessionStore(this) }
+    val repository by lazy { LocalNotesRepository(database, { cloudSessions.writeContext() }, { cloudSync.schedule() }) }
+    val cloudSync by lazy {
+        it.notes.ecosystem.cloud.CloudSync(
+            context = this,
+            database = database,
+            repository = repository,
+            sessions = cloudSessions,
+            api = it.notes.ecosystem.cloud.SupabaseHttpClient(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_PUBLISHABLE_KEY),
+        )
+    }
 
     /**
      * Fondazione v8 per il futuro Universal Block Editor.
@@ -38,6 +49,7 @@ class NotesApplication : Application() {
         super.onCreate()
         githubSync.start()
         reminders.start()
+        cloudSync.start()
         CoroutineScope(Dispatchers.IO).launch {
             runCatching { it.notes.ecosystem.media.cleanupMediaTemporaryFiles(cacheDir) }
         }
