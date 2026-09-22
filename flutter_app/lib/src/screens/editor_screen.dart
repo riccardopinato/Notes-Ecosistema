@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/diary.dart';
 import '../domain/editing.dart';
 import '../domain/note.dart';
+import '../domain/planner.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 
