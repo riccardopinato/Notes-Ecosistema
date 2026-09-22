@@ -178,7 +178,7 @@ class _SketchScreenState extends State<SketchScreen> {
       final pages = [..._document.pages]..removeAt(_document.activePage);
       _document = SketchDocument(
         pages: pages,
-        activePage: _document.activePage.clamp(0, pages.length - 1),
+        activePage: _document.activePage.clamp(0, pages.length - 1).toInt(),
       );
     });
   }
@@ -188,8 +188,8 @@ class _SketchScreenState extends State<SketchScreen> {
   }
 
   InkPoint _point(Offset local) => InkPoint(
-        local.dx.round().clamp(0, SketchRules.width),
-        local.dy.round().clamp(0, SketchRules.height),
+        local.dx.round().clamp(0, SketchRules.width).toInt(),
+        local.dy.round().clamp(0, SketchRules.height).toInt(),
       );
 
   void _panStart(DragStartDetails details) {
