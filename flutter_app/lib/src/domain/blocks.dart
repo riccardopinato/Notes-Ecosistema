@@ -272,7 +272,7 @@ abstract final class BlockEditorCodec {
         flushParagraph();
         final fenceLength =
             line.codeUnits.takeWhile((c) => c == 0x60).length;
-        final fence = grave * fenceLength;
+        final fence = List<String>.filled(fenceLength, grave).join();
         final language = line.substring(fenceLength).trim();
         index++;
         final code = <String>[];
@@ -436,7 +436,7 @@ abstract final class BlockEditorCodec {
                 ? match.group(0)!.length
                 : longest;
           }
-          final fence = grave * (longest + 1).clamp(3, 1000).toInt();
+          final fence = List<String>.filled(\n            (longest + 1).clamp(3, 1000).toInt(),\n            grave,\n          ).join();
           value = '$fence$language\n${block.text}\n$fence';
           break;
         case ContentBlockType.callout:
