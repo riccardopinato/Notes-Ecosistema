@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -17,6 +18,11 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun GitHubSettings(sync: GitHubSync) {
+    val app = LocalContext.current.applicationContext as it.notes.ecosystem.NotesApplication
+    CloudSettings(app.cloudSync)
+    Spacer(Modifier.height(18.dp))
+    HorizontalDivider()
+    Spacer(Modifier.height(18.dp))
     val status by sync.status.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var owner by rememberSaveable { mutableStateOf("") }
