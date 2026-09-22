@@ -1,0 +1,4 @@
+PASS: risorse, icona, manifest, catalogo versioni e Gradle wrapper properties invariati rispetto all’export.
+PASS: schema Room resta v2.
+PASS: XML validi e sorgenti leggibili in UTF-8.
+LIMIT: build, test JVM e Android 0.4 non eseguiti.

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Note paper sheet -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,24 C29.8,24 28,25.8 28,28 L28,80 C28,82.2 29.8,84 32,84 L76,84 C78.2,84 80,82.2 80,80 L80,38 L66,24 L32,24 Z" />
+    <!-- Folded corner -->
+    <path
+        android:fillColor="#D8E2FF"
+        android:pathData="M66,24 L80,38 L66,38 Z" />
+    <!-- Text lines on note -->
+    <path
+        android:fillColor="#315DA8"
+        android:pathData="M38,44 L70,44 C71.1,44 72,44.9 72,46 C72,47.1 71.1,48 70,48 L38,48 C36.9,48 36,47.1 36,46 C36,44.9 36.9,44 38,44 Z" />
+    <path
+        android:fillColor="#315DA8"
+        android:pathData="M38,54 L64,54 C65.1,54 66,54.9 66,56 C66,57.1 65.1,58 64,58 L38,58 C36.9,58 36,57.1 36,56 C36,54.9 36.9,54 38,54 Z" />
+    <path
+        android:fillColor="#ADC6FF"
+        android:pathData="M38,64 L56,64 C57.1,64 58,64.9 58,66 C58,67.1 57.1,68 56,68 L38,68 C36.9,68 36,67.1 36,66 C36,64.9 36.9,64 38,64 Z" />
+</vector>
