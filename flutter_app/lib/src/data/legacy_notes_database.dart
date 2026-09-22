@@ -2,6 +2,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/blocks.dart';
 import '../domain/note.dart';
 
 class LegacyNotesDatabase {
@@ -164,6 +165,71 @@ class LegacyNotesDatabase {
       whereArgs: [noteId],
       orderBy: 'savedAt DESC, revisionId DESC',
       limit: 50,
+    );
+  }
+
+  Future<List<ContentBlock>> loadNoteBlocks(String noteId) async {
+    final db = await database;
+    final rows = await db.query(
+      'content_blocks',
+      where: 'ownerType = ? AND ownerId = ?',
+      whereArgs: ['note', noteId],
+      orderBy: 'position ASC, id ASC',
+    );
+    return rows.map(ContentBlock.fromMap).toList(growable: false);
+  }
+
+  Future<List<ContentBlock>> replaceNoteBlocks(
+    String noteId,
+    List<ContentBlock> source,
+  ) async {
+    final db = await database;
+    final normalized = ContentBlocks.normalize(noteId, source);
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        'notes',
+        columns: ['id', 'deletedAt', 'taskJson', 'sketchJson'],
+        where: 'id = ?',
+        whereArgs: [noteId],
+        limit: 1,
+      );
+      if (rows.isEmpty) {
+        throw const FormatException('Nota non trovata.');
+      }
+      final row = rows.first;
+      if (row['deletedAt'] != null) {
+        throw const FormatException(
+          'Ripristina la nota prima di modificarla.',
+        );
+      }
+      if (row['taskJson'] != null || row['sketchJson'] != null) {
+        throw const FormatException(
+          'I blocchi sono disponibili solo per le note di testo.',
+        );
+      }
+
+      await txn.delete(
+        'content_blocks',
+        where: 'ownerType = ? AND ownerId = ?',
+        whereArgs: ['note', noteId],
+      );
+      for (final block in normalized) {
+        await txn.insert(
+          'content_blocks',
+          block.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+    return normalized;
+  }
+
+  Future<void> clearNoteBlocks(String noteId) async {
+    final db = await database;
+    await db.delete(
+      'content_blocks',
+      where: 'ownerType = ? AND ownerId = ?',
+      whereArgs: ['note', noteId],
     );
   }
 
