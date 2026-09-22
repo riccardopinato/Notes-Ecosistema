@@ -17,13 +17,33 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class LocalNotesRepository(private val database: NotesDatabase) : NotesRepository, it.notes.ecosystem.sync.SyncLocal {
+class LocalNotesRepository(
+    private val database: NotesDatabase,
+    private val cloudContext: () -> it.notes.ecosystem.cloud.CloudWriteContext? = { null },
+    private val cloudWriteNotifier: () -> Unit = {},
+) : NotesRepository, it.notes.ecosystem.sync.SyncLocal {
     private val dao = database.notesDao()
+    private val cloudDao = database.cloudDao()
+
+    private suspend fun upsertLocal(note: NoteEntity): NoteEntity {
+        val context = cloudContext()
+        val next = if (context != null && note.visibility == "PRIVATE") {
+            note.copy(cloudAccountId = context.accountId, cloudState = "DIRTY")
+        } else if (note.visibility == "PRIVATE" && note.cloudAccountId != null && note.cloudState != "CONFLICT") {
+            note.copy(cloudState = "DETACHED")
+        } else note
+        dao.upsert(next)
+        if (context != null && next.visibility == "PRIVATE") {
+            cloudDao.enqueue(SyncOutboxEntity(next.id, context.accountId, "UPSERT", next.remoteRevision, System.currentTimeMillis()))
+            cloudWriteNotifier()
+        }
+        return next
+    }
     override suspend fun createTemplate(content: it.notes.ecosystem.domain.TemplateContent): String {
         val valid=it.notes.ecosystem.domain.PersonalTemplates.capture(content.title,content.body,content.tags)
         return writes.withLock { database.withTransaction {
             val id=UUID.randomUUID().toString(); val now=System.currentTimeMillis()
-            dao.insertImportedNote(NoteEntity(id,valid.title,valid.body,null,false,now,now,archived=true,tagsJson=TagCodec.encode(valid.tags)))
+            upsertLocal(NoteEntity(id,valid.title,valid.body,null,false,now,now,archived=true,tagsJson=TagCodec.encode(valid.tags)))
             id
         } }
     }
@@ -63,14 +83,14 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
         if (released) _editorClosures.update { it + 1 }
     }
     private suspend fun syncDocumentLocked(id: String): SyncDocument? {
-        val note = dao.get(id)?.toDomain() ?: return null
+        val note = dao.get(id)?.takeIf { it.visibility == "PRIVATE" }?.toDomain() ?: return null
         val collection = dao.allCollections().firstOrNull { it.id == note.collectionId }?.name
         return SyncDocument.from(note, collection)
     }
     override suspend fun syncDocument(id: String) = writes.withLock { database.withTransaction { syncDocumentLocked(id) } }
     override suspend fun syncDocuments(): Map<String, SyncDocument> = writes.withLock { database.withTransaction {
         val names = dao.allCollections().associate { it.id to it.name }
-        dao.allNotes().associate { it.id to SyncDocument.from(it.toDomain(), names[it.collectionId]) }
+        dao.allNotes().filter { it.visibility == "PRIVATE" }.associate { it.id to SyncDocument.from(it.toDomain(), names[it.collectionId]) }
     } }
     private suspend fun putSynced(document: SyncDocument) {
         preserve(dao.get(document.id))
@@ -81,8 +101,9 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
                 id
             }
         }
-        dao.upsert(NoteEntity(document.id, document.title, document.body, collectionId,
-            document.favorite, document.createdAt, document.updatedAt, document.deletedAt, document.pinned, document.archived, TagCodec.encode(document.tags), TaskCodec.encode(document.task), SketchCodec.encodeInfo(document.sketch)))
+        upsertLocal(NoteEntity(document.id, document.title, document.body, collectionId,
+            document.favorite, document.createdAt, document.updatedAt, document.deletedAt, document.pinned, document.archived, TagCodec.encode(document.tags), TaskCodec.encode(document.task), SketchCodec.encodeInfo(document.sketch),
+            cloudAccountId = dao.get(document.id)?.cloudAccountId, remoteRevision = dao.get(document.id)?.remoteRevision ?: 0L, updatedBy = dao.get(document.id)?.updatedBy, cloudState = dao.get(document.id)?.cloudState ?: "LOCAL"))
     }
     override suspend fun applySync(id: String, expected: SyncDocument?, incoming: SyncDocument): Boolean = writes.withLock {
         database.withTransaction {
@@ -171,7 +192,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
                 val importedNoteIds = data.notes.filter { it.task == null }.map { it.id }.toSet()
                 val importedTextIds=data.notes.filter {it.task==null && it.sketch==null}.map {it.id}.toSet()
                 data.notes.forEach { n ->
-                    dao.insertImportedNote(NoteEntity(noteMap.getValue(n.id), n.title, if(n.sketch==null) it.notes.ecosystem.domain.Knowledge.remap(n.body,noteMap) else n.body,
+                    upsertLocal(NoteEntity(noteMap.getValue(n.id), n.title, if(n.sketch==null) it.notes.ecosystem.domain.Knowledge.remap(n.body,noteMap) else n.body,
                         n.collectionId?.let { collectionMap.getValue(it) }, n.favorite, n.createdAt, n.updatedAt, n.deletedAt, n.pinned, n.archived, TagCodec.encode(n.tags), TaskCodec.encode(n.task?.let { task -> task.copy(linkedNoteId = task.linkedNoteId?.takeIf { it in importedNoteIds }?.let { noteMap[it] }) }), SketchCodec.encodeInfo(n.sketch?.copy(linkedNoteId = n.sketch.linkedNoteId?.takeIf { it in importedTextIds }?.let { noteMap[it] }))))
                 }
                 data.drafts.forEach { d ->
@@ -194,7 +215,8 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
             check(old?.taskJson == null && old?.sketchJson == null) { "Apri questa attività nella sezione Attività." }
             preserve(old)
             val now = System.currentTimeMillis()
-            dao.upsert(NoteEntity(id, title, body, collectionId, old?.favorite ?: false, old?.createdAt ?: now, now, pinned = old?.pinned ?: false, archived = old?.archived ?: false, tagsJson = tagsJson ?: old?.tagsJson ?: "[]"))
+            upsertLocal(old?.copy(title = title, body = body, collectionId = collectionId, updatedAt = now, tagsJson = tagsJson ?: old.tagsJson)
+                ?: NoteEntity(id, title, body, collectionId, false, now, now, tagsJson = tagsJson ?: "[]"))
             dao.deleteDraft(id)
         } }
     }
@@ -218,7 +240,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
                 val old = current.getValue(n.id)
                 if (old.toDomain() != n) {
                     preserve(old)
-                    dao.upsert(old.copy(collectionId = n.collectionId, favorite = n.favorite, pinned = n.pinned,
+                    upsertLocal(old.copy(collectionId = n.collectionId, favorite = n.favorite, pinned = n.pinned,
                         archived = n.archived, deletedAt = n.deletedAt, updatedAt = n.updatedAt, tagsJson = TagCodec.encode(n.tags)))
                     changed++
                 }
@@ -304,8 +326,8 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
                     updatedAt = now,
                     sketchJson = SketchCodec.encodeInfo(info),
                 )
-                dao.upsert(next)
-                next.toDomain()
+                val saved = upsertLocal(next)
+                saved.toDomain()
             }
         }
     }
@@ -322,7 +344,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
                 check(linked != id && dao.get(linked)?.let { it.taskJson == null && it.deletedAt == null } == true) { "Nota collegata non disponibile." }
             }
             val now = System.currentTimeMillis()
-            dao.upsert(if (current == null) NoteEntity(id, title.trim(), body, null, false, now, now, taskJson = TaskCodec.encode(details))
+            upsertLocal(if (current == null) NoteEntity(id, title.trim(), body, null, false, now, now, taskJson = TaskCodec.encode(details))
                 else current.copy(title = title.trim(), body = body, taskJson = TaskCodec.encode(details), updatedAt = now))
         } }
     }
@@ -333,7 +355,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
             check(current.toDomain() == expected) { "Attività cambiata: aggiorna e riprova." }
             check(!editors.containsKey(expected.id) && dao.getDraft(expected.id) == null)
             val now = System.currentTimeMillis()
-            dao.upsert(current.copy(taskJson = TaskCodec.encode(details), updatedAt = now, deletedAt = if (deleted) now else null))
+            upsertLocal(current.copy(taskJson = TaskCodec.encode(details), updatedAt = now, deletedAt = if (deleted) now else null))
         } }
     }
     override suspend fun addFocusSession(id:String,session:it.notes.ecosystem.domain.FocusSession) {
@@ -342,7 +364,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
             check(current.deletedAt==null && !editors.containsKey(id) && dao.getDraft(id)==null)
             val task=TaskCodec.decode(current.taskJson) ?: error("Non è un’attività.")
             val next=it.notes.ecosystem.domain.recordFocusSession(task,session)
-            if(next!=task) dao.upsert(current.copy(taskJson=TaskCodec.encode(next),updatedAt=System.currentTimeMillis()))
+            if(next!=task) upsertLocal(current.copy(taskJson=TaskCodec.encode(next),updatedAt=System.currentTimeMillis()))
         } }
     }
     override suspend fun snoozeReminder(id:String,expectedAt:Long,nextAt:Long):Boolean = writes.withLock {
@@ -351,7 +373,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
             val task=TaskCodec.decode(current.taskJson) ?: return@withTransaction false
             if(current.deletedAt!=null || current.archived || task.completedAt!=null || task.reminderAt!=expectedAt || editors.containsKey(id) || dao.getDraft(id)!=null) return@withTransaction false
             val next=it.notes.ecosystem.domain.validateTask(task.copy(reminderAt=nextAt,reminderTime=task.reminderTime ?: it.notes.ecosystem.domain.Reminders.display(expectedAt,task.reminderZone!!).takeLast(5)))
-            dao.upsert(current.copy(taskJson=TaskCodec.encode(next),updatedAt=System.currentTimeMillis()));true
+            upsertLocal(current.copy(taskJson=TaskCodec.encode(next),updatedAt=System.currentTimeMillis()));true
         }
     }
     override suspend fun addFocus(id: String, sessionId: String, seconds: Long) {
@@ -360,7 +382,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
             check(current.deletedAt == null && !editors.containsKey(id) && dao.getDraft(id) == null)
             val task = TaskCodec.decode(current.taskJson) ?: error("Non è un’attività.")
             val next = it.notes.ecosystem.domain.recordFocus(task, sessionId, seconds)
-            if (next != task) dao.upsert(current.copy(taskJson = TaskCodec.encode(next), updatedAt = System.currentTimeMillis()))
+            if (next != task) upsertLocal(current.copy(taskJson = TaskCodec.encode(next), updatedAt = System.currentTimeMillis()))
         } }
     }
     override suspend fun setTaskCompleted(id: String, expectedBody: String, lineIndex: Int, completed: Boolean) {
@@ -372,7 +394,7 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
                 check(!old.archived) { "La nota è archiviata. Aprila dall’Archivio." }
                 check(old.body == expectedBody) { "La nota è cambiata. Riprova dalla lista aggiornata." }
                 val body = it.notes.ecosystem.domain.Checklist.setCompleted(old.body, lineIndex, completed)
-                if (body != old.body) { preserve(old); dao.upsert(old.copy(body = body, updatedAt = System.currentTimeMillis())) }
+                if (body != old.body) { preserve(old); upsertLocal(old.copy(body = body, updatedAt = System.currentTimeMillis())) }
             }
         }
     }
@@ -380,21 +402,33 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
         database.withTransaction {
             val old = dao.get(id) ?: error("Nota non trovata.")
             check(old.deletedAt == null) { "La nota è nel cestino." }
-            if (old.pinned != pinned) dao.upsert(old.copy(pinned = pinned, updatedAt = System.currentTimeMillis()))
+            if (old.pinned != pinned) upsertLocal(old.copy(pinned = pinned, updatedAt = System.currentTimeMillis()))
         }
     }
     override suspend fun setArchived(id: String, archived: Boolean) = writes.withLock {
         database.withTransaction {
             val old = dao.get(id) ?: error("Nota non trovata.")
             check(old.deletedAt == null) { "La nota è nel cestino." }
-            if (old.archived != archived) dao.upsert(old.copy(archived = archived, updatedAt = System.currentTimeMillis()))
+            if (old.archived != archived) upsertLocal(old.copy(archived = archived, updatedAt = System.currentTimeMillis()))
         }
     }
-    override suspend fun toggleFavorite(id: String) = writes.withLock { dao.toggleFavorite(id, System.currentTimeMillis()) }
+    override suspend fun toggleFavorite(id: String) = writes.withLock { database.withTransaction {
+        val old = dao.get(id) ?: error("Nota non trovata.")
+        check(old.deletedAt == null) { "La nota è nel cestino." }
+        upsertLocal(old.copy(favorite = !old.favorite, updatedAt = System.currentTimeMillis()))
+    } }
     override suspend fun trash(id: String) = writes.withLock {
-        database.withTransaction { preserve(dao.get(id)); dao.trash(id, System.currentTimeMillis()); dao.deleteDraft(id) }
+        database.withTransaction {
+            val old = dao.get(id) ?: error("Nota non trovata.")
+            preserve(old)
+            if (old.deletedAt == null) upsertLocal(old.copy(deletedAt = System.currentTimeMillis(), updatedAt = System.currentTimeMillis()))
+            dao.deleteDraft(id)
+        }
     }
-    override suspend fun restore(id: String) = writes.withLock { dao.restore(id, System.currentTimeMillis()) }
+    override suspend fun restore(id: String) = writes.withLock { database.withTransaction {
+        val old = dao.get(id) ?: error("Nota non trovata.")
+        if (old.deletedAt != null) upsertLocal(old.copy(deletedAt = null, updatedAt = System.currentTimeMillis()))
+    } }
     override suspend fun createCollection(name: String) { writes.withLock { database.withTransaction {
         val value = it.notes.ecosystem.domain.collectionName(name, dao.allCollections().map { Collection(it.id,it.name) })
         check(dao.addCollection(CollectionEntity(UUID.randomUUID().toString(), value)) != -1L) {
@@ -422,8 +456,63 @@ class LocalNotesRepository(private val database: NotesDatabase) : NotesRepositor
         dao.deleteCollection(expected.id)
     } } }
 
+    suspend fun cloudDocument(id: String, accountId: String): SyncDocument? = writes.withLock { database.withTransaction {
+        val row = dao.get(id)?.takeIf { it.visibility == "PRIVATE" && it.cloudAccountId == accountId } ?: return@withTransaction null
+        val collection = dao.allCollections().firstOrNull { it.id == row.collectionId }?.name
+        SyncDocument.from(row.toDomain(), collection)
+    } }
+
+    suspend fun markCloudSynced(id: String, accountId: String, expectedUpdatedAt: Long, revision: Long, updatedBy: String?): Boolean = writes.withLock {
+        database.withTransaction {
+            val row = dao.get(id) ?: return@withTransaction false
+            if (row.visibility != "PRIVATE" || row.cloudAccountId != accountId) return@withTransaction false
+            if (row.updatedAt == expectedUpdatedAt) {
+                dao.upsert(row.copy(remoteRevision = revision, updatedBy = updatedBy, cloudState = "CLEAN"))
+                cloudDao.removeOutbox(id, accountId)
+            } else {
+                dao.upsert(row.copy(remoteRevision = revision, updatedBy = updatedBy, cloudState = "DIRTY"))
+                cloudDao.enqueue(SyncOutboxEntity(id, accountId, "UPSERT", revision, System.currentTimeMillis()))
+            }
+            true
+        }
+    }
+
+    suspend fun applyCloudRemote(accountId: String, remote: it.notes.ecosystem.cloud.CloudRemoteRecord): Boolean = writes.withLock {
+        database.withTransaction {
+            val current = dao.get(remote.id)
+            if (editors.containsKey(remote.id) || dao.getDraft(remote.id) != null) return@withTransaction false
+            if (current?.cloudAccountId != null && current.cloudAccountId != accountId) return@withTransaction false
+            if (current?.cloudState == "CONFLICT") return@withTransaction false
+            if (current?.cloudState == "DIRTY" && remote.revision > current.remoteRevision) return@withTransaction false
+            val collectionId = remote.document.collection?.let { name ->
+                dao.allCollections().firstOrNull { it.name == name }?.id ?: UUID.randomUUID().toString().also {
+                    check(dao.addCollection(CollectionEntity(it, name)) != -1L)
+                }
+            }
+            preserve(current)
+            val d = remote.document
+            dao.upsert(NoteEntity(
+                id = d.id, title = d.title, body = d.body, collectionId = collectionId, favorite = d.favorite,
+                createdAt = d.createdAt, updatedAt = d.updatedAt, deletedAt = d.deletedAt, pinned = d.pinned, archived = d.archived,
+                tagsJson = TagCodec.encode(d.tags), taskJson = TaskCodec.encode(d.task), sketchJson = SketchCodec.encodeInfo(d.sketch),
+                visibility = "PRIVATE", spaceId = null, cloudAccountId = accountId, remoteRevision = remote.revision,
+                updatedBy = remote.updatedBy, cloudState = "CLEAN",
+            ))
+            cloudDao.removeOutbox(remote.id, accountId)
+            true
+        }
+    }
+
+    suspend fun cloudLocalState(id: String): NoteEntity? = writes.withLock { dao.get(id) }
+
+
 }
 
-private fun NoteEntity.toDomain() = Note(id, title, body, collectionId, favorite, createdAt, updatedAt, deletedAt, pinned, archived, TagCodec.decode(tagsJson), TaskCodec.decode(taskJson), SketchCodec.decodeInfo(sketchJson))
+private fun NoteEntity.toDomain() = Note(
+    id, title, body, collectionId, favorite, createdAt, updatedAt, deletedAt, pinned, archived,
+    TagCodec.decode(tagsJson), TaskCodec.decode(taskJson), SketchCodec.decodeInfo(sketchJson),
+    it.notes.ecosystem.domain.NoteVisibility.valueOf(visibility), spaceId, cloudAccountId, remoteRevision, updatedBy,
+    it.notes.ecosystem.domain.CloudState.valueOf(cloudState),
+)
 
 private fun DraftEntity.toDomain() = Draft(id, title, body, collectionId, updatedAt, TagCodec.decode(tagsJson))
