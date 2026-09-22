@@ -132,10 +132,7 @@ abstract final class Attachments {
         'Puoi aggiungere fino a 20 allegati per nota.',
       );
     }
-    var label = name
-        .characters
-        .take(120)
-        .join()
+    var label = (name.length > 120 ? name.substring(0, 120) : name)
         .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ')
         .trim();
     if (label.isEmpty) label = 'Allegato';
