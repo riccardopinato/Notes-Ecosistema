@@ -85,10 +85,10 @@ void main() {
 
   test('OCR and web clipping respect Kotlin limits', () {
     final ocr = SmartCaptureRules.clipOcr(
-      'x' * (SmartCaptureRules.maxOcrTextChars + 100),
+      List<String>.filled(SmartCaptureRules.maxOcrTextChars + 100, 'x').join(),
     );
     final web = SmartCaptureRules.clipWebText(
-      'y' * (SmartCaptureRules.maxWebTextChars + 100),
+      List<String>.filled(SmartCaptureRules.maxWebTextChars + 100, 'y').join(),
     );
 
     expect(ocr.length, SmartCaptureRules.maxOcrTextChars);
