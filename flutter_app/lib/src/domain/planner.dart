@@ -554,5 +554,5 @@ DateTime addMonths(DateTime date, int months) {
   final year = zeroBased ~/ 12;
   final month = zeroBased % 12 + 1;
   final lastDay = DateTime(year, month + 1, 0).day;
-  return DateTime(year, month, date.day.clamp(1, lastDay));
+  return DateTime(year, month, date.day.clamp(1, lastDay).toInt());
 }
