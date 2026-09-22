@@ -9,6 +9,10 @@ plugins {
   alias(libs.plugins.google.services)
 }
 
+fun buildConfigString(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+val supabaseUrl = System.getenv("SUPABASE_URL") ?: ""
+val supabasePublishableKey = System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: ""
+
 android {
   namespace = "it.notes.ecosystem"
   sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
@@ -18,8 +22,10 @@ android {
     applicationId = "it.notes.ecosystem.lymlyc"
     minSdk = 26
     targetSdk = 35
-    versionCode = 30
-    versionName = "0.25.0"
+    versionCode = 31
+    versionName = "0.26.0"
+    buildConfigField("String", "SUPABASE_URL", buildConfigString(supabaseUrl))
+    buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", buildConfigString(supabasePublishableKey))
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
