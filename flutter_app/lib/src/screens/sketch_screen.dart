@@ -471,10 +471,7 @@ class _SketchScreenState extends State<SketchScreen> {
                   onPanEnd: _panEnd,
                   onTapUp: _tap,
                   child: CustomPaint(
-                    size: const Size(
-                      SketchRules.width.toDouble(),
-                      SketchRules.height.toDouble(),
-                    ),
+                    size: const Size(1000, 1400),
                     painter: _SketchPainter(
                       page: _page,
                       working: _workingPoints,
