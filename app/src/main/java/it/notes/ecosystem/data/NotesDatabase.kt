@@ -9,7 +9,7 @@ data class CollectionEntity(@PrimaryKey val id: String, val name: String)
 @Entity(
     tableName = "notes",
     foreignKeys = [ForeignKey(entity = CollectionEntity::class, parentColumns = ["id"], childColumns = ["collectionId"], onDelete = ForeignKey.SET_NULL)],
-    indices = [Index("collectionId"), Index("deletedAt"), Index("updatedAt")],
+    indices = [Index("collectionId"), Index("deletedAt"), Index("updatedAt"), Index("visibility"), Index("spaceId"), Index("cloudAccountId"), Index("cloudState")],
 )
 data class NoteEntity(
     @PrimaryKey val id: String,
@@ -25,6 +25,54 @@ data class NoteEntity(
     @ColumnInfo(defaultValue = "'[]'") val tagsJson: String = "[]",
     @ColumnInfo(defaultValue = "NULL") val taskJson: String? = null,
     @ColumnInfo(defaultValue = "NULL") val sketchJson: String? = null,
+    @ColumnInfo(defaultValue = "'PRIVATE'") val visibility: String = "PRIVATE",
+    @ColumnInfo(defaultValue = "NULL") val spaceId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val cloudAccountId: String? = null,
+    @ColumnInfo(defaultValue = "0") val remoteRevision: Long = 0L,
+    @ColumnInfo(defaultValue = "NULL") val updatedBy: String? = null,
+    @ColumnInfo(defaultValue = "'LOCAL'") val cloudState: String = "LOCAL",
+)
+
+@Entity(tableName = "sync_outbox", indices = [Index("accountId"), Index("createdAt")])
+data class SyncOutboxEntity(
+    @PrimaryKey val recordId: String,
+    val accountId: String,
+    val operation: String,
+    val baseRevision: Long,
+    val createdAt: Long,
+    val attempts: Int = 0,
+    val lastError: String? = null,
+)
+
+@Entity(tableName = "sync_conflicts", indices = [Index("recordId"), Index("accountId"), Index("status")])
+data class SyncConflictEntity(
+    @PrimaryKey val conflictId: String,
+    val recordId: String,
+    val accountId: String,
+    val localPayload: String,
+    val remotePayload: String,
+    val baseRevision: Long,
+    val remoteRevision: Long,
+    val createdAt: Long,
+    val status: String = "OPEN",
+)
+
+@Entity(tableName = "shared_spaces_cache", indices = [Index("ownerId")])
+data class SharedSpaceCacheEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val ownerId: String,
+    val role: String,
+    val updatedAt: Long,
+)
+
+@Entity(tableName = "space_members_cache", primaryKeys = ["spaceId", "userId"], indices = [Index("userId")])
+data class SpaceMemberCacheEntity(
+    val spaceId: String,
+    val userId: String,
+    val displayName: String,
+    val role: String,
+    val updatedAt: Long,
 )
 
 @Entity(tableName = "drafts")
@@ -88,6 +136,40 @@ interface NotesDao {
     suspend fun restore(id: String, now: Long)
 }
 
+@Dao
+interface CloudDao {
+    @Query("SELECT * FROM sync_outbox WHERE accountId = :accountId ORDER BY createdAt, recordId LIMIT :limit")
+    suspend fun outbox(accountId: String, limit: Int = 50): List<SyncOutboxEntity>
+    @Upsert suspend fun enqueue(item: SyncOutboxEntity)
+    @Query("DELETE FROM sync_outbox WHERE recordId = :recordId AND accountId = :accountId")
+    suspend fun removeOutbox(recordId: String, accountId: String)
+    @Query("UPDATE sync_outbox SET attempts = attempts + 1, lastError = :message WHERE recordId = :recordId AND accountId = :accountId")
+    suspend fun failOutbox(recordId: String, accountId: String, message: String)
+    @Query("SELECT * FROM sync_conflicts WHERE accountId = :accountId AND status = 'OPEN' ORDER BY createdAt DESC")
+    fun observeConflicts(accountId: String): Flow<List<SyncConflictEntity>>
+    @Upsert suspend fun upsertConflict(conflict: SyncConflictEntity)
+    @Query("UPDATE sync_conflicts SET status = :status WHERE conflictId = :conflictId")
+    suspend fun setConflictStatus(conflictId: String, status: String)
+    @Query("SELECT * FROM notes WHERE visibility = 'PRIVATE' AND cloudAccountId = :accountId ORDER BY id")
+    suspend fun privateNotes(accountId: String): List<NoteEntity>
+    @Query("UPDATE notes SET cloudAccountId = :accountId, cloudState = 'DIRTY' WHERE visibility = 'PRIVATE' AND (cloudAccountId IS NULL OR (cloudAccountId = :accountId AND cloudState = 'DETACHED'))")
+    suspend fun claimPrivateNotes(accountId: String)
+    @Query("INSERT OR REPLACE INTO sync_outbox(recordId, accountId, operation, baseRevision, createdAt, attempts, lastError) SELECT id, :accountId, 'UPSERT', remoteRevision, :now, 0, NULL FROM notes WHERE visibility = 'PRIVATE' AND cloudAccountId = :accountId AND cloudState = 'DIRTY'")
+    suspend fun enqueueDirtyPrivateNotes(accountId: String, now: Long)
+    @Query("UPDATE notes SET cloudState = 'DETACHED' WHERE visibility = 'PRIVATE' AND cloudAccountId = :accountId")
+    suspend fun detachAccount(accountId: String)
+    @Query("UPDATE notes SET cloudState = 'CONFLICT' WHERE id = :recordId AND cloudAccountId = :accountId")
+    suspend fun markConflict(recordId: String, accountId: String)
+    @Query("DELETE FROM sync_outbox WHERE accountId = :accountId")
+    suspend fun clearOutbox(accountId: String)
+    @Query("DELETE FROM sync_conflicts WHERE accountId = :accountId")
+    suspend fun clearConflicts(accountId: String)
+    @Query("DELETE FROM shared_spaces_cache")
+    suspend fun clearSpaces()
+    @Query("DELETE FROM space_members_cache")
+    suspend fun clearMembers()
+}
+
 @Database(
     entities = [
         NoteEntity::class,
@@ -95,15 +177,46 @@ interface NotesDao {
         DraftEntity::class,
         RevisionEntity::class,
         ContentBlockEntity::class,
+        SyncOutboxEntity::class,
+        SyncConflictEntity::class,
+        SharedSpaceCacheEntity::class,
+        SpaceMemberCacheEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class NotesDatabase : RoomDatabase() {
     abstract fun notesDao(): NotesDao
     abstract fun contentBlocksDao(): ContentBlocksDao
+    abstract fun cloudDao(): CloudDao
 
     companion object {
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notes ADD COLUMN visibility TEXT NOT NULL DEFAULT 'PRIVATE'")
+                db.execSQL("ALTER TABLE notes ADD COLUMN spaceId TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE notes ADD COLUMN cloudAccountId TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE notes ADD COLUMN remoteRevision INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE notes ADD COLUMN updatedBy TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE notes ADD COLUMN cloudState TEXT NOT NULL DEFAULT 'LOCAL'")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_visibility ON notes (visibility)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_spaceId ON notes (spaceId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_cloudAccountId ON notes (cloudAccountId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_cloudState ON notes (cloudState)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS sync_outbox (recordId TEXT NOT NULL, accountId TEXT NOT NULL, operation TEXT NOT NULL, baseRevision INTEGER NOT NULL, createdAt INTEGER NOT NULL, attempts INTEGER NOT NULL, lastError TEXT, PRIMARY KEY(recordId))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_outbox_accountId ON sync_outbox (accountId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_outbox_createdAt ON sync_outbox (createdAt)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS sync_conflicts (conflictId TEXT NOT NULL, recordId TEXT NOT NULL, accountId TEXT NOT NULL, localPayload TEXT NOT NULL, remotePayload TEXT NOT NULL, baseRevision INTEGER NOT NULL, remoteRevision INTEGER NOT NULL, createdAt INTEGER NOT NULL, status TEXT NOT NULL, PRIMARY KEY(conflictId))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_conflicts_recordId ON sync_conflicts (recordId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_conflicts_accountId ON sync_conflicts (accountId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_conflicts_status ON sync_conflicts (status)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS shared_spaces_cache (id TEXT NOT NULL, name TEXT NOT NULL, ownerId TEXT NOT NULL, role TEXT NOT NULL, updatedAt INTEGER NOT NULL, PRIMARY KEY(id))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_shared_spaces_cache_ownerId ON shared_spaces_cache (ownerId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS space_members_cache (spaceId TEXT NOT NULL, userId TEXT NOT NULL, displayName TEXT NOT NULL, role TEXT NOT NULL, updatedAt INTEGER NOT NULL, PRIMARY KEY(spaceId, userId))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_space_members_cache_userId ON space_members_cache (userId)")
+            }
+        }
+
         val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 // IMPORTANTE: non copiare automaticamente i body Markdown nella nuova tabella.
