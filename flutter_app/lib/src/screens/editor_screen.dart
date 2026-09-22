@@ -16,6 +16,7 @@ import '../screens/sketch_screen.dart';
 import '../screens/whiteboard_screen.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
+import '../widgets/smart_capture_sheet.dart';
 import '../widgets/universal_block_editor.dart';
 
 enum _EditorMode { text, blocks, checklist }
@@ -287,6 +288,30 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       );
     }).toList();
     _blocksChanged(next);
+  }
+
+  Future<void> _smartCapture() async {
+    if (_saving) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => SmartCaptureSheet(
+        body: _body.text,
+        onBodyChanged: (body) {
+          if (!mounted || body == _body.text) return;
+          setState(() {
+            _body.text = body;
+            _body.selection = TextSelection.collapsed(offset: body.length);
+            _dirty = true;
+            _error = null;
+            if (_blocksInitialized) {
+              _blocks = BlockEditorCodec.parse(_id, body);
+            }
+          });
+        },
+      ),
+    );
   }
 
   Future<void> _attachFiles() async {
@@ -873,14 +898,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       OutlinedButton.icon(
                         onPressed: _saving ? null : _attachFiles,
                         icon: const Icon(Icons.attach_file),
                         label: const Text('Allega'),
                       ),
-                      const SizedBox(width: 8),
+                      FilledButton.tonalIcon(
+                        onPressed: _saving ? null : _smartCapture,
+                        icon: const Icon(Icons.document_scanner),
+                        label: const Text('Smart Capture'),
+                      ),
                       Text(
                         '${Attachments.refs(_body.text).length}/20 allegati',
                         style: Theme.of(context).textTheme.labelMedium,
