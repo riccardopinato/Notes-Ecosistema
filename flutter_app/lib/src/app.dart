@@ -73,8 +73,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
 
   Future<void> _openEditor([Note? note]) async {
+    final collections = ref.read(workspaceProvider).collections;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => EditorScreen(note: note)),
+      MaterialPageRoute(
+        builder: (_) => EditorScreen(
+          note: note,
+          collections: collections,
+        ),
+      ),
     );
     await ref.read(workspaceProvider.notifier).refresh();
   }
