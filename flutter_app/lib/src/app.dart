@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
+import 'domain/diary.dart';
 import 'domain/note.dart';
+import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/notes_screen.dart';
+import 'screens/planner_screen.dart';
 import 'state/workspace_controller.dart';
 import 'theme/notes_theme.dart';
 import 'widgets/editorial.dart';
@@ -49,7 +53,12 @@ class _NotesEcosistemaAppState extends ConsumerState<NotesEcosistemaApp> {
 }
 
 class WorkspaceShell extends ConsumerStatefulWidget {
-  const WorkspaceShell({required this.dark, required this.onDarkChanged, super.key});
+  const WorkspaceShell({
+    required this.dark,
+    required this.onDarkChanged,
+    super.key,
+  });
+
   final bool dark;
   final ValueChanged<bool> onDarkChanged;
 
@@ -64,8 +73,30 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
 
   Future<void> _openEditor([Note? note]) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditorScreen(note: note)));
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => EditorScreen(note: note)),
+    );
     await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  Future<void> _createDiaryEntry(
+    DateTime date,
+    String? collectionId,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final draft = Note(
+      id: const Uuid().v4(),
+      title: '',
+      body: '',
+      collectionId: collectionId,
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: false,
+      tags: Diary.datedTags(const [], date),
+    );
+    await _openEditor(draft);
   }
 
   @override
@@ -77,7 +108,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     if (workspace.loading && workspace.notes.isEmpty) {
       body = const Center(child: CircularProgressIndicator());
     } else if (workspace.error != null && workspace.notes.isEmpty) {
-      body = _ErrorState(onRetry: () => ref.read(workspaceProvider.notifier).refresh());
+      body = _ErrorState(
+        onRetry: () => ref.read(workspaceProvider.notifier).refresh(),
+      );
     } else if (_index == 0) {
       body = HomeScreen(
         notes: workspace.notes,
@@ -96,29 +129,44 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         searchMode: _index == 4,
         onQueryChanged: (value) => setState(() => _query = value),
         onOpen: _openEditor,
-        onFavorite: (id) => ref.read(workspaceProvider.notifier).favorite(id),
-        onPin: (id, value) => ref.read(workspaceProvider.notifier).pin(id, value),
+        onFavorite: (id) =>
+            ref.read(workspaceProvider.notifier).favorite(id),
+        onPin: (id, value) =>
+            ref.read(workspaceProvider.notifier).pin(id, value),
         onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
       );
     } else if (_index == 2) {
-      body = const _ParityPlaceholder(
-        icon: Icons.calendar_month,
-        title: 'Diario',
-        message: 'Porting della timeline Diario e delle viste Oggi / Settimana / Mese in corso.',
+      body = DiaryScreen(
+        notes: workspace.notes,
+        collections: workspace.collections,
+        onOpen: _openEditor,
+        onCreate: _createDiaryEntry,
+        onOpenTask: (_) => setState(() => _index = 3),
+        onCreateCollection: (name) =>
+            ref.read(workspaceProvider.notifier).createCollection(name),
       );
     } else {
-      body = _TasksScreen(notes: workspace.notes);
+      body = PlannerScreen(
+        notes: workspace.notes,
+        onSave: (note) => ref.read(workspaceProvider.notifier).save(note),
+        onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
+        onOpenNote: _openEditor,
+      );
     }
 
     return Scaffold(
       appBar: AppBar(
         title: EditorialAppTitle(section == 'Home' ? 'Il tuo spazio' : section),
         actions: [
-          IconButton(tooltip: 'Impostazioni', onPressed: () => _settings(context), icon: const Icon(Icons.settings)),
+          IconButton(
+            tooltip: 'Impostazioni',
+            onPressed: () => _settings(context),
+            icon: const Icon(Icons.settings),
+          ),
         ],
       ),
       body: body,
-      floatingActionButton: _index == 4
+      floatingActionButton: (_index == 4 || _index == 2 || _index == 3)
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _createMenu(context),
@@ -146,29 +194,66 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
-            ListTile(leading: const Icon(Icons.note_add), title: const Text('Nuova nota'), onTap: () => Navigator.pop(context, 'note')),
-            ListTile(leading: const Icon(Icons.today), title: const Text('Diario di oggi'), onTap: () => Navigator.pop(context, 'diary')),
-            ListTile(leading: const Icon(Icons.dashboard_customize), title: const Text('Modelli'), onTap: () => Navigator.pop(context, 'templates')),
-            ListTile(leading: const Icon(Icons.draw), title: const Text('Nuovo disegno'), onTap: () => Navigator.pop(context, 'sketch')),
-            ListTile(leading: const Icon(Icons.dashboard), title: const Text('Nuova lavagna'), onTap: () => Navigator.pop(context, 'board')),
-            ListTile(leading: const Icon(Icons.account_tree), title: const Text('Nuova mind map'), onTap: () => Navigator.pop(context, 'mind')),
+            ListTile(
+              leading: const Icon(Icons.note_add),
+              title: const Text('Nuova nota'),
+              onTap: () => Navigator.pop(context, 'note'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.today),
+              title: const Text('Diario di oggi'),
+              onTap: () => Navigator.pop(context, 'diary'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: const Text('Nuova attività'),
+              onTap: () => Navigator.pop(context, 'task'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_customize),
+              title: const Text('Modelli'),
+              onTap: () => Navigator.pop(context, 'templates'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.draw),
+              title: const Text('Nuovo disegno'),
+              onTap: () => Navigator.pop(context, 'sketch'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard),
+              title: const Text('Nuova lavagna'),
+              onTap: () => Navigator.pop(context, 'board'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_tree),
+              title: const Text('Nuova mind map'),
+              onTap: () => Navigator.pop(context, 'mind'),
+            ),
           ],
         ),
       ),
     );
+
     if (!mounted || action == null) return;
     if (action == 'note') {
       await _openEditor();
+    } else if (action == 'diary') {
+      await _createDiaryEntry(DateTime.now(), null);
+    } else if (action == 'task') {
+      setState(() => _index = 3);
     } else {
       _showPending(action);
     }
   }
 
   void _showPending(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$feature: porting Flutter in corso.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature: porting Flutter in corso.')),
+    );
   }
 
-  Future<void> _settings(BuildContext context) => showModalBottomSheet<void>(
+  Future<void> _settings(BuildContext context) =>
+      showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
         builder: (context) => SafeArea(
@@ -179,60 +264,21 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
               children: [
                 const EditorialAppTitle('Impostazioni'),
                 const SizedBox(height: 16),
-                SwitchListTile(title: const Text('Tema scuro'), value: widget.dark, onChanged: widget.onDarkChanged),
+                SwitchListTile(
+                  title: const Text('Tema scuro'),
+                  value: widget.dark,
+                  onChanged: widget.onDarkChanged,
+                ),
                 const ListTile(
                   title: Text('Notes · Flutter port 0.25.0'),
-                  subtitle: Text('Database locale compatibile con Notes Ecosistema Kotlin / Room v8.'),
+                  subtitle: Text(
+                    'Database locale compatibile con Notes Ecosistema Kotlin / Room v8.',
+                  ),
                 ),
               ],
             ),
           ),
         ),
-      );
-}
-
-class _TasksScreen extends StatelessWidget {
-  const _TasksScreen({required this.notes});
-  final List<Note> notes;
-
-  @override
-  Widget build(BuildContext context) {
-    final tasks = notes.where((n) => n.isTask && !n.isDeleted && !n.taskCompleted).toList();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 104),
-      children: [
-        const EditorialSection('Un passo alla volta.', detail: 'Le attività pianificate e quelle da riprendere.'),
-        if (tasks.isEmpty)
-          const _ParityPlaceholder(icon: Icons.check_circle_outline, title: 'Nessuna attività', message: 'Le attività delle tue note appariranno qui.')
-        else
-          ...tasks.map((task) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.radio_button_unchecked),
-                  title: Text(task.title.isEmpty ? 'Attività' : task.title),
-                  subtitle: task.taskDue == null ? null : Text('Scadenza · ${task.taskDue}'),
-                ),
-              )),
-      ],
-    );
-  }
-}
-
-class _ParityPlaceholder extends StatelessWidget {
-  const _ParityPlaceholder({required this.icon, required this.title, required this.message});
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(28),
-        children: [
-          Icon(icon, size: 42, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 12),
-          Text(title, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 8),
-          Text(message, style: Theme.of(context).textTheme.bodyLarge),
-        ],
       );
 }
 
@@ -246,9 +292,14 @@ class _ErrorState extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, size: 42),
           const SizedBox(height: 12),
-          Text('Database non disponibile.', style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            'Database non disponibile.',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 8),
-          const Text('Il port Flutter non ha modificato i dati. Riprova ad aprire il database locale.'),
+          const Text(
+            'Il port Flutter non ha modificato i dati. Riprova ad aprire il database locale.',
+          ),
           const SizedBox(height: 16),
           FilledButton(onPressed: onRetry, child: const Text('Riprova')),
         ],
