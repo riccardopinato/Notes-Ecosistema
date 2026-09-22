@@ -1,4 +1,8 @@
 # Notes — Ecosistema 0.25.0
+## Stato canonico
+
+Il repository contiene ora la struttura sorgente completa della 0.25.0 (versionCode 30). La CI GitHub verifica test JVM, APK debug e compilazione release a ogni modifica.
+
 ## Whiteboard & Mind Map 0.25
 
 - Whiteboard local-first integrata nello stesso contenitore NoteEntity dello Sketchbook.
@@ -9,7 +13,6 @@
 - Nuovi blocchi WHITEBOARD nel Universal Block Editor tramite `notes-board://UUID`.
 - Libreria distingue Disegni e Lavagne senza cambiare Room: resta v8.
 - Routing Sketch/Whiteboard separato e metadati visuali retrocompatibili.
-
 
 ## Performance & Smoothness 0.24 / 0.24.1
 
@@ -28,7 +31,6 @@
 - Smart Capture aggiornato senza bloccare le modifiche interne.
 - Release R8 e resource shrinking abilitati.
 - Room resta v8.
-
 
 Planner Pro, calendario personale, time blocking avanzato e hardening di Smart Capture 0.22. Dettagli in `docs/ARCHITETTURA.md`.
 
