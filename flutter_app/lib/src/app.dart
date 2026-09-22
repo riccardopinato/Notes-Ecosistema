@@ -6,11 +6,14 @@ import 'package:uuid/uuid.dart';
 
 import 'domain/diary.dart';
 import 'domain/note.dart';
+import 'domain/visual_documents.dart';
 import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
+import 'screens/sketch_screen.dart';
+import 'screens/whiteboard_screen.dart';
 import 'state/workspace_controller.dart';
 import 'theme/notes_theme.dart';
 import 'widgets/editorial.dart';
@@ -73,6 +76,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
 
   Future<void> _openEditor([Note? note]) async {
+    if (note?.isVisual == true) {
+      await _openVisual(note!);
+      return;
+    }
+
     final collections = ref.read(workspaceProvider).collections;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -83,6 +91,75 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       ),
     );
     await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  Future<void> _openVisual(Note note) async {
+    if (note.visualKind == VisualDocumentKind.whiteboard) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => WhiteboardScreen(
+            note: note,
+            onSave: (updated) =>
+                ref.read(workspaceProvider.notifier).save(updated),
+          ),
+        ),
+      );
+    } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SketchScreen(
+            note: note,
+            onSave: (updated) =>
+                ref.read(workspaceProvider.notifier).save(updated),
+          ),
+        ),
+      );
+    }
+    await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  Future<void> _createVisual({
+    required VisualInfoKind kind,
+    WhiteboardMode whiteboardMode = WhiteboardMode.freeform,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = const Uuid().v4();
+    final note = kind == VisualInfoKind.sketch
+        ? Note(
+            id: id,
+            title: 'Nuovo disegno',
+            body: SketchCodec.encode(SketchDocument()),
+            favorite: false,
+            createdAt: now,
+            updatedAt: now,
+            pinned: false,
+            archived: false,
+            tags: const [],
+            sketchJson: const VisualInfo(
+              kind: VisualInfoKind.sketch,
+            ).encode(),
+          )
+        : Note(
+            id: id,
+            title: whiteboardMode == WhiteboardMode.mindMap
+                ? 'Nuova mind map'
+                : 'Nuova lavagna',
+            body: WhiteboardCodec.encode(
+              WhiteboardOps.empty(whiteboardMode),
+            ),
+            favorite: false,
+            createdAt: now,
+            updatedAt: now,
+            pinned: false,
+            archived: false,
+            tags: const [],
+            sketchJson: const VisualInfo(
+              kind: VisualInfoKind.whiteboard,
+            ).encode(),
+          );
+
+    await ref.read(workspaceProvider.notifier).save(note);
+    await _openVisual(note);
   }
 
   Future<void> _createDiaryEntry(
@@ -247,6 +324,15 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       await _createDiaryEntry(DateTime.now(), null);
     } else if (action == 'task') {
       setState(() => _index = 3);
+    } else if (action == 'sketch') {
+      await _createVisual(kind: VisualInfoKind.sketch);
+    } else if (action == 'board') {
+      await _createVisual(kind: VisualInfoKind.whiteboard);
+    } else if (action == 'mind') {
+      await _createVisual(
+        kind: VisualInfoKind.whiteboard,
+        whiteboardMode: WhiteboardMode.mindMap,
+      );
     } else {
       _showPending(action);
     }
