@@ -2,6 +2,9 @@ package it.notes.ecosystem.domain
 
 import kotlinx.coroutines.flow.Flow
 
+enum class NoteVisibility { PRIVATE, SHARED }
+enum class CloudState { LOCAL, DIRTY, CLEAN, CONFLICT, DETACHED }
+
 data class Note(
     val id: String,
     val title: String,
@@ -16,6 +19,12 @@ data class Note(
     val tags: List<String> = emptyList(),
     val task: TaskDetails? = null,
     val sketch: SketchInfo? = null,
+    val visibility: NoteVisibility = NoteVisibility.PRIVATE,
+    val spaceId: String? = null,
+    val cloudAccountId: String? = null,
+    val remoteRevision: Long = 0L,
+    val updatedBy: String? = null,
+    val cloudState: CloudState = CloudState.LOCAL,
 )
 data class Collection(val id: String, val name: String)
 
