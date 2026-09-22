@@ -19,9 +19,9 @@ void main() {
       '',
       '> Citazione',
       '',
-      '${grave * 3}dart',
+      '${List<String>.filled(3, grave).join()}dart',
       'print("ok");',
-      grave * 3,
+      List<String>.filled(3, grave).join(),
       '',
       '---',
     ].join('\n');
