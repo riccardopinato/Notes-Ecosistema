@@ -436,7 +436,10 @@ abstract final class BlockEditorCodec {
                 ? match.group(0)!.length
                 : longest;
           }
-          final fence = List<String>.filled(\n            (longest + 1).clamp(3, 1000).toInt(),\n            grave,\n          ).join();
+          final fence = List<String>.filled(
+            (longest + 1).clamp(3, 1000).toInt(),
+            grave,
+          ).join();
           value = '$fence$language\n${block.text}\n$fence';
           break;
         case ContentBlockType.callout:
