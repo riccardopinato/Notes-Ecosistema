@@ -1,3 +1,4 @@
+import 'editing.dart';
 import 'note.dart';
 import 'planner.dart';
 
@@ -47,12 +48,11 @@ abstract final class Diary {
 
   static List<String> datedTags(List<String> tags, DateTime? date) {
     final user = tags.where((tag) => tagDate(tag) == null);
-    final next = <String>{...user.map((e) => e.trim()).where((e) => e.isNotEmpty)};
-    if (date != null) {
-      validDate(dateKey(date));
-      next.add('$prefix${dateKey(date)}');
-    }
-    return next.toList(growable: false);
+    final next = <String>[
+      ...user,
+      if (date != null) '$prefix${dateKey(validDate(dateKey(date)))}',
+    ];
+    return NoteTags.normalize(next);
   }
 
   static List<String> userTags(List<String> tags) =>
