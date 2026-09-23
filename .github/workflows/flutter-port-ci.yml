@@ -149,3 +149,19 @@ jobs:
           path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Build release APKs per ABI
+        run: flutter build apk --release --split-per-abi
+
+      - name: APK size report
+        run: |
+          echo "APK prodotti:"
+          du -h build/app/outputs/flutter-apk/*.apk | sort -h
+
+      - name: Upload release APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-0.25.1-release-split
+          path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
+          if-no-files-found: error
+          retention-days: 14
