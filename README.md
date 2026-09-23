@@ -1,10 +1,10 @@
-# Notes — Ecosistema 0.26.0
+# Notes — Ecosistema 0.26.1
 
 Notes Ecosistema è ora sviluppata in **Flutter**. La linea Kotlin 0.25 è stata congelata nella branch `kotlin-legacy-0.25`.
 
 ## Stato corrente
 
-- Versione Flutter: **0.26.0+32**
+- Versione Flutter: **0.26.1+33**
 - Database: compatibilità **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI
@@ -20,7 +20,9 @@ Notes Ecosistema è ora sviluppata in **Flutter**. La linea Kotlin 0.25 è stata
 - Merge non distruttivo: le versioni locali più recenti vengono conservate e i conflitti equivalenti generano una copia separata.
 - Room resta **v8**: i metadati di collaborazione sono separati dal database canonico.
 
-La 0.26 introduce il **core collaborativo portabile/offline**. Il trasporto cloud automatico e real-time multi-account non è ancora incluso in questa release; i pacchetti Shared Space sono il meccanismo di scambio della 0.26.0.
+La **0.26.1** aggiunge **Shared Spaces Live Sync Foundation**: gli spazi possono sincronizzarsi automaticamente tramite il repository GitHub privato già configurato, in cartelle isolate per spazio. Il sync parte all’avvio quando abilitato, dopo le modifiche e circa ogni 90 secondi mentre Notes è aperta. I pacchetti ZIP della 0.26.0 restano disponibili come fallback portabile.
+
+Non è ancora un backend account proprietario né editing simultaneo in tempo reale: GitHub è il trasporto multiutente della 0.26.1 e l’app conserva merge a clock, copie di conflitto e privacy selettiva.
 
 
 - Note Markdown, checklist, tag, raccolte, preferiti, pin, archivio e cestino.
