@@ -221,11 +221,8 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
               children: [
                 Text(
                   clock.phase == FocusPhase.work
-                      ? 'FOCUS · BLOCCO ' +
-                          (clock.completedBlocks + 1).toString()
-                      : 'PAUSA · ' +
-                          clock.completedBlocks.toString() +
-                          ' BLOCCHI REGISTRATI',
+                      ? 'FOCUS · BLOCCO ${clock.completedBlocks + 1}'
+                      : 'PAUSA · ${clock.completedBlocks} BLOCCHI REGISTRATI',
                   style: Theme.of(context)
                       .textTheme
                       .labelLarge
@@ -261,9 +258,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                             .withValues(alpha: 0.2),
                       ),
                       Text(
-                        (remaining ~/ 60).toString().padLeft(2, '0') +
-                            ':' +
-                            (remaining % 60).toString().padLeft(2, '0'),
+                        '${(remaining ~/ 60).toString().padLeft(2, '0')}:${(remaining % 60).toString().padLeft(2, '0')}',
                         style: Theme.of(context)
                             .textTheme
                             .displayMedium
