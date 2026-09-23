@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/shared_activity.dart';
 import '../domain/shared_spaces.dart';
+import '../platform/shared_background_bridge.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
 import '../sync/github_sync_service.dart';
@@ -170,6 +171,12 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       }
     }
 
+    try {
+      await SharedBackgroundBridge.setEnabled(enabled);
+    } catch (_) {
+      // Background worker is Android-only; foreground sync remains available.
+    }
+
     if (!mounted) return;
     state = state.copyWith(
       enabled: enabled,
@@ -250,6 +257,11 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   Future<void> setEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_enabledKey, enabled);
+    try {
+      await SharedBackgroundBridge.setEnabled(enabled);
+    } catch (_) {
+      // Keep foreground sync working if the native worker is unavailable.
+    }
     if (!mounted) return;
 
     _timer?.cancel();
