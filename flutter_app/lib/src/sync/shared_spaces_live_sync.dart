@@ -296,6 +296,7 @@ class SharedSpacesLiveSyncService {
               finalDocuments[id] = local;
               records.baseHashes[id] = _documentHash(local);
             }
+            break;
           case _SharedDecision.upload:
             if (!canEdit) {
               if (remote != null) {
@@ -325,6 +326,7 @@ class SharedSpacesLiveSyncService {
             finalDocuments[id] = local;
             records.baseHashes[id] = _documentHash(local);
             uploaded++;
+            break;
           case _SharedDecision.download:
             if (remote == null) {
               if (canEdit && local != null) {
@@ -343,6 +345,7 @@ class SharedSpacesLiveSyncService {
             finalDocuments[id] = remote;
             records.baseHashes[id] = _documentHash(remote);
             downloaded++;
+            break;
           case _SharedDecision.conflict:
             if (remote == null && local != null && canEdit) {
               await _publishAssets(local, api);
@@ -368,6 +371,7 @@ class SharedSpacesLiveSyncService {
             records.baseHashes[id] = _documentHash(remote);
             conflicts++;
             downloaded++;
+            break;
         }
       }
 
