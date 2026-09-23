@@ -35,6 +35,7 @@ import 'screens/shared_spaces_screen.dart';
 import 'screens/sketch_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
+import 'state/shared_live_sync_controller.dart';
 import 'state/shared_spaces_controller.dart';
 import 'state/workspace_controller.dart';
 import 'sync/github_sync_service.dart';
@@ -425,9 +426,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         ),
       );
       await ref.read(workspaceProvider.notifier).refresh();
+      await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
       return;
     }
     await _openEditor(note, readOnly);
+    if (!readOnly) {
+      await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
+    }
   }
 
   Future<void> _createSharedNote(String spaceId) async {
@@ -448,6 +453,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     final saved = await ref.read(databaseProvider).loadNote(id);
     if (saved == null) return;
     await ref.read(sharedSpacesProvider.notifier).linkContent(spaceId, id);
+    await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
   }
 
   Future<void> _createSharedTask(String spaceId) async {
@@ -471,6 +477,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     final current = await ref.read(databaseProvider).loadNote(note.id);
     if (current != null && mounted) {
       await _openSharedItem(current, false);
+    } else {
+      await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
     }
   }
 
@@ -661,6 +669,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(sharedLiveSyncProvider);
     final workspace = ref.watch(workspaceProvider);
     final shared = ref.watch(sharedSpacesProvider);
     final section = labels[_index];
