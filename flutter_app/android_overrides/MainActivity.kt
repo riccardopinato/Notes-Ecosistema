@@ -43,6 +43,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "notes.ecosystem/capture"
         private const val REMINDER_CHANNEL = "notes.ecosystem/reminders"
+        private const val REMINDER_ACTION_CHANNEL = "notes.ecosystem/reminder_actions"
         private const val SECURE_CHANNEL = "notes.ecosystem/secure"
         private const val ATTACHMENT_CHANNEL = "notes.ecosystem/attachments"
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
@@ -52,19 +53,24 @@ class MainActivity : FlutterActivity() {
         private const val NEW_NOTE = "it.notes.ecosystem.NEW_NOTE"
         private const val NEW_CHECKLIST = "it.notes.ecosystem.NEW_CHECKLIST"
         const val QUICK_SYNC = "it.notes.ecosystem.QUICK_SYNC"
+        const val OPEN_REMINDER = "it.notes.ecosystem.OPEN_REMINDER"
+        const val SNOOZE_REMINDER = "it.notes.ecosystem.SNOOZE_REMINDER"
         private const val FILE_LIMIT = 8 * 1024 * 1024
         private const val MAX_FILES = 20
     }
 
     private var channel: MethodChannel? = null
     private var quickSyncChannel: MethodChannel? = null
+    private var reminderActionChannel: MethodChannel? = null
     private var reminderPermissionResult: MethodChannel.Result? = null
     private var pendingCapture: Map<String, Any?>? = null
     private var pendingQuickSync = false
+    private var pendingReminderAction: Map<String, Any?>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingCapture = parseCapture(intent)
         pendingQuickSync = intent?.action == QUICK_SYNC
+        pendingReminderAction = parseReminderAction(intent)
         super.onCreate(savedInstanceState)
         installShortcuts()
         ensureReminderChannel()
@@ -98,6 +104,21 @@ class MainActivity : FlutterActivity() {
                     "getInitialRequest" -> {
                         result.success(pendingQuickSync)
                         pendingQuickSync = false
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+
+        reminderActionChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            REMINDER_ACTION_CHANNEL,
+        ).also { methodChannel ->
+            methodChannel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialAction" -> {
+                        result.success(pendingReminderAction)
+                        pendingReminderAction = null
                     }
                     else -> result.notImplemented()
                 }
@@ -186,6 +207,19 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
 
+        val reminderAction = parseReminderAction(intent)
+        if (reminderAction != null) {
+            getSystemService(NotificationManager::class.java)
+                .cancel(reminderAction["id"].toString(), 1)
+            val currentReminder = reminderActionChannel
+            if (currentReminder == null) {
+                pendingReminderAction = reminderAction
+            } else {
+                currentReminder.invokeMethod("action", reminderAction)
+            }
+            return
+        }
+
         if (intent.action == QUICK_SYNC) {
             val currentSync = quickSyncChannel
             if (currentSync == null) {
@@ -203,6 +237,30 @@ class MainActivity : FlutterActivity() {
         } else {
             current.invokeMethod("capture", capture)
         }
+    }
+
+    private fun parseReminderAction(intent: Intent?): Map<String, Any?>? {
+        intent ?: return null
+        val action = intent.action ?: return null
+        if (action != OPEN_REMINDER && action != SNOOZE_REMINDER) return null
+        val id = intent.getStringExtra("id")
+            ?.takeIf { it.isNotBlank() && it.length <= 200 }
+            ?: return null
+        if (action == OPEN_REMINDER) {
+            return mapOf(
+                "action" to "open",
+                "id" to id,
+            )
+        }
+        val expectedAt = intent.getLongExtra("expectedAt", -1L)
+        val nextAt = intent.getLongExtra("nextAt", -1L)
+        if (expectedAt < 0L || nextAt <= expectedAt) return null
+        return mapOf(
+            "action" to "snooze",
+            "id" to id,
+            "expectedAt" to expectedAt,
+            "nextAt" to nextAt,
+        )
     }
 
     private fun parseCapture(intent: Intent?): Map<String, Any?>? {
@@ -749,6 +807,26 @@ class ReminderWorker(
             applicationContext,
             id.hashCode(),
             Intent(applicationContext, MainActivity::class.java)
+                .setAction(MainActivity.OPEN_REMINDER)
+                .setData(Uri.parse("notes-reminder://open/${Uri.encode(id)}/$at"))
+                .putExtra("id", id)
+                .addFlags(
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                ),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val nextAt = System.currentTimeMillis() + 10 * 60 * 1000L
+        val snooze = PendingIntent.getActivity(
+            applicationContext,
+            id.hashCode() xor at.hashCode(),
+            Intent(applicationContext, MainActivity::class.java)
+                .setAction(MainActivity.SNOOZE_REMINDER)
+                .setData(Uri.parse("notes-reminder://snooze/${Uri.encode(id)}/$at"))
+                .putExtra("id", id)
+                .putExtra("expectedAt", at)
+                .putExtra("nextAt", nextAt)
                 .addFlags(
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -768,9 +846,14 @@ class ReminderWorker(
             }
                 .setSmallIcon(applicationContext.applicationInfo.icon)
                 .setContentTitle(title)
-                .setContentText("Promemoria attività")
+                .setContentText("È il momento della tua attività.")
                 .setAutoCancel(true)
                 .setContentIntent(open)
+                .addAction(
+                    applicationContext.applicationInfo.icon,
+                    "Rinvia 10 min",
+                    snooze,
+                )
                 .build()
 
         manager.notify(id, 1, notification)
