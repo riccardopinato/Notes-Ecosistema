@@ -156,10 +156,32 @@ class SharedGitHubApi {
     }
 
     final folders = <String>[];
-    final pattern = RegExp(r'^[a-f0-9]{32}    String ref, {
+    final pattern = RegExp(r'^[a-f0-9]{32}$');
+    for (final item in decoded) {
+      if (item is! Map) continue;
+      final name = item['name']?.toString() ?? '';
+      if (!pattern.hasMatch(name)) continue;
+      if (item['type'] != 'dir') {
+        throw const FormatException(
+          'Indice Shared Spaces remoto non valido.',
+        );
+      }
+      folders.add('$base/$name');
+    }
+    if (folders.length > 200) {
+      throw const FormatException(
+        'Troppi Shared Spaces remoti da indicizzare.',
+      );
+    }
+    folders.sort();
+    return folders;
+  }
+
+  Future<SharedRemoteBlob?> readState(
+    String ref, {
     int limit = 1024 * 1024,
   }) async {
-    final path = _path('${config.folder}/space.json');
+
     String text;
     try {
       text = await _request(
