@@ -153,6 +153,26 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     await _persist();
   }
 
+  Future<void> bindGitHubAccount({
+    required String userId,
+    required String login,
+  }) async {
+    final snapshot = SharedSpaces.bindGitHubIdentity(
+      SharedSpacesSnapshot(
+        identity: _identity,
+        spaces: state.spaces,
+      ),
+      userId: userId,
+      login: login,
+    );
+    state = state.copyWith(
+      identity: snapshot.identity,
+      spaces: snapshot.spaces,
+      clearError: true,
+    );
+    await _persist();
+  }
+
   Future<String> createSpace(
     String name, {
     String description = '',
