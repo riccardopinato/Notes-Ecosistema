@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../domain/backup.dart';
+import '../domain/library.dart';
 import '../domain/note.dart';
 import '../domain/templates.dart';
 
@@ -96,6 +97,28 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     await _database.createCollection(
       NoteCollection(id: const Uuid().v4(), name: clean),
     );
+    await refresh();
+  }
+
+  Future<int> bulkEdit(
+    List<Note> expected,
+    BulkChange change,
+  ) async {
+    final count = await _database.bulkEdit(expected, change);
+    await refresh();
+    return count;
+  }
+
+  Future<void> renameCollection(
+    NoteCollection expected,
+    String name,
+  ) async {
+    await _database.renameCollection(expected, name);
+    await refresh();
+  }
+
+  Future<void> deleteEmptyCollection(NoteCollection expected) async {
+    await _database.deleteEmptyCollection(expected);
     await refresh();
   }
 
