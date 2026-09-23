@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../widgets/editorial.dart';
 
@@ -13,6 +15,7 @@ class HomeScreen extends StatelessWidget {
     required this.onAgenda,
     required this.onTasks,
     required this.onSketch,
+    required this.onCollection,
     super.key,
   });
 
@@ -23,6 +26,7 @@ class HomeScreen extends StatelessWidget {
   final VoidCallback onAgenda;
   final VoidCallback onTasks;
   final VoidCallback onSketch;
+  final ValueChanged<String> onCollection;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +59,13 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 16),
         _NotebookCard(onCreate: onCreate, onSketch: onSketch),
         const SizedBox(height: 16),
-        _FocusCard(onTap: onTasks),
+        FutureBuilder<FocusClock?>(
+          future: _activeFocus(),
+          builder: (context, snapshot) => _FocusCard(
+            onTap: onTasks,
+            active: snapshot.data != null,
+          ),
+        ),
         if (collections.isNotEmpty) ...[
           const SizedBox(height: 8),
           const EditorialSection('Le tue raccolte'),
@@ -65,13 +75,22 @@ class HomeScreen extends StatelessWidget {
             children: collections.map((c) => ActionChip(
               avatar: const Icon(Icons.folder, size: 18),
               label: Text(c.name),
-              onPressed: onNotes,
+              onPressed: () => onCollection(c.id),
             )).toList(),
           ),
         ],
         const EditorialSection('Tra le tue pagine', detail: 'Note, idee e progetti da ritrovare.'),
       ],
     );
+  Future<FocusClock?> _activeFocus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('planner_focus_active_v1');
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return FocusClock.decode(raw);
+    } catch (_) {
+      return null;
+    }
   }
 }
 
@@ -170,8 +189,9 @@ class _NotebookCard extends StatelessWidget {
 }
 
 class _FocusCard extends StatelessWidget {
-  const _FocusCard({required this.onTap});
+  const _FocusCard({required this.onTap, required this.active});
   final VoidCallback onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -193,8 +213,16 @@ class _FocusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const EditorialEyebrow('FOCUS'),
-                    Text('Una cosa, fatta bene.', style: Theme.of(context).textTheme.headlineSmall),
-                    Text('Scegli un’attività e dedicagli il tuo tempo.', style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      active ? 'Riprendi il tuo momento.' : 'Una cosa, fatta bene.',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    Text(
+                      active
+                          ? 'Apri Attività per continuare la sessione Focus.'
+                          : 'Scegli un’attività e dedicagli il tuo tempo.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                 ),
               ),
