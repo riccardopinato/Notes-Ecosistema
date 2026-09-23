@@ -4,7 +4,7 @@ import 'note.dart';
 
 const _unset = Object();
 
-enum PlannerView { agenda, day, week, month }
+enum PlannerView { agenda, day, week, month, kanban, focus }
 
 enum PlannerScope { today, upcoming, all, completed }
 
