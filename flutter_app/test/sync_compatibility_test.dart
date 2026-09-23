@@ -38,7 +38,7 @@ void main() {
     );
     expect(
       SyncCodec.filename(document.id),
-      SyncCodec.hash(document.id) + '.md',
+      '${SyncCodec.hash(document.id)}.md',
     );
   });
 
