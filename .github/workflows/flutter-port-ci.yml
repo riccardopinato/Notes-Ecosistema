@@ -86,9 +86,30 @@ jobs:
           '''
           if 'android.intent.action.SEND_MULTIPLE' not in ms:
               ms = ms.replace('</activity>', capture_filters + '\\n            </activity>', 1)
+          widget_receiver = r'''
+            <receiver
+                android:name=".QuickCaptureWidget"
+                android:exported="true">
+                <intent-filter>
+                    <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                </intent-filter>
+                <meta-data
+                    android:name="android.appwidget.provider"
+                    android:resource="@xml/quick_capture_widget"/>
+            </receiver>
+          '''
+          if 'android.appwidget.action.APPWIDGET_UPDATE' not in ms:
+              ms = ms.replace('</application>', widget_receiver + '\\n    </application>')
           manifest.write_text(ms)
           PY
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
+          cp android_overrides/QuickCaptureWidget.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickCaptureWidget.kt
+          mkdir -p android/app/src/main/res/layout android/app/src/main/res/xml android/app/src/main/res/drawable android/app/src/main/res/values android/app/src/main/res/values-night
+          cp android_overrides/res/layout/quick_capture_widget.xml android/app/src/main/res/layout/quick_capture_widget.xml
+          cp android_overrides/res/xml/quick_capture_widget.xml android/app/src/main/res/xml/quick_capture_widget.xml
+          cp android_overrides/res/drawable/capture_widget_background.xml android/app/src/main/res/drawable/capture_widget_background.xml
+          cp android_overrides/res/values/capture.xml android/app/src/main/res/values/capture.xml
+          cp android_overrides/res/values-night/capture.xml android/app/src/main/res/values-night/capture.xml
 
       - name: Dependencies
         run: flutter pub get
