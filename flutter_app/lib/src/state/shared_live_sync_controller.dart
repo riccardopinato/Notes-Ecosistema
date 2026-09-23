@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/shared_activity.dart';
 import '../domain/shared_spaces.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
@@ -63,6 +65,8 @@ class SharedLiveSyncState {
     this.failureStreak = 0,
     this.conflicts = 0,
     this.spaceSummaries = const {},
+    this.activitiesBySpace = const {},
+    this.lastReadAt = const {},
     this.error,
   });
 
@@ -75,7 +79,23 @@ class SharedLiveSyncState {
   final int failureStreak;
   final int conflicts;
   final Map<String, SharedSpaceSyncSummary> spaceSummaries;
+  final Map<String, List<SharedActivityEvent>> activitiesBySpace;
+  final Map<String, int> lastReadAt;
   final Object? error;
+
+  int unreadFor(String spaceId, String identityId) => sharedUnreadCount(
+        events: activitiesBySpace[spaceId] ?? const [],
+        identityId: identityId,
+        lastReadAt: lastReadAt[spaceId] ?? 0,
+      );
+
+  int totalUnread(String identityId) {
+    var total = 0;
+    for (final spaceId in activitiesBySpace.keys) {
+      total += unreadFor(spaceId, identityId);
+    }
+    return total;
+  }
 
   SharedLiveSyncState copyWith({
     bool? enabled,
@@ -88,6 +108,8 @@ class SharedLiveSyncState {
     int? failureStreak,
     int? conflicts,
     Map<String, SharedSpaceSyncSummary>? spaceSummaries,
+    Map<String, List<SharedActivityEvent>>? activitiesBySpace,
+    Map<String, int>? lastReadAt,
     Object? error,
     bool clearError = false,
   }) =>
@@ -102,6 +124,8 @@ class SharedLiveSyncState {
         failureStreak: failureStreak ?? this.failureStreak,
         conflicts: conflicts ?? this.conflicts,
         spaceSummaries: spaceSummaries ?? this.spaceSummaries,
+        activitiesBySpace: activitiesBySpace ?? this.activitiesBySpace,
+        lastReadAt: lastReadAt ?? this.lastReadAt,
         error: clearError ? null : error ?? this.error,
       );
 }
@@ -113,6 +137,8 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   }
 
   static const _enabledKey = 'shared_live_sync_enabled_v1';
+  static const _activityKey = 'shared_live_activity_v1';
+  static const _readKey = 'shared_live_activity_read_v1';
   static const _normalInterval = Duration(seconds: 90);
   static const _busyRetry = Duration(seconds: 10);
 
@@ -123,10 +149,33 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool(_enabledKey) ?? false;
+    var activities = <String, List<SharedActivityEvent>>{};
+    var reads = <String, int>{};
+
+    final activityRaw = prefs.getString(_activityKey);
+    if (activityRaw != null && activityRaw.trim().isNotEmpty) {
+      try {
+        activities = SharedActivityCodec.decode(activityRaw);
+      } catch (_) {
+        await prefs.remove(_activityKey);
+      }
+    }
+
+    final readRaw = prefs.getString(_readKey);
+    if (readRaw != null && readRaw.trim().isNotEmpty) {
+      try {
+        reads = _decodeReadState(readRaw);
+      } catch (_) {
+        await prefs.remove(_readKey);
+      }
+    }
+
     if (!mounted) return;
     state = state.copyWith(
       enabled: enabled,
       connection: SharedLiveConnectionStatus.idle,
+      activitiesBySpace: activities,
+      lastReadAt: reads,
       message: enabled
           ? 'Live Sync pronto.'
           : 'Live Sync disattivato.',
@@ -136,6 +185,66 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     if (enabled) {
       unawaited(syncNow(silent: true));
     }
+  }
+
+  Future<void> _persistActivity() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _activityKey,
+      SharedActivityCodec.encode(state.activitiesBySpace),
+    );
+    await prefs.setString(_readKey, jsonEncode(state.lastReadAt));
+  }
+
+  Map<String, int> _decodeReadState(String raw) {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map || decoded.length > SharedSpaces.maxSpaces) {
+      throw const FormatException('Stato lettura Shared non valido.');
+    }
+    final result = <String, int>{};
+    for (final entry in decoded.entries) {
+      final key = entry.key.toString();
+      final value = entry.value is num
+          ? (entry.value as num).toInt()
+          : int.tryParse('${entry.value}');
+      if (key.isEmpty ||
+          key.length > 200 ||
+          value == null ||
+          value < 0 ||
+          value > 4102444800000) {
+        throw const FormatException('Stato lettura Shared non valido.');
+      }
+      result[key] = value;
+    }
+    return result;
+  }
+
+  Future<void> markSpaceRead(String spaceId) async {
+    final events = state.activitiesBySpace[spaceId] ?? const [];
+    if (events.isEmpty) return;
+    final latest = events
+        .map((event) => event.at)
+        .reduce((a, b) => a > b ? a : b);
+    if ((state.lastReadAt[spaceId] ?? 0) >= latest) return;
+    state = state.copyWith(
+      lastReadAt: {
+        ...state.lastReadAt,
+        spaceId: latest,
+      },
+    );
+    await _persistActivity();
+  }
+
+  Future<void> markAllRead() async {
+    final next = <String, int>{...state.lastReadAt};
+    for (final entry in state.activitiesBySpace.entries) {
+      if (entry.value.isEmpty) continue;
+      next[entry.key] = entry.value
+          .map((event) => event.at)
+          .reduce((a, b) => a > b ? a : b);
+    }
+    state = state.copyWith(lastReadAt: next);
+    await _persistActivity();
   }
 
   Future<void> setEnabled(bool enabled) async {
@@ -288,6 +397,18 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
           .applyLiveSync(merged);
       await ref.read(workspaceProvider.notifier).refresh();
 
+      final accessibleIds = merged.map((space) => space.id).toSet();
+      final activity = <String, List<SharedActivityEvent>>{
+        for (final entry in state.activitiesBySpace.entries)
+          if (accessibleIds.contains(entry.key)) entry.key: entry.value,
+      };
+      for (final entry in result.activitiesBySpace.entries) {
+        activity[entry.key] = mergeSharedActivity(
+          activity[entry.key] ?? const [],
+          entry.value,
+        );
+      }
+
       if (!mounted) return;
       _failureStreak = 0;
       state = state.copyWith(
@@ -301,9 +422,11 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         failureStreak: 0,
         conflicts: result.conflicts,
         spaceSummaries: result.spaceSummaries,
+        activitiesBySpace: activity,
         clearNextRetry: true,
         clearError: true,
       );
+      await _persistActivity();
       if (state.enabled) _schedule(_normalInterval);
     } catch (error) {
       if (!mounted) return;
