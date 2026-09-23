@@ -82,6 +82,8 @@ class HomeScreen extends StatelessWidget {
         const EditorialSection('Tra le tue pagine', detail: 'Note, idee e progetti da ritrovare.'),
       ],
     );
+  }
+
   Future<FocusClock?> _activeFocus() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('planner_focus_active_v1');
