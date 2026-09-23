@@ -451,6 +451,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
             ref.read(workspaceProvider.notifier).favorite(id),
         onPin: (id, value) =>
             ref.read(workspaceProvider.notifier).pin(id, value),
+        onArchive: (id, value) =>
+            ref.read(workspaceProvider.notifier).archive(id, value),
         onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
         onBulkEdit: (notes, change) =>
             ref.read(workspaceProvider.notifier).bulkEdit(notes, change),
