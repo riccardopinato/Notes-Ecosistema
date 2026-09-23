@@ -328,9 +328,26 @@ class _NotesScreenState extends State<NotesScreen> {
                   s.query.isEmpty ? _scopeLabel(s.scope) : s.query,
                 ),
                 onTap: () => Navigator.pop(context, s),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => Navigator.pop(context, _DeleteSearch(s)),
+                trailing: PopupMenuButton<String>(
+                  tooltip: 'Gestisci ricerca',
+                  onSelected: (value) {
+                    Navigator.pop(
+                      context,
+                      value == 'rename'
+                          ? _RenameSearch(s)
+                          : _DeleteSearch(s),
+                    );
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Text('Rinomina'),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Elimina'),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -397,6 +414,53 @@ class _NotesScreenState extends State<NotesScreen> {
         _order = choice.order;
       });
       widget.onQueryChanged(choice.query);
+    } else if (choice is _RenameSearch) {
+      final controller = TextEditingController(text: choice.value.name);
+      final name = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Rinomina ricerca'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 80,
+            decoration: const InputDecoration(labelText: 'Nome'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: const Text('Rinomina'),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (name == null || !mounted) return;
+      await _run(() async {
+        final renamed = validateSavedSearch(
+          choice.value.copyWith(name: name),
+        );
+        if (_saved.any(
+          (s) =>
+              s.id != renamed.id &&
+              s.name.toLowerCase() == renamed.name.toLowerCase(),
+        )) {
+          throw const FormatException(
+            'Esiste già una ricerca con questo nome.',
+          );
+        }
+        setState(() {
+          _saved = [
+            for (final search in _saved)
+              if (search.id == renamed.id) renamed else search,
+          ];
+        });
+        await _persistSaved();
+      });
     } else if (choice is _DeleteSearch) {
       await _run(() async {
         setState(() {
@@ -904,6 +968,11 @@ class _FilterState {
 
 class _DeleteSearch {
   const _DeleteSearch(this.value);
+  final SavedSearch value;
+}
+
+class _RenameSearch {
+  const _RenameSearch(this.value);
   final SavedSearch value;
 }
 
