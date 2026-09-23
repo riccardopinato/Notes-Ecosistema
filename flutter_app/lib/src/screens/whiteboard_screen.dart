@@ -293,6 +293,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            onPressed: _saving ? null : _exportPng,
+            tooltip: 'Esporta PNG',
+            icon: const Icon(Icons.ios_share),
+          ),
           FilledButton(
             onPressed: _saving ? null : _save,
             child: Text(_saving ? 'Salvataggio…' : 'Salva'),
