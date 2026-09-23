@@ -62,12 +62,15 @@ class IncomingCapture {
   const IncomingCapture({
     required this.seed,
     this.files = const [],
+    this.error,
   });
 
   final CaptureSeed seed;
   final List<SharedCaptureFile> files;
+  final String? error;
 
-  bool get empty => !seed.hasContent && files.isEmpty;
+  bool get empty =>
+      !seed.hasContent && files.isEmpty && (error == null || error!.isEmpty);
 
   factory IncomingCapture.fromMap(Map<Object?, Object?> map) {
     final rawFiles = map['files'];
@@ -87,6 +90,7 @@ class IncomingCapture {
               )
               .toList(growable: false)
           : const [],
+      error: map['error']?.toString(),
     );
   }
 }
