@@ -1,18 +1,29 @@
-*.iml
-.gradle
-.kotlin
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+flutter_app/build/
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+
+# Android generated/local
+.gradle/
+.kotlin/
 local.properties
-.env
+**/local.properties
+.externalNativeBuild/
+.cxx/
+captures/
 debug.keystore
+
+# IDE / OS
+*.iml
+.idea/
+.vscode/
+.DS_Store
+
+# Secrets
+.env
