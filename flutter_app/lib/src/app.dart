@@ -777,6 +777,50 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.edit_note),
+                  title: const Text('Scorciatoia Nuova nota'),
+                  subtitle: const Text(
+                    'Aggiunge alla Home un accesso diretto al Quick Capture.',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final requested =
+                        await QuickCaptureBridge.pinNoteShortcut();
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          requested
+                              ? 'Richiesta scorciatoia inviata alla Home.'
+                              : 'Launcher non compatibile: tieni premuta l’icona di Notes.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.widgets_outlined),
+                  title: const Text('Aggiungi widget Quick Capture'),
+                  subtitle: const Text(
+                    'Widget Home con Nuova nota e Checklist.',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final requested =
+                        await QuickCaptureBridge.pinCaptureWidget();
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          requested
+                              ? 'Richiesta widget inviata alla Home.'
+                              : 'Apri il selettore Widget Android e cerca Notes.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.cloud_sync_outlined),
                   title: const Text('GitHub Sync'),
                   subtitle: const Text(
