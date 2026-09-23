@@ -17,6 +17,7 @@ import 'domain/note.dart';
 import 'domain/planner.dart';
 import 'domain/shared_space_bundle.dart';
 import 'domain/shared_spaces.dart';
+import 'domain/sync.dart';
 import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
@@ -398,6 +399,273 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       tags: Diary.datedTags(const [], date),
     );
     await _openEditor(draft);
+  }
+
+  Future<void> _openSharedItem(Note note, bool readOnly) async {
+    if (note.isTask) {
+      if (readOnly) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => SharedTaskReadOnlyScreen(note: note),
+          ),
+        );
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlannerScreen(
+            notes: ref.read(workspaceProvider).notes,
+            initialTaskId: note.id,
+            onSave: (updated) =>
+                ref.read(workspaceProvider.notifier).save(updated),
+            onTrash: (id) =>
+                ref.read(workspaceProvider.notifier).trash(id),
+            onOpenNote: _openEditor,
+          ),
+        ),
+      );
+      await ref.read(workspaceProvider.notifier).refresh();
+      return;
+    }
+    await _openEditor(note, readOnly);
+  }
+
+  Future<void> _createSharedNote(String spaceId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = const Uuid().v4();
+    final draft = Note(
+      id: id,
+      title: '',
+      body: '',
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: false,
+      tags: const [],
+    );
+    await _openEditor(draft);
+    final saved = await ref.read(databaseProvider).loadNote(id);
+    if (saved == null) return;
+    await ref.read(sharedSpacesProvider.notifier).linkContent(spaceId, id);
+  }
+
+  Future<void> _createSharedTask(String spaceId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final note = Note(
+      id: const Uuid().v4(),
+      title: 'Nuova attività',
+      body: '',
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: false,
+      tags: const [],
+      taskJson: TaskDetails.empty().encode(),
+    );
+    await ref.read(workspaceProvider.notifier).save(note);
+    await ref
+        .read(sharedSpacesProvider.notifier)
+        .linkContent(spaceId, note.id);
+    final current = await ref.read(databaseProvider).loadNote(note.id);
+    if (current != null && mounted) {
+      await _openSharedItem(current, false);
+    }
+  }
+
+  Future<void> _exportSharedSpaceBundle(SharedSpace space) async {
+    try {
+      final shared = ref.read(sharedSpacesProvider);
+      final identity = shared.identity;
+      if (identity == null || !space.canRead(identity.id)) {
+        throw const FormatException(
+          'Accesso allo spazio non disponibile.',
+        );
+      }
+
+      final all = await ref.read(databaseProvider).syncDocuments();
+      final documents = <String, SyncDocument>{};
+      for (final id in space.contentIds) {
+        final document = all[id];
+        if (document == null) {
+          throw const FormatException(
+            'Uno degli elementi condivisi non è disponibile sul dispositivo.',
+          );
+        }
+        documents[id] = document;
+      }
+
+      final store = await AttachmentStore.open();
+      final bytes = await SharedSpaceBundle.encode(
+        space: space,
+        actor: identity,
+        documents: documents,
+        store: store,
+      );
+
+      var cleanName = space.name
+          .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '-')
+          .replaceAll(RegExp(r'-+'), '-')
+          .toLowerCase();
+      while (cleanName.startsWith('-')) {
+        cleanName = cleanName.substring(1);
+      }
+      while (cleanName.endsWith('-')) {
+        cleanName = cleanName.substring(0, cleanName.length - 1);
+      }
+
+      final now = DateTime.now();
+      final stamp = now.year.toString().padLeft(4, '0') +
+          '-' +
+          now.month.toString().padLeft(2, '0') +
+          '-' +
+          now.day.toString().padLeft(2, '0');
+      final baseName = cleanName.isEmpty ? 'notes' : cleanName;
+
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Esporta Shared Space',
+        fileName: 'shared-space-' + baseName + '-' + stamp + '.zip',
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aggiornamento Shared Space esportato.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importSharedSpaceBundle() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.single.bytes;
+      if (bytes == null) {
+        throw const FormatException(
+          'Impossibile leggere il pacchetto Shared Space.',
+        );
+      }
+
+      final preview =
+          SharedSpaceBundle.decode(Uint8List.fromList(bytes));
+      final shared = ref.read(sharedSpacesProvider);
+      final identity = shared.identity;
+      if (identity == null) {
+        throw const FormatException(
+          'Profilo collaborazione non disponibile.',
+        );
+      }
+      final localSpace = shared.byId(preview.space.id);
+      if (localSpace == null && !preview.space.canRead(identity.id)) {
+        throw const FormatException(
+          'Importa prima il codice invito di questo Shared Space.',
+        );
+      }
+
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Importare “' + preview.space.name + '”?'),
+          content: Text(
+            'Pacchetto di ' +
+                preview.actor.displayName +
+                ': ' +
+                preview.documents.length.toString() +
+                ' elementi e ' +
+                preview.assets.length.toString() +
+                ' allegati. Le versioni locali più recenti non verranno sovrascritte.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Importa aggiornamento'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final store = await AttachmentStore.open();
+      await SharedSpaceBundle.installAssets(preview, store);
+
+      final database = ref.read(databaseProvider);
+      final localDocuments = await database.syncDocuments();
+      var downloaded = 0;
+      var keptLocal = 0;
+      var conflicts = 0;
+
+      for (final remote in preview.documents.values) {
+        final local = localDocuments[remote.id];
+        if (local == null) {
+          await database.applySyncDocument(remote);
+          downloaded++;
+          continue;
+        }
+        if (local == remote) continue;
+        if (remote.updatedAt > local.updatedAt) {
+          await database.applySyncDocument(remote);
+          downloaded++;
+        } else if (remote.updatedAt < local.updatedAt) {
+          keptLocal++;
+        } else {
+          await database.saveSyncCopy(
+            remote,
+            suffix: ' (conflitto Shared Space)',
+          );
+          conflicts++;
+        }
+      }
+
+      await ref
+          .read(sharedSpacesProvider.notifier)
+          .mergeRemoteSpace(preview.space);
+      await ref.read(workspaceProvider.notifier).refresh();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Shared Space aggiornato · ricevuti ' +
+                downloaded.toString() +
+                ' · locali mantenuti ' +
+                keptLocal.toString() +
+                ' · conflitti ' +
+                conflicts.toString() +
+                '.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
   }
 
   @override
