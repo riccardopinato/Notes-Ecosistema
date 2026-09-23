@@ -12,7 +12,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
+import '../data/legacy_notes_database.dart';
 import '../domain/attachments.dart';
+import '../domain/backup.dart';
 import '../domain/blocks.dart';
 import '../domain/diary.dart';
 import '../domain/editing.dart';
@@ -59,6 +61,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   _EditorMode _mode = _EditorMode.text;
   bool _saving = false;
   bool _dirty = false;
+  bool _draftLoaded = false;
+  bool _changedBeforeDraftLoad = false;
+  int _draftRevision = 0;
+  String _draftStatus = 'Usa Salva per conservare l’appunto';
+  Timer? _draftTimer;
+  Future<void>? _draftWrite;
+  late final LegacyNotesDatabase _database;
   bool _recording = false;
   String? _recordingPath;
   Timer? _recordingTimer;
@@ -71,6 +80,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   void initState() {
     super.initState();
+    _database = ref.read(databaseProvider);
     _id = widget.note?.id ?? const Uuid().v4();
     _title = TextEditingController(text: widget.note?.title ?? '');
     _body = TextEditingController(text: widget.note?.body ?? '');
@@ -79,11 +89,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (Checklist.hasMarker(_body.text)) {
       _mode = _EditorMode.checklist;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreDraft());
   }
 
   @override
   void dispose() {
     _recordingTimer?.cancel();
+    _draftTimer?.cancel();
+    if (_dirty && _draftLoaded && !_saving && !_readOnlyVisual) {
+      final snapshot = _draftSnapshot();
+      unawaited(
+        _database.saveDraft(snapshot).catchError((Object _) {}),
+      );
+    }
     unawaited(_recorder.dispose());
     _title.dispose();
     _body.dispose();
@@ -91,17 +109,122 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   void _changed() {
-    if (!_dirty) setState(() => _dirty = true);
+    if (!_dirty && mounted) setState(() => _dirty = true);
+    _rememberDraft();
+  }
+
+  BackupDraft _draftSnapshot() => BackupDraft(
+        id: _id,
+        title: _title.text,
+        body: _body.text,
+        collectionId: _collectionId,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        tags: List<String>.from(_tags),
+      );
+
+  Future<void> _restoreDraft() async {
+    if (_readOnlyVisual) {
+      _draftLoaded = true;
+      return;
+    }
+    try {
+      final draft = await _database.loadDraft(_id);
+      if (!mounted) return;
+      if (!_changedBeforeDraftLoad && draft != null) {
+        setState(() {
+          _title.text = draft.title;
+          _body.text = draft.body;
+          _collectionId = draft.collectionId;
+          _tags = List<String>.from(draft.tags);
+          _dirty = true;
+          _draftStatus = 'Bozza recuperata dal dispositivo';
+          _mode = Checklist.hasMarker(draft.body)
+              ? _EditorMode.checklist
+              : _EditorMode.text;
+          _draftLoaded = true;
+        });
+      } else {
+        setState(() => _draftLoaded = true);
+        if (_changedBeforeDraftLoad) {
+          _rememberDraft(immediate: true);
+        }
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _draftLoaded = true;
+        _error = 'Impossibile recuperare la bozza locale.';
+      });
+    }
+  }
+
+  void _rememberDraft({bool immediate = false}) {
+    if (_readOnlyVisual || _saving) return;
+    if (!_draftLoaded) {
+      _changedBeforeDraftLoad = true;
+      return;
+    }
+
+    final token = ++_draftRevision;
+    _draftTimer?.cancel();
+    if (mounted) {
+      setState(() => _draftStatus = 'Memorizzazione bozza…');
+    }
+
+    if (immediate) {
+      unawaited(_writeDraft(token));
+    } else {
+      _draftTimer = Timer(
+        const Duration(milliseconds: 280),
+        () => unawaited(_writeDraft(token)),
+      );
+    }
+  }
+
+  Future<void> _writeDraft(int token) async {
+    final snapshot = _draftSnapshot();
+    final previous = _draftWrite;
+    final future = () async {
+      if (previous != null) {
+        try {
+          await previous;
+        } catch (_) {}
+      }
+      await _database.saveDraft(snapshot);
+    }();
+    _draftWrite = future;
+
+    try {
+      await future;
+      if (mounted && token == _draftRevision) {
+        setState(() => _draftStatus = 'Bozza conservata sul dispositivo');
+      }
+    } catch (error) {
+      if (mounted && token == _draftRevision) {
+        setState(() {
+          _draftStatus = 'Bozza non memorizzata: premi Salva per riprovare';
+          _error = error.toString().replaceFirst('FormatException: ', '');
+        });
+      }
+    }
   }
 
   Future<void> _save() async {
     if (_saving || _recording || _readOnlyVisual) return;
+    _draftTimer?.cancel();
+    _draftTimer = null;
     setState(() {
       _saving = true;
       _error = null;
     });
 
     try {
+      final pendingDraft = _draftWrite;
+      if (pendingDraft != null) {
+        try {
+          await pendingDraft;
+        } catch (_) {}
+      }
       final normalizedTags = NoteTags.normalize(_tags);
       final now = DateTime.now().millisecondsSinceEpoch;
       final old = widget.note;
