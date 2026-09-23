@@ -154,17 +154,6 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       final identity = await _ensureGitHubIdentity();
       final shared = ref.read(sharedSpacesProvider);
 
-      if (shared.spaces.isEmpty) {
-        if (!mounted) return;
-        state = state.copyWith(
-          busy: false,
-          message: 'GitHub @${identity.githubLogin ?? ''} collegato · '
-              'nessuno Shared Space.',
-          clearError: true,
-        );
-        return;
-      }
-
       state = state.copyWith(
         busy: true,
         message: 'Shared Spaces in sincronizzazione…',
@@ -209,7 +198,10 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       if (!mounted) return;
       state = state.copyWith(
         busy: false,
-        message: result.message,
+        message: result.spaces.isEmpty
+            ? 'GitHub @${identity.githubLogin ?? ''} collegato · '
+                'nessuno Shared Space disponibile.'
+            : result.message,
         lastSyncAt: DateTime.now().millisecondsSinceEpoch,
         conflicts: result.conflicts,
         clearError: true,
