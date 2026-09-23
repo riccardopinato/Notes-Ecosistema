@@ -181,7 +181,7 @@ class SharedGitHubApi {
     String ref, {
     int limit = 1024 * 1024,
   }) async {
-
+    final path = _path('${config.folder}/space.json');
     String text;
     try {
       text = await _request(
