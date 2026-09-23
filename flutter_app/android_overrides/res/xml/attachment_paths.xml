@@ -3,4 +3,7 @@
     <files-path
         name="attachments"
         path="attachments/" />
+    <cache-path
+        name="visual_exports"
+        path="visual_exports/" />
 </paths>
