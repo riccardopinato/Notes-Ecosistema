@@ -19,6 +19,7 @@ import 'platform/quick_capture_bridge.dart';
 import 'platform/reminder_bridge.dart';
 import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
+import 'screens/github_sync_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
@@ -601,6 +602,25 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                   onTap: () {
                     Navigator.pop(context);
                     _importBackup();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cloud_sync_outlined),
+                  title: const Text('GitHub Sync'),
+                  subtitle: const Text(
+                    'Sincronizza note e allegati con un repository GitHub.',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.of(this.context).push(
+                      MaterialPageRoute(
+                        builder: (_) => GitHubSyncScreen(
+                          database: ref.read(databaseProvider),
+                          onLocalChanged: () =>
+                              ref.read(workspaceProvider.notifier).refresh(),
+                        ),
+                      ),
+                    );
                   },
                 ),
                 ListTile(
