@@ -1,6 +1,13 @@
 package it.notes.ecosystem.notes_ecosistema
 
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
@@ -10,13 +17,23 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "notes.ecosystem/capture"
+        private const val REMINDER_CHANNEL = "notes.ecosystem/reminders"
+        const val NOTIFICATION_CHANNEL = "task_reminders"
+        private const val PERMISSION_REQUEST = 4102
         private const val NEW_NOTE = "it.notes.ecosystem.NEW_NOTE"
         private const val NEW_CHECKLIST = "it.notes.ecosystem.NEW_CHECKLIST"
         private const val FILE_LIMIT = 8 * 1024 * 1024
@@ -24,12 +41,14 @@ class MainActivity : FlutterActivity() {
     }
 
     private var channel: MethodChannel? = null
+    private var reminderPermissionResult: MethodChannel.Result? = null
     private var pendingCapture: Map<String, Any?>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingCapture = parseCapture(intent)
         super.onCreate(savedInstanceState)
         installShortcuts()
+        ensureReminderChannel()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -46,6 +65,22 @@ class MainActivity : FlutterActivity() {
                     }
                     else -> result.notImplemented()
                 }
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            REMINDER_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "sync" -> {
+                    runCatching { syncReminders(call.arguments) }
+                        .onSuccess { result.success(null) }
+                        .onFailure { result.error("REMINDER_SYNC", it.message, null) }
+                }
+                "allowed" -> result.success(notificationsAllowed())
+                "requestPermission" -> requestNotificationPermission(result)
+                else -> result.notImplemented()
             }
         }
     }
@@ -269,6 +304,118 @@ class MainActivity : FlutterActivity() {
             ).orEmpty()
         }
 
+    private fun ensureReminderChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    NOTIFICATION_CHANNEL,
+                    "Promemoria attività",
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+            )
+        }
+    }
+
+    private fun notificationsAllowed(): Boolean {
+        if (
+            Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return false
+        }
+        val manager = getSystemService(NotificationManager::class.java)
+        if (!manager.areNotificationsEnabled()) return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.getNotificationChannel(NOTIFICATION_CHANNEL)?.importance !=
+                NotificationManager.IMPORTANCE_NONE
+        } else {
+            true
+        }
+    }
+
+    private fun requestNotificationPermission(result: MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < 33 || notificationsAllowed()) {
+            result.success(true)
+            return
+        }
+        if (reminderPermissionResult != null) {
+            result.error("BUSY", "Richiesta notifiche già in corso.", null)
+            return
+        }
+        reminderPermissionResult = result
+        requestPermissions(
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            PERMISSION_REQUEST,
+        )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST) {
+            reminderPermissionResult?.success(notificationsAllowed())
+            reminderPermissionResult = null
+        }
+    }
+
+    private fun syncReminders(raw: Any?) {
+        ensureReminderChannel()
+        val values = raw as? List<*> ?: emptyList<Any?>()
+        val manager = WorkManager.getInstance(this)
+        val preferences =
+            getSharedPreferences("flutter_task_reminders", Context.MODE_PRIVATE)
+        val previous = preferences
+            .getStringSet("scheduled", emptySet())
+            .orEmpty()
+            .toSet()
+        val current = mutableSetOf<String>()
+
+        values.forEach { value ->
+            val row = value as? Map<*, *> ?: return@forEach
+            val id = row["id"]?.toString()
+                ?.takeIf { it.isNotBlank() && it.length <= 200 }
+                ?: return@forEach
+            val title = row["title"]?.toString()
+                ?.take(8000)
+                ?.ifBlank { "Attività" }
+                ?: "Attività"
+            val at = (row["at"] as? Number)?.toLong()
+                ?.takeIf { it >= 0L }
+                ?: return@forEach
+
+            current += id
+            val request = OneTimeWorkRequestBuilder<ReminderWorker>()
+                .setInitialDelay(
+                    (at - System.currentTimeMillis()).coerceAtLeast(0L),
+                    TimeUnit.MILLISECONDS,
+                )
+                .setInputData(
+                    workDataOf(
+                        "id" to id,
+                        "title" to title,
+                        "at" to at,
+                    )
+                )
+                .build()
+            manager.enqueueUniqueWork(
+                "task-reminder-$id",
+                ExistingWorkPolicy.REPLACE,
+                request,
+            )
+        }
+
+        (previous - current).forEach { id ->
+            manager.cancelUniqueWork("task-reminder-$id")
+            getSystemService(NotificationManager::class.java).cancel(id, 1)
+        }
+        preferences.edit().putStringSet("scheduled", current).apply()
+    }
+
     private fun installShortcuts() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
         val manager = getSystemService(ShortcutManager::class.java) ?: return
@@ -307,5 +454,75 @@ class MainActivity : FlutterActivity() {
                 ),
             )
         }
+    }
+}
+
+
+class ReminderWorker(
+    context: Context,
+    params: WorkerParameters,
+) : Worker(context, params) {
+    override fun doWork(): Result {
+        val id = inputData.getString("id") ?: return Result.failure()
+        val title = inputData.getString("title")
+            ?.take(8000)
+            ?.ifBlank { "Attività" }
+            ?: "Attività"
+        val at = inputData.getLong("at", -1L)
+        if (at < 0L) return Result.failure()
+
+        if (
+            Build.VERSION.SDK_INT >= 33 &&
+            applicationContext.checkSelfPermission(
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return Result.success()
+        }
+
+        val manager =
+            applicationContext.getSystemService(NotificationManager::class.java)
+        if (!manager.areNotificationsEnabled()) return Result.success()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    MainActivity.NOTIFICATION_CHANNEL,
+                    "Promemoria attività",
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+            )
+        }
+
+        val open = PendingIntent.getActivity(
+            applicationContext,
+            id.hashCode(),
+            Intent(applicationContext, MainActivity::class.java)
+                .addFlags(
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                ),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(
+                    applicationContext,
+                    MainActivity.NOTIFICATION_CHANNEL,
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(applicationContext)
+            }
+                .setSmallIcon(applicationContext.applicationInfo.icon)
+                .setContentTitle(title)
+                .setContentText("Promemoria attività")
+                .setAutoCancel(true)
+                .setContentIntent(open)
+                .build()
+
+        manager.notify(id, 1, notification)
+        return Result.success()
     }
 }
