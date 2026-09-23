@@ -133,9 +133,31 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
           spaces: shared.spaces,
         ),
       );
+      final current = ref.read(sharedSpacesProvider).spaces;
+      final currentById = {
+        for (final space in current) space.id: space,
+      };
+      final merged = <SharedSpace>[];
+      final syncedIds = <String>{};
+
+      for (final synced in result.spaces) {
+        syncedIds.add(synced.id);
+        final latestLocal = currentById[synced.id];
+        if (latestLocal == null) {
+          merged.add(synced);
+        } else {
+          merged.add(SharedSpaces.merge(latestLocal, synced));
+        }
+      }
+      for (final local in current) {
+        if (!syncedIds.contains(local.id)) {
+          merged.add(local);
+        }
+      }
+
       await ref
           .read(sharedSpacesProvider.notifier)
-          .applyLiveSync(result.spaces);
+          .applyLiveSync(merged);
       await ref.read(workspaceProvider.notifier).refresh();
 
       if (!mounted) return;
