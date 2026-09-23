@@ -17,6 +17,7 @@ class PlannerScreen extends StatefulWidget {
     required this.onSave,
     required this.onTrash,
     required this.onOpenNote,
+    this.initialTaskId,
     super.key,
   });
 
@@ -24,6 +25,7 @@ class PlannerScreen extends StatefulWidget {
   final Future<void> Function(Note note) onSave;
   final Future<void> Function(String id) onTrash;
   final ValueChanged<Note> onOpenNote;
+  final String? initialTaskId;
 
   @override
   State<PlannerScreen> createState() => _PlannerScreenState();
@@ -35,6 +37,42 @@ class _PlannerScreenState extends State<PlannerScreen> {
   DateTime _selected = dateOnly(DateTime.now());
   bool _busy = false;
   String? _error;
+  String? _openedInitialTaskId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openInitialTask());
+  }
+
+  @override
+  void didUpdateWidget(covariant PlannerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTaskId != widget.initialTaskId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openInitialTask());
+    }
+  }
+
+  Future<void> _openInitialTask() async {
+    final id = widget.initialTaskId;
+    if (!mounted ||
+        id == null ||
+        id.isEmpty ||
+        id == _openedInitialTaskId ||
+        _busy) {
+      return;
+    }
+    final note = widget.notes
+        .where((item) => item.id == id && item.isTask && !item.isDeleted)
+        .firstOrNull;
+    if (note == null) return;
+    _openedInitialTaskId = id;
+    setState(() {
+      _scope = PlannerScope.all;
+      _view = PlannerView.agenda;
+    });
+    await _editTask(note);
+  }
 
   PlannerIndex get _index => PlannerPro.index(widget.notes);
 
@@ -1193,3 +1231,11 @@ String _repeatLabel(String repeat) => switch (repeat) {
       'MONTHLY' => 'Ogni mese',
       _ => repeat,
     };
+
+
+extension _PlannerFirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    return iterator.moveNext() ? iterator.current : null;
+  }
+}
