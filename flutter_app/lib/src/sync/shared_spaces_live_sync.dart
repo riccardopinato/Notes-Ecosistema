@@ -232,6 +232,9 @@ class SharedSpacesLiveSyncService {
       } on GitHubHttpFailure catch (error) {
         if (error.status != 409 && error.status != 422) rethrow;
         lastConflict = error;
+        localDocuments
+          ..clear()
+          ..addAll(await database.syncDocuments());
         await Future<void>.delayed(
           Duration(milliseconds: 150 * (attempt + 1)),
         );
