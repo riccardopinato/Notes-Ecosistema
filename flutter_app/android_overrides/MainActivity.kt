@@ -5,6 +5,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -78,6 +80,8 @@ class MainActivity : FlutterActivity() {
                         result.success(pendingCapture)
                         pendingCapture = null
                     }
+                    "pinNoteShortcut" -> result.success(requestPinnedNoteShortcut())
+                    "pinCaptureWidget" -> result.success(requestPinnedCaptureWidget())
                     else -> result.notImplemented()
                 }
             }
@@ -550,6 +554,33 @@ class MainActivity : FlutterActivity() {
             getSystemService(NotificationManager::class.java).cancel(id, 1)
         }
         preferences.edit().putStringSet("scheduled", current).apply()
+    }
+
+    private fun requestPinnedNoteShortcut(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val manager = getSystemService(ShortcutManager::class.java) ?: return false
+        if (!manager.isRequestPinShortcutSupported) return false
+        val shortcut = ShortcutInfo.Builder(this, "capture-note-pinned")
+            .setShortLabel("Nuova nota")
+            .setLongLabel("Scrivi una nuova nota")
+            .setIcon(Icon.createWithResource(this, applicationInfo.icon))
+            .setIntent(
+                Intent(this, MainActivity::class.java)
+                    .setAction(NEW_NOTE)
+            )
+            .build()
+        return manager.requestPinShortcut(shortcut, null)
+    }
+
+    private fun requestPinnedCaptureWidget(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val manager = getSystemService(AppWidgetManager::class.java) ?: return false
+        if (!manager.isRequestPinAppWidgetSupported) return false
+        return manager.requestPinAppWidget(
+            ComponentName(this, QuickCaptureWidget::class.java),
+            null,
+            null,
+        )
     }
 
     private fun installShortcuts() {
