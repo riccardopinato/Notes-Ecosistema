@@ -23,6 +23,7 @@ import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
 import 'platform/quick_capture_bridge.dart';
 import 'platform/quick_sync_bridge.dart';
+import 'platform/shared_background_bridge.dart';
 import 'platform/reminder_action_bridge.dart';
 import 'platform/reminder_bridge.dart';
 import 'screens/diary_screen.dart';
@@ -108,8 +109,39 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       QuickCaptureBridge.initialize(_handleIncomingCapture);
       QuickSyncBridge.initialize(_handleQuickSync);
+      SharedBackgroundBridge.initialize(_handleSharedBackgroundSpace);
       ReminderActionBridge.initialize(_handleReminderAction);
     });
+  }
+
+  Future<void> _handleSharedBackgroundSpace(String spaceId) async {
+    if (!mounted) return;
+    setState(() => _index = 4);
+
+    await ref.read(sharedLiveSyncProvider.notifier).syncNow(silent: true);
+    if (!mounted) return;
+
+    final shared = ref.read(sharedSpacesProvider);
+    final identity = shared.identity;
+    final space = shared.byId(spaceId);
+    if (identity == null ||
+        space == null ||
+        !space.canRead(identity.id)) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SharedSpaceDetailScreen(
+          spaceId: spaceId,
+          onOpenNote: _openSharedItem,
+          onCreateNote: _createSharedNote,
+          onCreateTask: _createSharedTask,
+          onExportBundle: _exportSharedSpaceBundle,
+          onImportBundle: _importSharedSpaceBundle,
+        ),
+      ),
+    );
   }
 
   Future<void> _handleReminderAction(ReminderAction action) async {
