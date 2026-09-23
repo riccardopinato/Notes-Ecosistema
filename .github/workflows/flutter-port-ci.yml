@@ -184,7 +184,7 @@ jobs:
       - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-0.28.0-release-split
+          name: Notes-Ecosistema-Flutter-0.29.0-release-split
           path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error
           retention-days: 14
