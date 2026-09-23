@@ -669,7 +669,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(sharedLiveSyncProvider);
+    ref.read(sharedLiveSyncProvider);
     final workspace = ref.watch(workspaceProvider);
     final shared = ref.watch(sharedSpacesProvider);
     final section = labels[_index];
