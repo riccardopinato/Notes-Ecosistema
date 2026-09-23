@@ -921,6 +921,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                               ? 'Notifiche promemoria abilitate.'
                               : 'Notifiche non abilitate. I promemoria restano salvati.',
                         ),
+                        action: allowed
+                            ? null
+                            : SnackBarAction(
+                                label: 'Impostazioni',
+                                onPressed: () {
+                                  ReminderBridge.openSettings();
+                                },
+                              ),
                       ),
                     );
                   },
