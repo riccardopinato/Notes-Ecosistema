@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
+import 'domain/library.dart';
 import 'domain/note.dart';
 import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
@@ -355,6 +356,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         onPin: (id, value) =>
             ref.read(workspaceProvider.notifier).pin(id, value),
         onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
+        onBulkEdit: (notes, change) =>
+            ref.read(workspaceProvider.notifier).bulkEdit(notes, change),
+        onRenameCollection: (collection, name) =>
+            ref.read(workspaceProvider.notifier).renameCollection(
+                  collection,
+                  name,
+                ),
+        onDeleteCollection: (collection) =>
+            ref.read(workspaceProvider.notifier).deleteEmptyCollection(
+                  collection,
+                ),
       );
     } else if (_index == 2) {
       body = DiaryScreen(
