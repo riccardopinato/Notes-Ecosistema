@@ -83,9 +83,48 @@ List<SharedSpace> mergeDiscoveredSharedSpaces({
   return result;
 }
 
+class SharedSpaceSyncSummary {
+  const SharedSpaceSyncSummary({
+    required this.spaceId,
+    this.uploaded = 0,
+    this.downloaded = 0,
+    this.conflicts = 0,
+    this.purged = 0,
+    this.waiting = 0,
+  });
+
+  final String spaceId;
+  final int uploaded;
+  final int downloaded;
+  final int conflicts;
+  final int purged;
+  final int waiting;
+
+  bool get hasActivity =>
+      uploaded > 0 || downloaded > 0 || purged > 0;
+
+  bool get hasAttention => conflicts > 0 || waiting > 0;
+
+  String get label {
+    if (conflicts > 0) {
+      return conflicts == 1 ? '1 conflitto' : '$conflicts conflitti';
+    }
+    if (waiting > 0) {
+      return waiting == 1 ? '1 elemento in attesa' : '$waiting in attesa';
+    }
+    final parts = <String>[
+      if (uploaded > 0) '$uploaded inviati',
+      if (downloaded > 0) '$downloaded ricevuti',
+      if (purged > 0) '$purged rimossi',
+    ];
+    return parts.isEmpty ? 'Aggiornato' : parts.join(' · ');
+  }
+}
+
 class SharedLiveSyncResult {
   const SharedLiveSyncResult({
     required this.spaces,
+    required this.spaceSummaries,
     required this.uploaded,
     required this.downloaded,
     required this.conflicts,
@@ -94,6 +133,7 @@ class SharedLiveSyncResult {
   });
 
   final List<SharedSpace> spaces;
+  final Map<String, SharedSpaceSyncSummary> spaceSummaries;
   final int uploaded;
   final int downloaded;
   final int conflicts;
@@ -229,6 +269,7 @@ class SharedSpacesLiveSyncService {
 
     final localDocuments = await database.syncDocuments();
     final resultSpaces = <SharedSpace>[];
+    final spaceSummaries = <String, SharedSpaceSyncSummary>{};
     var uploaded = 0;
     var downloaded = 0;
     var conflicts = 0;
@@ -248,6 +289,14 @@ class SharedSpacesLiveSyncService {
         localDocuments,
       );
       resultSpaces.add(result.space);
+      spaceSummaries[result.space.id] = SharedSpaceSyncSummary(
+        spaceId: result.space.id,
+        uploaded: result.uploaded,
+        downloaded: result.downloaded,
+        conflicts: result.conflicts,
+        purged: result.purged,
+        waiting: result.waiting,
+      );
       uploaded += result.uploaded;
       downloaded += result.downloaded;
       conflicts += result.conflicts;
@@ -265,6 +314,7 @@ class SharedSpacesLiveSyncService {
 
     return SharedLiveSyncResult(
       spaces: resultSpaces,
+      spaceSummaries: Map.unmodifiable(spaceSummaries),
       uploaded: uploaded,
       downloaded: downloaded,
       conflicts: conflicts,
