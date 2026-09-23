@@ -53,6 +53,36 @@ SharedLiveDecision decideSharedLiveDocument({
   return SharedLiveDecision.conflict;
 }
 
+List<SharedSpace> mergeDiscoveredSharedSpaces({
+  required SharedIdentity identity,
+  required List<SharedSpace> localSpaces,
+  required List<SharedSpace> remoteSpaces,
+}) {
+  SharedSpaces.validateIdentity(identity);
+  final byId = <String, SharedSpace>{
+    for (final local in localSpaces) local.id: local,
+  };
+
+  for (final remote in remoteSpaces) {
+    final canonical = SharedSpaces.canonicalizeIdentity(remote, identity);
+    if (!canonical.canRead(identity.id)) continue;
+
+    final local = byId[canonical.id];
+    byId[canonical.id] =
+        local == null ? canonical : SharedSpaces.merge(local, canonical);
+  }
+
+  if (byId.length > SharedSpaces.maxSpaces) {
+    throw const FormatException(
+      'Troppi Shared Spaces accessibili per questo profilo.',
+    );
+  }
+
+  final result = byId.values.toList(growable: false)
+    ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  return result;
+}
+
 class SharedLiveSyncResult {
   const SharedLiveSyncResult({
     required this.spaces,
@@ -157,6 +187,7 @@ class SharedSpacesLiveSyncService {
     }
 
     final rootApi = SharedGitHubApi(root);
+    final discoveredRemoteSpaces = <SharedSpace>[];
     try {
       final private = await rootApi.verifyPrivateWritable();
       if (!private) {
@@ -164,9 +195,37 @@ class SharedSpacesLiveSyncService {
           'Shared Spaces Live Sync richiede un repository GitHub privato.',
         );
       }
+
+      final head = await rootApi.head();
+      final folders = await rootApi.listSharedSpaceFolders(head);
+      for (final folder in folders) {
+        final discoveredConfig = GitHubConfig(
+          owner: root.owner,
+          repo: root.repo,
+          branch: root.branch,
+          folder: folder,
+          token: root.token,
+          allowPublic: false,
+        );
+        final discoveredApi = SharedGitHubApi(discoveredConfig);
+        try {
+          final state = await _readRemoteState(discoveredApi, head);
+          if (state != null) {
+            discoveredRemoteSpaces.add(state.space);
+          }
+        } finally {
+          discoveredApi.close();
+        }
+      }
     } finally {
       rootApi.close();
     }
+
+    final spacesToSync = mergeDiscoveredSharedSpaces(
+      identity: snapshot.identity,
+      localSpaces: snapshot.spaces,
+      remoteSpaces: discoveredRemoteSpaces,
+    );
 
     final localDocuments = await database.syncDocuments();
     final resultSpaces = <SharedSpace>[];
@@ -176,7 +235,7 @@ class SharedSpacesLiveSyncService {
     var purged = 0;
     var waiting = 0;
 
-    for (final localSpace in snapshot.spaces) {
+    for (final localSpace in spacesToSync) {
       if (!localSpace.canRead(snapshot.identity.id)) {
         resultSpaces.add(localSpace);
         continue;
