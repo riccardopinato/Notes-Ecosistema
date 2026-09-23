@@ -24,6 +24,7 @@ class SharedGitHubApi {
   final GitHubConfig config;
   final HttpClient _client = HttpClient()
     ..connectionTimeout = const Duration(seconds: 15);
+  Map<String, RemoteAsset>? _assets;
 
   String get _root =>
       '/repos/${Uri.encodeComponent(config.owner)}/${Uri.encodeComponent(config.repo)}';
@@ -301,6 +302,7 @@ class SharedGitHubApi {
   }
 
   Future<Map<String, RemoteAsset>> listAssets(String ref) async {
+    if (_assets != null) return _assets!;
     final path = _path('${config.folder}/assets');
     String text;
     try {
@@ -309,7 +311,10 @@ class SharedGitHubApi {
         '$_root/contents/$path?ref=${Uri.encodeQueryComponent(ref)}',
       );
     } on GitHubHttpFailure catch (error) {
-      if (error.status == 404) return {};
+      if (error.status == 404) {
+        _assets = {};
+        return _assets!;
+      }
       rethrow;
     }
     final decoded = jsonDecode(text);
@@ -340,7 +345,8 @@ class SharedGitHubApi {
         'Shared Space oltre 500 allegati.',
       );
     }
-    return result;
+    _assets = result;
+    return _assets!;
   }
 
   String _gitSha(Uint8List bytes) {
@@ -394,6 +400,10 @@ class SharedGitHubApi {
         'Verifica allegato Shared caricata non riuscita.',
       );
     }
+    final cache = _assets;
+    if (cache != null) {
+      cache[key] = RemoteAsset(key, sha, bytes.length);
+    }
   }
 
   Future<Uint8List> downloadAsset(
@@ -444,6 +454,7 @@ class SharedGitHubApi {
         'sha': asset.sha,
       },
     );
+    _assets?.remove(asset.name);
   }
 
   void close() => _client.close(force: true);
