@@ -90,6 +90,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   int _index = 0;
   String _query = '';
   String? _libraryCollectionId;
+  String? _plannerTaskId;
   String _reminderSignature = '';
 
   static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
@@ -108,7 +109,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     if (!mounted) return;
 
     if (action.action == 'open') {
-      setState(() => _index = 3);
+      setState(() {
+        _plannerTaskId = action.id;
+        _index = 3;
+      });
       return;
     }
 
@@ -128,7 +132,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     if (changed) {
       await ReminderBridge.sync(ref.read(workspaceProvider).notes);
       if (!mounted) return;
-      setState(() => _index = 3);
+      setState(() {
+        _plannerTaskId = action.id;
+        _index = 3;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Promemoria rinviato di 10 minuti.')),
       );
@@ -471,6 +478,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     } else {
       body = PlannerScreen(
         notes: workspace.notes,
+        initialTaskId: _plannerTaskId,
         onSave: (note) => ref.read(workspaceProvider.notifier).save(note),
         onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
         onOpenNote: _openEditor,
@@ -500,6 +508,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() {
           if (value == 1) _libraryCollectionId = null;
+          if (value != 3) _plannerTaskId = null;
           _index = value;
         }),
         destinations: const [
