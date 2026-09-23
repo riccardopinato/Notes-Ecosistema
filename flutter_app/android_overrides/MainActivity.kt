@@ -48,6 +48,7 @@ class MainActivity : FlutterActivity() {
         private const val REMINDER_ACTION_CHANNEL = "notes.ecosystem/reminder_actions"
         private const val SECURE_CHANNEL = "notes.ecosystem/secure"
         private const val ATTACHMENT_CHANNEL = "notes.ecosystem/attachments"
+        private const val VISUAL_SHARE_CHANNEL = "notes.ecosystem/visual_share"
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
@@ -175,6 +176,26 @@ class MainActivity : FlutterActivity() {
                             result.error(
                                 "ATTACHMENT",
                                 it.message ?: "Allegato non disponibile.",
+                                null,
+                            )
+                        }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            VISUAL_SHARE_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "sharePng" -> {
+                    runCatching { shareVisualPng(call.arguments) }
+                        .onSuccess { result.success(null) }
+                        .onFailure {
+                            result.error(
+                                "VISUAL_SHARE",
+                                it.message ?: "Impossibile condividere il PNG.",
                                 null,
                             )
                         }
@@ -478,6 +499,46 @@ class MainActivity : FlutterActivity() {
                 Intent.EXTRA_STREAM,
             ).orEmpty()
         }
+
+    private fun shareVisualPng(raw: Any?) {
+        val args = raw as? Map<*, *> ?: error("Parametri export mancanti.")
+        val bytes = args["bytes"] as? ByteArray ?: error("PNG mancante.")
+        require(bytes.size in 8..(16 * 1024 * 1024)) { "PNG vuoto o troppo grande." }
+        require(
+            (bytes[0].toInt() and 0xFF) == 0x89 &&
+                bytes[1].toInt() == 0x50 &&
+                bytes[2].toInt() == 0x4E &&
+                bytes[3].toInt() == 0x47
+        ) { "File PNG non valido." }
+
+        val title = args["title"]?.toString()?.trim()
+            ?.take(200)
+            ?.ifBlank { "Notes" }
+            ?: "Notes"
+        val folder = File(cacheDir, "visual_exports")
+        check(folder.isDirectory || folder.mkdirs()) { "Cartella export non disponibile." }
+        val now = System.currentTimeMillis()
+        folder.listFiles()?.filter {
+            it.isFile && now - it.lastModified() > TimeUnit.DAYS.toMillis(1)
+        }?.forEach { it.delete() }
+
+        val file = File(folder, UUID.randomUUID().toString() + ".png")
+        file.writeBytes(bytes)
+        val uri = FileProvider.getUriForFile(
+            this,
+            "$packageName.attachments",
+            file,
+        )
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("image/png")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_SUBJECT, title)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .apply {
+                clipData = ClipData.newUri(contentResolver, title, uri)
+            }
+        startActivity(Intent.createChooser(send, "Condividi immagine"))
+    }
 
     private fun launchAttachment(
         key: String,
