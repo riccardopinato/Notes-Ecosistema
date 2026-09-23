@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <cache-path name="sketch_exports" path="sketch_exports/" />
-    <cache-path name="media_capture" path="media_capture/" />
-    <files-path name="attachments" path="attachments/" />
-    <files-path name="media_pending" path="media_pending/" />
-</paths>
