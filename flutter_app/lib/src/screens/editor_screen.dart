@@ -256,7 +256,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             : BlockEditorCodec.canonicalize(_id, _blocks);
         await ref.read(databaseProvider).replaceNoteBlocks(_id, normalized);
       }
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        setState(() {
+          _dirty = false;
+          _draftRevision++;
+          _draftStatus = 'Salvata';
+        });
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -264,6 +271,66 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _error = error.toString().replaceFirst('FormatException: ', '');
         });
       }
+    }
+  }
+
+  Future<void> _discardAndClose() async {
+    if (_saving || _recording) return;
+    _draftTimer?.cancel();
+    _draftTimer = null;
+    final pending = _draftWrite;
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {}
+    }
+    try {
+      await _database.discardDraft(_id);
+      if (!mounted) return;
+      setState(() {
+        _dirty = false;
+        _draftRevision++;
+      });
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString().replaceFirst('FormatException: ', '');
+      });
+    }
+  }
+
+  Future<void> _confirmClose() async {
+    if (!_dirty || _saving || _recording || !mounted) return;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Salvare le modifiche?'),
+        content: const Text(
+          'La bozza è conservata sul dispositivo. Puoi salvare la nota, '
+          'scartare le modifiche oppure continuare a scrivere.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'stay'),
+            child: const Text('Resta'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Scarta'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Salva'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (choice == 'save') {
+      await _save();
+    } else if (choice == 'discard') {
+      await _discardAndClose();
     }
   }
 
@@ -1295,8 +1362,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final visibleTags = Diary.userTags(_tags);
     final checklist = Checklist.parse(_body.text);
 
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) unawaited(_confirmClose());
+      },
+      child: Scaffold(
+        appBar: AppBar(
         title: const EditorialAppTitle(
           'La tua pagina',
           eyebrow: 'IL TUO TACCUINO',
@@ -1653,6 +1725,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
