@@ -16,6 +16,7 @@ import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
 import 'platform/quick_capture_bridge.dart';
+import 'platform/quick_sync_bridge.dart';
 import 'platform/reminder_bridge.dart';
 import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
@@ -27,6 +28,7 @@ import 'screens/sketch_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
 import 'state/workspace_controller.dart';
+import 'sync/github_sync_service.dart';
 import 'theme/notes_theme.dart';
 import 'widgets/editorial.dart';
 
@@ -93,7 +95,44 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       QuickCaptureBridge.initialize(_handleIncomingCapture);
+      QuickSyncBridge.initialize(_handleQuickSync);
     });
+  }
+
+  Future<void> _handleQuickSync() async {
+    if (!mounted) return;
+    final service = GitHubSyncService(ref.read(databaseProvider));
+    try {
+      final connected = await service.loadStatus();
+      if (!connected) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('GitHub non collegato. Apri Impostazioni → GitHub Sync.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      await service.run();
+      await ref.read(workspaceProvider.notifier).refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(service.status.message)),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error.toString().replaceFirst('FormatException: ', ''),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleIncomingCapture(IncomingCapture capture) async {
