@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../platform/reminder_bridge.dart';
 import '../widgets/editorial.dart';
 
 class PlannerScreen extends StatefulWidget {
@@ -80,6 +81,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
               updatedAt: now,
             );
       await widget.onSave(saved);
+      if (result.details.reminderAt != null) {
+        await ReminderBridge.requestPermission();
+      }
     });
   }
 
@@ -502,13 +506,26 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
   }
 
-  Future<_TaskDraft?> _taskDialog(Note? note, {String? initialDue}) {
+  Future<_TaskDraft?> _taskDialog(Note? note, {String? initialDue}) async {
     final initial = TaskDetails.tryDecode(note?.taskJson) ?? TaskDetails.empty();
     final title = TextEditingController(text: note?.title ?? '');
     final body = TextEditingController(text: note?.body ?? '');
     final due = TextEditingController(text: initial.due ?? initialDue ?? '');
     final plannedDate = TextEditingController(text: initial.plannedDate ?? '');
     final plannedTime = TextEditingController(text: initial.plannedTime ?? '');
+    final reminderInstant = initial.reminderAt == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(initial.reminderAt!);
+    final reminderDate = TextEditingController(
+      text: reminderInstant == null ? '' : dateKey(reminderInstant),
+    );
+    final reminderTime = TextEditingController(
+      text: reminderInstant == null
+          ? ''
+          : '${reminderInstant.hour.toString().padLeft(2, '0')}:${reminderInstant.minute.toString().padLeft(2, '0')}',
+    );
+    final reminderZone =
+        initial.reminderZone ?? await ReminderBridge.zoneId();
     var priority = initial.priority;
     var repeat = initial.repeat;
     var plannedMinutes = initial.plannedMinutes;
@@ -588,6 +605,34 @@ class _PlannerScreenState extends State<PlannerScreen> {
                             ))
                         .toList(),
                   ),
+                  const Divider(height: 28),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Promemoria'),
+                  ),
+                  TextField(
+                    controller: reminderDate,
+                    decoration: const InputDecoration(
+                      labelText: 'Data promemoria (AAAA-MM-GG)',
+                    ),
+                  ),
+                  TextField(
+                    controller: reminderTime,
+                    decoration: const InputDecoration(
+                      labelText: 'Ora promemoria (HH:MM)',
+                    ),
+                  ),
+                  if (initial.reminderAt != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () {
+                          reminderDate.clear();
+                          reminderTime.clear();
+                        },
+                        child: const Text('Rimuovi promemoria'),
+                      ),
+                    ),
                   if (error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
@@ -613,7 +658,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   if (title.text.trim().isEmpty) {
                     throw const FormatException('Inserisci un titolo.');
                   }
-                  final details = initial.withEditorValues(
+                  var details = initial.withEditorValues(
                     due: due.text,
                     priority: priority,
                     repeat: repeat,
@@ -622,6 +667,44 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     plannedTime: plannedTime.text,
                     plannedMinutes: plannedMinutes,
                   );
+
+                  final reminderDayText = reminderDate.text.trim();
+                  final reminderClockText = reminderTime.text.trim();
+                  if (reminderDayText.isEmpty && reminderClockText.isEmpty) {
+                    details = details.copyWith(
+                      reminderAt: null,
+                      reminderTime: null,
+                      reminderZone: null,
+                    );
+                  } else {
+                    final reminderDay = parseDate(reminderDayText);
+                    final reminderMinutes =
+                        parseTimeMinutes(reminderClockText);
+                    if (reminderDay == null || reminderMinutes == null) {
+                      throw const FormatException(
+                        'Promemoria: inserisci data e ora valide.',
+                      );
+                    }
+                    final reminderAt = DateTime(
+                      reminderDay.year,
+                      reminderDay.month,
+                      reminderDay.day,
+                      reminderMinutes ~/ 60,
+                      reminderMinutes % 60,
+                    ).millisecondsSinceEpoch;
+                    if (reminderAt < 946684800000 ||
+                        reminderAt > 7258118399999) {
+                      throw const FormatException(
+                        'Data promemoria non supportata.',
+                      );
+                    }
+                    details = details.copyWith(
+                      reminderAt: reminderAt,
+                      reminderTime: reminderClockText,
+                      reminderZone: reminderZone,
+                    );
+                  }
+
                   Navigator.pop(
                     context,
                     _TaskDraft(title.text.trim(), body.text, details),
@@ -641,6 +724,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
       due.dispose();
       plannedDate.dispose();
       plannedTime.dispose();
+      reminderDate.dispose();
+      reminderTime.dispose();
     });
   }
 
