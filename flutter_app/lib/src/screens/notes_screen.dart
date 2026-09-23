@@ -308,6 +308,7 @@ class _NotesScreenState extends State<NotesScreen> {
         ),
       ),
     );
+    if (!mounted) return;
 
     if (choice == 'save') {
       final controller = TextEditingController();
@@ -498,11 +499,7 @@ class _NotesScreenState extends State<NotesScreen> {
                   leading: const Icon(Icons.folder),
                   title: Text(c.name),
                   subtitle: Text(
-                    widget.notes
-                            .where((n) => n.collectionId == c.id)
-                            .length
-                            .toString() +
-                        ' elementi',
+                    '${widget.notes.where((n) => n.collectionId == c.id).length} elementi',
                   ),
                   onTap: () => Navigator.pop(context, c.id),
                   trailing: PopupMenuButton<String>(
@@ -628,7 +625,7 @@ class _NotesScreenState extends State<NotesScreen> {
               label: Text(
                 _saved.isEmpty
                     ? 'Ricerche salvate'
-                    : 'Ricerche · ' + _saved.length.toString(),
+                    : 'Ricerche · ${_saved.length}',
               ),
             ),
             OutlinedButton.icon(
@@ -648,7 +645,7 @@ class _NotesScreenState extends State<NotesScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          visible.length.toString() + ' risultati',
+          '${visible.length} risultati',
           style: Theme.of(context).textTheme.labelMedium,
         ),
         Row(
@@ -670,7 +667,7 @@ class _NotesScreenState extends State<NotesScreen> {
           Card(
             child: ListTile(
               title: Text(
-                _selected.length.toString() + ' selezionate',
+                '${_selected.length} selezionate',
               ),
               trailing: FilledButton(
                 onPressed: _busy ? null : _bulk,
@@ -827,7 +824,7 @@ class _NoteCard extends StatelessWidget {
               ),
               if (note.tags.isNotEmpty)
                 Text(
-                  note.tags.map((e) => '#' + e).join(' '),
+                  note.tags.map((e) => '#$e').join(' '),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -839,7 +836,7 @@ class _NoteCard extends StatelessWidget {
                 ),
               const Spacer(),
               Text(
-                'Modificata · ' + editorialDate(note.updatedAt),
+                'Modificata · ${editorialDate(note.updatedAt)}',
                 style: Theme.of(context).textTheme.labelSmall,
               ),
             ],
