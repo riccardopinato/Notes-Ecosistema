@@ -11,6 +11,7 @@ import '../domain/shared_spaces.dart';
 import '../state/shared_live_sync_controller.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
+import '../platform/reminder_bridge.dart';
 import '../sync/shared_spaces_live_sync.dart';
 import '../widgets/editorial.dart';
 
@@ -261,6 +262,19 @@ class _SharedSpacesScreenState
                 .read(sharedLiveSyncProvider.notifier)
                 .syncNow(),
           ),
+          onNotifications: () async {
+            final allowed = await ReminderBridge.requestPermission();
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  allowed
+                      ? 'Notifiche Shared Spaces abilitate.'
+                      : 'Notifiche non abilitate. Puoi attivarle dalle impostazioni di Android.',
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 22),
         Row(
@@ -989,11 +1003,13 @@ class _LiveSyncCard extends StatelessWidget {
     required this.state,
     required this.onToggle,
     required this.onSync,
+    required this.onNotifications,
   });
 
   final SharedLiveSyncState state;
   final ValueChanged<bool> onToggle;
   final VoidCallback onSync;
+  final Future<void> Function() onNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -1092,6 +1108,24 @@ class _LiveSyncCard extends StatelessWidget {
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.error,
                 ),
+              ),
+            ],
+            if (state.enabled) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Icon(Icons.notifications_active_outlined, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Android controlla gli aggiornamenti in background circa ogni 15 minuti.',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onNotifications,
+                    child: const Text('Notifiche'),
+                  ),
+                ],
               ),
             ],
           ],
