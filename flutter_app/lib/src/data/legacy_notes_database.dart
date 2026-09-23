@@ -602,6 +602,32 @@ class LegacyNotesDatabase {
     );
   }
 
+  Future<void> setArchived(String id, bool archived) async {
+    final db = await database;
+    final rows = await db.query(
+      'notes',
+      columns: ['deletedAt'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      throw const FormatException('Nota non trovata.');
+    }
+    if (rows.first['deletedAt'] != null) {
+      throw const FormatException('La nota è nel cestino.');
+    }
+    await db.update(
+      'notes',
+      {
+        'archived': archived ? 1 : 0,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<void> setPinned(String id, bool pinned) async {
     final db = await database;
     await db.update('notes', {'pinned': pinned ? 1 : 0, 'updatedAt': DateTime.now().millisecondsSinceEpoch},
