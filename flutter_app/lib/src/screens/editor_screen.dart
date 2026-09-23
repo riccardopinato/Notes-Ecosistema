@@ -307,6 +307,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _dirty = true;
       _error = null;
     });
+    _rememberDraft();
   }
 
   Future<void> _openVisual(Note note) async {
@@ -451,6 +452,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               _blocks = BlockEditorCodec.parse(_id, body);
             }
           });
+          _rememberDraft(immediate: true);
         },
       ),
     );
@@ -488,6 +490,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _blocks = BlockEditorCodec.parse(_id, body);
         }
       });
+      _rememberDraft(immediate: true);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -590,6 +593,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _blocks = BlockEditorCodec.parse(_id, body);
         }
       });
+      _rememberDraft(immediate: true);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -654,6 +658,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         }
         _error = null;
       });
+      _rememberDraft(immediate: true);
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -796,6 +801,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _blocks = BlockEditorCodec.parse(_id, body);
       }
     });
+    _rememberDraft(immediate: true);
   }
 
   void _applyKnowledgeEdit(MarkdownSelectionEdit edit) {
@@ -813,6 +819,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _blocks = BlockEditorCodec.parse(_id, edit.text);
       }
     });
+    _rememberDraft();
   }
 
   Future<void> _openLinkedNote(String id) async {
@@ -1063,6 +1070,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _collectionId = selected.isEmpty ? null : selected;
       _dirty = true;
     });
+    _rememberDraft();
   }
 
   Future<void> _chooseDiaryDate() async {
@@ -1081,6 +1089,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _dirty = true;
         _error = null;
       });
+      _rememberDraft();
     } catch (error) {
       setState(() {
         _error = error.toString().replaceFirst('FormatException: ', '');
@@ -1094,6 +1103,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _tags = next;
       _dirty = true;
     });
+    _rememberDraft();
   }
 
   Future<void> _editTags() async {
@@ -1187,6 +1197,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _tags = updated;
       _dirty = true;
     });
+    _rememberDraft();
   }
 
   Future<void> _history() async {
@@ -1253,6 +1264,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ? _EditorMode.checklist
           : _EditorMode.text;
     });
+    _rememberDraft(immediate: true);
   }
 
   @override
@@ -1311,6 +1323,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         child: Column(
           children: [
             if (_saving) const LinearProgressIndicator(),
+            if (!_readOnlyVisual)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _draftStatus,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+              ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
