@@ -19,7 +19,7 @@ class SharedSpacesScreen extends ConsumerStatefulWidget {
     super.key,
   });
 
-  final Future<void> Function(Note note) onOpenNote;
+  final Future<void> Function(Note note, bool readOnly) onOpenNote;
   final Future<void> Function(String spaceId) onCreateNote;
   final Future<void> Function(String spaceId) onCreateTask;
   final Future<void> Function(SharedSpace space) onExportBundle;
@@ -660,7 +660,7 @@ class _SharedSpaceDetailScreenState
                         : note.title.trim(),
                   ),
                   subtitle: Text(_noteKind(note)),
-                  onTap: () => widget.onOpenNote(note),
+                  onTap: () => widget.onOpenNote(note, !canEdit),
                   trailing: canEdit
                       ? PopupMenuButton<String>(
                           onSelected: (value) {
