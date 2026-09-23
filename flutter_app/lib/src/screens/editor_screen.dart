@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/attachments.dart';
@@ -53,6 +59,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   _EditorMode _mode = _EditorMode.text;
   bool _saving = false;
   bool _dirty = false;
+  bool _recording = false;
+  String? _recordingPath;
+  Timer? _recordingTimer;
+  final AudioRecorder _recorder = AudioRecorder();
   String? _error;
 
   bool get _readOnlyVisual => widget.note?.isVisual == true;
@@ -73,6 +83,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   @override
   void dispose() {
+    _recordingTimer?.cancel();
+    unawaited(_recorder.dispose());
     _title.dispose();
     _body.dispose();
     super.dispose();
@@ -83,7 +95,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving || _readOnlyVisual) return;
+    if (_saving || _recording || _readOnlyVisual) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -319,6 +331,157 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _takePhoto() async {
+    if (_saving || _recording) return;
+    try {
+      if (Attachments.refs(_body.text).map((ref) => ref.key).toSet().length >=
+          20) {
+        throw const FormatException(
+          'Puoi aggiungere fino a 20 allegati per nota.',
+        );
+      }
+      final photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 95,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      );
+      if (photo == null) return;
+      final bytes = await photo.readAsBytes();
+      final store = await AttachmentStore.open();
+      final key = await store.ingest(bytes, AttachmentType.jpeg);
+      final label =
+          'Foto ${DateTime.now().toIso8601String().substring(0, 10)}';
+      final body = Attachments.append(_body.text, key, label);
+      if (!mounted) return;
+      setState(() {
+        _body.text = body;
+        _body.selection = TextSelection.collapsed(offset: body.length);
+        _dirty = true;
+        _error = null;
+        if (_blocksInitialized) {
+          _blocks = BlockEditorCodec.parse(_id, body);
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString().replaceFirst('FormatException: ', '');
+      });
+    }
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_recording) {
+      await _stopRecording();
+      return;
+    }
+    if (_saving) return;
+
+    try {
+      if (Attachments.refs(_body.text).map((ref) => ref.key).toSet().length >=
+          20) {
+        throw const FormatException(
+          'Puoi aggiungere fino a 20 allegati per nota.',
+        );
+      }
+      if (!await _recorder.hasPermission()) {
+        throw const FormatException(
+          'Microfono non autorizzato. Abilitalo nelle impostazioni Android.',
+        );
+      }
+
+      final root = await getTemporaryDirectory();
+      final path = p.join(
+        root.path,
+        'voice-${const Uuid().v4()}.m4a',
+      );
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 96000,
+          sampleRate: 44100,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+      if (!mounted) {
+        await _recorder.cancel();
+        return;
+      }
+
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer(
+        const Duration(minutes: 5),
+        () => unawaited(_stopRecording()),
+      );
+      setState(() {
+        _recording = true;
+        _recordingPath = path;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _recording = false;
+        _recordingPath = null;
+        _error = error.toString().replaceFirst('FormatException: ', '');
+      });
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    if (!_recording) return;
+    final fallback = _recordingPath;
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    setState(() => _recording = false);
+
+    String? path;
+    try {
+      path = await _recorder.stop() ?? fallback;
+      if (path == null) {
+        throw const FormatException('Registrazione non disponibile.');
+      }
+      final file = File(path);
+      if (!await file.exists()) {
+        throw const FormatException('Registrazione non disponibile.');
+      }
+      final bytes = await file.readAsBytes();
+      final store = await AttachmentStore.open();
+      final key = await store.ingest(bytes, AttachmentType.m4a);
+      final now = DateTime.now();
+      final label =
+          'Registrazione ${now.toIso8601String().substring(0, 16).replaceFirst('T', ' ')}';
+      final body = Attachments.append(_body.text, key, label);
+      if (!mounted) return;
+      setState(() {
+        _body.text = body;
+        _body.selection = TextSelection.collapsed(offset: body.length);
+        _dirty = true;
+        _recordingPath = null;
+        _error = null;
+        if (_blocksInitialized) {
+          _blocks = BlockEditorCodec.parse(_id, body);
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _recordingPath = null;
+        _error = error.toString().replaceFirst('FormatException: ', '');
+      });
+    } finally {
+      final cleanup = path ?? fallback;
+      if (cleanup != null) {
+        try {
+          final file = File(cleanup);
+          if (await file.exists()) await file.delete();
+        } catch (_) {}
+      }
+    }
   }
 
   Future<void> _attachFiles() async {
@@ -1015,7 +1178,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             icon: const Icon(Icons.history),
           ),
           FilledButton(
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || _recording ? null : _save,
             child: Text(_saving ? 'Salvataggio…' : 'Salva'),
           ),
           const SizedBox(width: 8),
@@ -1103,12 +1266,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       OutlinedButton.icon(
-                        onPressed: _saving ? null : _attachFiles,
+                        onPressed:
+                            _saving || _recording ? null : _attachFiles,
                         icon: const Icon(Icons.attach_file),
                         label: const Text('Allega'),
                       ),
+                      OutlinedButton.icon(
+                        onPressed:
+                            _saving || _recording ? null : _takePhoto,
+                        icon: const Icon(Icons.photo_camera_outlined),
+                        label: const Text('Foto'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _toggleRecording,
+                        icon: Icon(
+                          _recording ? Icons.stop_circle : Icons.mic_none,
+                        ),
+                        label: Text(
+                          _recording ? 'Termina' : 'Registra',
+                        ),
+                      ),
                       FilledButton.tonalIcon(
-                        onPressed: _saving ? null : _smartCapture,
+                        onPressed:
+                            _saving || _recording ? null : _smartCapture,
                         icon: const Icon(Icons.document_scanner),
                         label: const Text('Smart Capture'),
                       ),
@@ -1116,6 +1296,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         '${Attachments.refs(_body.text).length}/20 allegati',
                         style: Theme.of(context).textTheme.labelMedium,
                       ),
+                      if (_recording)
+                        Text(
+                          'Registrazione in corso · massimo 5 minuti',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                        ),
                     ],
                   ),
                   if (Attachments.refs(_body.text).isNotEmpty) ...[
