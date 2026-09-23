@@ -22,6 +22,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import androidx.core.content.FileProvider
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Worker
@@ -43,6 +44,7 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "notes.ecosystem/capture"
         private const val REMINDER_CHANNEL = "notes.ecosystem/reminders"
         private const val SECURE_CHANNEL = "notes.ecosystem/secure"
+        private const val ATTACHMENT_CHANNEL = "notes.ecosystem/attachments"
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
@@ -115,6 +117,38 @@ class MainActivity : FlutterActivity() {
                 "allowed" -> result.success(notificationsAllowed())
                 "requestPermission" -> requestNotificationPermission(result)
                 "zoneId" -> result.success(java.time.ZoneId.systemDefault().id)
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ATTACHMENT_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "open", "share" -> {
+                    runCatching {
+                        val args = call.arguments as? Map<*, *>
+                            ?: error("Parametri allegato mancanti.")
+                        val key = args["key"]?.toString().orEmpty()
+                        val name = args["name"]?.toString().orEmpty()
+                        val mime = args["mime"]?.toString().orEmpty()
+                        launchAttachment(
+                            key = key,
+                            name = name,
+                            mime = mime,
+                            share = call.method == "share",
+                        )
+                    }
+                        .onSuccess { result.success(null) }
+                        .onFailure {
+                            result.error(
+                                "ATTACHMENT",
+                                it.message ?: "Allegato non disponibile.",
+                                null,
+                            )
+                        }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -377,6 +411,56 @@ class MainActivity : FlutterActivity() {
                 Intent.EXTRA_STREAM,
             ).orEmpty()
         }
+
+    private fun launchAttachment(
+        key: String,
+        name: String,
+        mime: String,
+        share: Boolean,
+    ) {
+        require(
+            Regex(
+                "^[a-f0-9]{64}\\.(jpg|png|webp|m4a|mp3|wav|ogg|pdf|txt|docx|xlsx|pptx)$"
+            ).matches(key)
+        ) {
+            "Allegato non valido."
+        }
+        require(mime.isNotBlank() && mime.length <= 200) {
+            "Tipo allegato non valido."
+        }
+
+        val root = File(filesDir, "attachments").canonicalFile
+        val file = File(root, key).canonicalFile
+        require(file.parentFile == root && file.isFile && file.length() in 1..FILE_LIMIT.toLong()) {
+            "Allegato non disponibile."
+        }
+
+        val uri = FileProvider.getUriForFile(
+            this,
+            "$packageName.attachments",
+            file,
+        )
+        val safeName = name.take(120).ifBlank { "Allegato" }
+        val intent = if (share) {
+            Intent(Intent.ACTION_SEND)
+                .setType(mime)
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .putExtra(Intent.EXTRA_TITLE, safeName)
+        } else {
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, mime)
+        }
+        intent
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .also {
+                it.clipData = ClipData.newRawUri(safeName, uri)
+            }
+
+        startActivity(
+            if (share) Intent.createChooser(intent, "Condividi allegato")
+            else Intent.createChooser(intent, "Apri allegato")
+        )
+    }
 
     private fun githubSecretKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
