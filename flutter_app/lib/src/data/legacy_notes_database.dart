@@ -8,6 +8,7 @@ import '../domain/backup.dart';
 import '../domain/blocks.dart';
 import '../domain/library.dart';
 import '../domain/note.dart';
+import '../domain/planner.dart';
 import '../domain/sync.dart';
 
 class LegacyNotesDatabase {
@@ -536,6 +537,60 @@ class LegacyNotesDatabase {
         where: 'id = ?',
         whereArgs: [expected.id],
       );
+    });
+  }
+
+  Future<bool> snoozeReminder(
+    String id,
+    int expectedAt,
+    int nextAt,
+  ) async {
+    if (id.trim().isEmpty || nextAt <= expectedAt) return false;
+    final db = await database;
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'notes',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isEmpty) return false;
+      final note = Note.fromMap(rows.first);
+      final task = TaskDetails.tryDecode(note.taskJson);
+      if (task == null ||
+          note.isDeleted ||
+          note.archived ||
+          task.completed ||
+          task.reminderAt != expectedAt) {
+        return false;
+      }
+      final drafts = await txn.query(
+        'drafts',
+        columns: ['id'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (drafts.isNotEmpty) return false;
+
+      final old = DateTime.fromMillisecondsSinceEpoch(expectedAt);
+      final fallbackTime =
+          '${old.hour.toString().padLeft(2, '0')}:${old.minute.toString().padLeft(2, '0')}';
+      final updated = task.copyWith(
+        reminderAt: nextAt,
+        reminderTime: task.reminderTime ?? fallbackTime,
+      );
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await txn.update(
+        'notes',
+        {
+          'taskJson': updated.encode(),
+          'updatedAt': now,
+        },
+        where: 'id = ? AND updatedAt = ?',
+        whereArgs: [id, note.updatedAt],
+      );
+      return true;
     });
   }
 
