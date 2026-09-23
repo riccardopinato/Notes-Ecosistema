@@ -294,10 +294,7 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
   }
 
   Future<void> forgetSpace(String spaceId) async {
-    final current = _space(spaceId);
-    if (current.ownerId == _identity.id) {
-      // Forgetting is intentionally local-only: shared notes are never deleted.
-    }
+    _space(spaceId);
     final spaces =
         state.spaces.where((space) => space.id != spaceId).toList();
     state = state.copyWith(spaces: spaces, clearError: true);
