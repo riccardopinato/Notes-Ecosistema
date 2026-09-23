@@ -340,6 +340,12 @@ class _SharedSpaceDetailScreenState
     try {
       setState(() => _error = null);
       await action();
+      final live = ref.read(sharedLiveSyncProvider);
+      if (live.enabled) {
+        unawaited(
+          ref.read(sharedLiveSyncProvider.notifier).syncSoon(),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
