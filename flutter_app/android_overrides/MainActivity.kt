@@ -41,21 +41,26 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "notes.ecosystem/capture"
         private const val REMINDER_CHANNEL = "notes.ecosystem/reminders"
         private const val SECURE_CHANNEL = "notes.ecosystem/secure"
+        private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
         private const val PERMISSION_REQUEST = 4102
         private const val NEW_NOTE = "it.notes.ecosystem.NEW_NOTE"
         private const val NEW_CHECKLIST = "it.notes.ecosystem.NEW_CHECKLIST"
+        const val QUICK_SYNC = "it.notes.ecosystem.QUICK_SYNC"
         private const val FILE_LIMIT = 8 * 1024 * 1024
         private const val MAX_FILES = 20
     }
 
     private var channel: MethodChannel? = null
+    private var quickSyncChannel: MethodChannel? = null
     private var reminderPermissionResult: MethodChannel.Result? = null
     private var pendingCapture: Map<String, Any?>? = null
+    private var pendingQuickSync = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingCapture = parseCapture(intent)
+        pendingQuickSync = intent?.action == QUICK_SYNC
         super.onCreate(savedInstanceState)
         installShortcuts()
         ensureReminderChannel()
@@ -72,6 +77,21 @@ class MainActivity : FlutterActivity() {
                     "getInitialCapture" -> {
                         result.success(pendingCapture)
                         pendingCapture = null
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+
+        quickSyncChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            QUICK_SYNC_CHANNEL,
+        ).also { methodChannel ->
+            methodChannel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialRequest" -> {
+                        result.success(pendingQuickSync)
+                        pendingQuickSync = false
                     }
                     else -> result.notImplemented()
                 }
@@ -127,6 +147,17 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+
+        if (intent.action == QUICK_SYNC) {
+            val currentSync = quickSyncChannel
+            if (currentSync == null) {
+                pendingQuickSync = true
+            } else {
+                currentSync.invokeMethod("sync", null)
+            }
+            return
+        }
+
         val capture = parseCapture(intent) ?: return
         val current = channel
         if (current == null) {
