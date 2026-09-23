@@ -476,7 +476,7 @@ class SharedSpacesLiveSyncService {
     if (document.sketchJson != null) return;
     final store = await AttachmentStore.open();
     for (final ref in Attachments.refs(document.body)) {
-      if (await store.exists(ref.key)) continue;
+      if (await store.contains(ref.key)) continue;
       final bytes = await api.downloadAsset(ref.key, head);
       await store.put(ref.key, bytes);
     }
