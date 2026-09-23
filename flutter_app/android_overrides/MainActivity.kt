@@ -18,6 +18,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -138,6 +139,13 @@ class MainActivity : FlutterActivity() {
                 }
                 "allowed" -> result.success(notificationsAllowed())
                 "requestPermission" -> requestNotificationPermission(result)
+                "openSettings" -> {
+                    startActivity(
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    )
+                    result.success(null)
+                }
                 "zoneId" -> result.success(java.time.ZoneId.systemDefault().id)
                 else -> result.notImplemented()
             }
