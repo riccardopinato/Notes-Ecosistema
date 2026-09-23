@@ -73,7 +73,7 @@ class SharedIdentity {
           : _githubLogin(map['githubLogin']),
       legacyIds: legacyRaw == null
           ? const []
-          : legacyRaw
+          : (legacyRaw as List)
               .map((value) => _requiredId(value, 'alias identità'))
               .toList(growable: false),
     );
@@ -473,7 +473,7 @@ abstract final class SharedSpaces {
       );
 
   static String githubIdentityId(String userId) =>
-      'github:' + _githubUserId(userId);
+      'github:${_githubUserId(userId)}';
 
   static SharedSpacesSnapshot bindGitHubIdentity(
     SharedSpacesSnapshot snapshot, {
