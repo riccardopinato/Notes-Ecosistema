@@ -15,6 +15,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import androidx.work.ExistingWorkPolicy
@@ -25,13 +28,20 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.security.KeyStore
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "notes.ecosystem/capture"
         private const val REMINDER_CHANNEL = "notes.ecosystem/reminders"
+        private const val SECURE_CHANNEL = "notes.ecosystem/secure"
+        private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
         private const val PERMISSION_REQUEST = 4102
         private const val NEW_NOTE = "it.notes.ecosystem.NEW_NOTE"
@@ -81,6 +91,34 @@ class MainActivity : FlutterActivity() {
                 "allowed" -> result.success(notificationsAllowed())
                 "requestPermission" -> requestNotificationPermission(result)
                 "zoneId" -> result.success(java.time.ZoneId.systemDefault().id)
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SECURE_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "saveGitHubToken" -> {
+                    val token = call.arguments as? String
+                    if (token.isNullOrBlank() || token.any { it.isWhitespace() }) {
+                        result.error("TOKEN", "Token GitHub non valido.", null)
+                    } else {
+                        runCatching { saveGitHubToken(token) }
+                            .onSuccess { result.success(null) }
+                            .onFailure { result.error("KEYSTORE", it.message, null) }
+                    }
+                }
+                "readGitHubToken" -> {
+                    runCatching { readGitHubToken() }
+                        .onSuccess { result.success(it) }
+                        .onFailure { result.success(null) }
+                }
+                "deleteGitHubToken" -> {
+                    deleteGitHubToken()
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -304,6 +342,72 @@ class MainActivity : FlutterActivity() {
                 Intent.EXTRA_STREAM,
             ).orEmpty()
         }
+
+    private fun githubSecretKey(): SecretKey {
+        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (store.getKey(GITHUB_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+
+        return KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_AES,
+            "AndroidKeyStore",
+        ).apply {
+            init(
+                KeyGenParameterSpec.Builder(
+                    GITHUB_KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or
+                        KeyProperties.PURPOSE_DECRYPT,
+                )
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(
+                        KeyProperties.ENCRYPTION_PADDING_NONE
+                    )
+                    .build()
+            )
+        }.generateKey()
+    }
+
+    private fun saveGitHubToken(token: String) {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, githubSecretKey())
+        val encrypted = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
+        getSharedPreferences("github_secure", Context.MODE_PRIVATE)
+            .edit()
+            .putString(
+                "iv",
+                Base64.encodeToString(cipher.iv, Base64.NO_WRAP),
+            )
+            .putString(
+                "data",
+                Base64.encodeToString(encrypted, Base64.NO_WRAP),
+            )
+            .commit()
+    }
+
+    private fun readGitHubToken(): String? {
+        val preferences =
+            getSharedPreferences("github_secure", Context.MODE_PRIVATE)
+        val iv = preferences.getString("iv", null) ?: return null
+        val data = preferences.getString("data", null) ?: return null
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            githubSecretKey(),
+            GCMParameterSpec(
+                128,
+                Base64.decode(iv, Base64.NO_WRAP),
+            ),
+        )
+        return cipher.doFinal(
+            Base64.decode(data, Base64.NO_WRAP)
+        ).toString(Charsets.UTF_8)
+    }
+
+    private fun deleteGitHubToken() {
+        getSharedPreferences("github_secure", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+    }
 
     private fun ensureReminderChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
