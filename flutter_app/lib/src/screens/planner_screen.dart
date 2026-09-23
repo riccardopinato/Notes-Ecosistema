@@ -450,9 +450,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        _taskStatusLabel(status) +
-                            ' · ' +
-                            group.length.toString(),
+                        '${_taskStatusLabel(status)} · ${group.length}',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
@@ -474,7 +472,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                       ),
                                       subtitle: task.due == null
                                           ? null
-                                          : Text('Scadenza ' + task.due!),
+                                          : Text('Scadenza ${task.due}'),
                                       onTap: _busy
                                           ? null
                                           : () => _editTask(note),
@@ -534,7 +532,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  (total ~/ 60).toString() + ' minuti negli ultimi 7 giorni',
+                  '${total ~/ 60} minuti negli ultimi 7 giorni',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 16),
@@ -571,7 +569,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                             Text(
-                              (row.value ~/ 60).toString() + 'm',
+                              '${row.value ~/ 60}m',
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                           ],
@@ -605,10 +603,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       ),
                     ),
                     trailing: Text(
-                      (row.seconds ~/ 60).toString() +
-                          'm ' +
-                          (row.seconds % 60).toString() +
-                          's',
+                      '${row.seconds ~/ 60}m ${row.seconds % 60}s',
                     ),
                   ),
                 ),
