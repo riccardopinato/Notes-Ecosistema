@@ -33,4 +33,7 @@ class ReminderBridge {
 
   static Future<bool> requestPermission() async =>
       await _channel.invokeMethod<bool>('requestPermission') ?? false;
+
+  static Future<String> zoneId() async =>
+      await _channel.invokeMethod<String>('zoneId') ?? 'UTC';
 }
