@@ -393,25 +393,25 @@ class _SharedSpaceDetailScreenState
                 'Il codice identifica lo spazio e il ruolo, ma non contiene password o token cloud.',
               ),
               const SizedBox(height: 14),
-              RadioListTile<SharedRole>(
-                value: SharedRole.editor,
-                groupValue: role,
-                onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() => role = value);
-                  }
-                },
+              ListTile(
+                leading: Icon(
+                  role == SharedRole.editor
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                ),
                 title: const Text('Può modificare'),
+                onTap: () =>
+                    setDialogState(() => role = SharedRole.editor),
               ),
-              RadioListTile<SharedRole>(
-                value: SharedRole.viewer,
-                groupValue: role,
-                onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() => role = value);
-                  }
-                },
+              ListTile(
+                leading: Icon(
+                  role == SharedRole.viewer
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                ),
                 title: const Text('Solo lettura'),
+                onTap: () =>
+                    setDialogState(() => role = SharedRole.viewer),
               ),
             ],
           ),
