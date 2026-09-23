@@ -62,7 +62,7 @@ abstract final class PersonalTemplates {
     var expanded = expand(body, now);
     if (reset) {
       expanded = expanded.replaceAllMapped(
-        RegExp(r'(^|\\n)(\\s*- \\[)[xX](\\]\\s*)'),
+        RegExp(r'(^|\n)(\s*- \[)[xX](\]\s*)'),
         (m) => '${m.group(1)}${m.group(2)} ${m.group(3)}',
       );
     }
