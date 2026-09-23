@@ -137,6 +137,11 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     await refresh();
   }
 
+  Future<void> archive(String id, bool value) async {
+    await _database.setArchived(id, value);
+    await refresh();
+  }
+
   Future<void> pin(String id, bool value) async {
     await _database.setPinned(id, value);
     await refresh();
