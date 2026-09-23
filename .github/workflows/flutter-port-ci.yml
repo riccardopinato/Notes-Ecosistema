@@ -52,18 +52,7 @@ jobs:
           if 'androidx.work:work-runtime:2.11.2' not in s:
               s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n}\n'
           if 'proguard-rules.pro' not in s:
-              s += '''
-android {
-    buildTypes {
-        getByName("release") {
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-        }
-    }
-}
-'''
+              s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
