@@ -14,6 +14,9 @@ import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/media_bundle.dart';
 import 'domain/note.dart';
+import 'domain/planner.dart';
+import 'domain/shared_space_bundle.dart';
+import 'domain/shared_spaces.dart';
 import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
@@ -27,9 +30,11 @@ import 'screens/github_sync_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
+import 'screens/shared_spaces_screen.dart';
 import 'screens/sketch_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
+import 'state/shared_spaces_controller.dart';
 import 'state/workspace_controller.dart';
 import 'sync/github_sync_service.dart';
 import 'theme/notes_theme.dart';
@@ -93,7 +98,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   String? _plannerTaskId;
   String _reminderSignature = '';
 
-  static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
+  static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Spazi', 'Cerca'];
 
   @override
   void initState() {
@@ -247,9 +252,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     }
   }
 
-  Future<void> _openEditor([Note? note]) async {
+  Future<void> _openEditor([Note? note, bool readOnly = false]) async {
     if (note?.isVisual == true) {
-      await _openVisual(note!);
+      await _openVisual(note!, readOnly: readOnly);
       return;
     }
 
@@ -260,13 +265,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
           note: note,
           collections: collections,
           allNotes: ref.read(workspaceProvider).notes,
+          readOnly: readOnly,
         ),
       ),
     );
     await ref.read(workspaceProvider.notifier).refresh();
   }
 
-  Future<void> _openVisual(Note note) async {
+  Future<void> _openVisual(Note note, {bool readOnly = false}) async {
     if (note.visualKind == VisualDocumentKind.whiteboard) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -274,6 +280,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
             note: note,
             onSave: (updated) =>
                 ref.read(workspaceProvider.notifier).save(updated),
+            readOnly: readOnly,
           ),
         ),
       );
@@ -284,6 +291,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
             note: note,
             onSave: (updated) =>
                 ref.read(workspaceProvider.notifier).save(updated),
+            readOnly: readOnly,
           ),
         ),
       );
