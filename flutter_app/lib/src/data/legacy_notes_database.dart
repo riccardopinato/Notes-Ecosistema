@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/backup.dart';
 import '../domain/blocks.dart';
 import '../domain/note.dart';
+import '../domain/sync.dart';
 
 class LegacyNotesDatabase {
   Database? _db;
@@ -258,6 +259,99 @@ class LegacyNotesDatabase {
       collections: collections,
       drafts: drafts,
     );
+  }
+
+  Future<Map<String, SyncDocument>> syncDocuments() async {
+    final notes = await loadNotes();
+    final collections = await loadCollections();
+    final names = {
+      for (final collection in collections) collection.id: collection.name,
+    };
+    return {
+      for (final note in notes)
+        note.id: SyncDocument.fromNote(note, names[note.collectionId]),
+    };
+  }
+
+  Future<void> applySyncDocument(SyncDocument document) async {
+    final db = await database;
+
+    final drafts = await db.query(
+      'drafts',
+      columns: ['id'],
+      where: 'id = ?',
+      whereArgs: [document.id],
+      limit: 1,
+    );
+    if (drafts.isNotEmpty) {
+      throw const FormatException(
+        'La nota ha una bozza locale: salvala o scartala prima del sync.',
+      );
+    }
+
+    String? collectionId;
+    if (document.collection != null) {
+      final rows = await db.query(
+        'collections',
+        where: 'name = ?',
+        whereArgs: [document.collection],
+        limit: 1,
+      );
+      if (rows.isEmpty) {
+        collectionId = const Uuid().v4();
+        await createCollection(
+          NoteCollection(
+            id: collectionId,
+            name: document.collection!,
+          ),
+        );
+      } else {
+        collectionId = rows.first['id']?.toString();
+      }
+    }
+
+    await saveNote(
+      Note(
+        id: document.id,
+        title: document.title,
+        body: document.body,
+        collectionId: collectionId,
+        favorite: document.favorite,
+        createdAt: document.createdAt,
+        updatedAt: document.updatedAt,
+        deletedAt: document.deletedAt,
+        pinned: document.pinned,
+        archived: document.archived,
+        tags: document.tags,
+        taskJson: document.taskJson,
+        sketchJson: document.sketchJson,
+      ),
+    );
+  }
+
+  Future<String> saveSyncCopy(
+    SyncDocument source, {
+    String suffix = ' (copia locale)',
+  }) async {
+    final id = const Uuid().v4();
+    await applySyncDocument(
+      SyncDocument(
+        id: id,
+        title: '${source.title}$suffix',
+        body: source.body,
+        collection: source.collection,
+        favorite: source.favorite,
+        createdAt: source.createdAt,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        deletedAt: null,
+        pinned: source.pinned,
+        archived: source.archived,
+        tags: source.tags,
+        taskJson: source.taskJson,
+        sketchJson: source.sketchJson,
+      ),
+    );
+    return id;
   }
 
   Future<void> importCopies(BackupSnapshot snapshot) async {
