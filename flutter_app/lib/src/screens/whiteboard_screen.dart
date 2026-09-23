@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/rendering.dart';
 
 import '../domain/note.dart';
 import '../domain/visual_documents.dart';
+import '../platform/visual_share_bridge.dart';
 
 class WhiteboardScreen extends StatefulWidget {
   const WhiteboardScreen({
@@ -89,19 +91,27 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     }
   }
 
-  Future<void> _exportPng() async {
+  Future<Uint8List> _renderPng() async {
+    final boundary = _exportKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
+    if (boundary == null) {
+      throw const FormatException('Lavagna non ancora pronta per export.');
+    }
+    final image = await boundary.toImage(pixelRatio: 0.5);
     try {
-      final boundary = _exportKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
-      if (boundary == null) {
-        throw const FormatException('Lavagna non ancora pronta per export.');
-      }
-      final image = await boundary.toImage(pixelRatio: 0.5);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      image.dispose();
       if (data == null) {
         throw const FormatException('Impossibile creare il PNG.');
       }
+      return data.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
+  }
+
+  Future<void> _exportPng() async {
+    try {
+      final bytes = await _renderPng();
       final fallback = _document.mode == WhiteboardMode.mindMap
           ? 'mind-map'
           : 'lavagna';
@@ -115,12 +125,34 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       await FilePicker.platform.saveFile(
         dialogTitle: 'Esporta lavagna PNG',
         fileName: '$title.png',
-        bytes: data.buffer.asUint8List(),
+        bytes: bytes,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lavagna esportata in PNG.')),
       );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _sharePng() async {
+    try {
+      final bytes = await _renderPng();
+      final fallback = _document.mode == WhiteboardMode.mindMap
+          ? 'Mind map Notes'
+          : 'Lavagna Notes';
+      final title = _title.text.trim().isEmpty
+          ? fallback
+          : _title.text.trim();
+      await VisualShareBridge.sharePng(bytes, title: title);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -295,8 +327,13 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         actions: [
           IconButton(
             onPressed: _saving ? null : _exportPng,
-            tooltip: 'Esporta PNG',
-            icon: const Icon(Icons.ios_share),
+            tooltip: 'Salva PNG',
+            icon: const Icon(Icons.download_outlined),
+          ),
+          IconButton(
+            onPressed: _saving ? null : _sharePng,
+            tooltip: 'Condividi PNG',
+            icon: const Icon(Icons.share_outlined),
           ),
           FilledButton(
             onPressed: _saving ? null : _save,
