@@ -246,6 +246,7 @@ class SharedSpaceInvite {
     required this.spaceId,
     required this.spaceName,
     required this.owner,
+    required this.spaceCreatedAt,
     required this.role,
     required this.issuedAt,
     required this.expiresAt,
@@ -258,6 +259,7 @@ class SharedSpaceInvite {
   final String spaceId;
   final String spaceName;
   final SharedMember owner;
+  final int spaceCreatedAt;
   final SharedRole role;
   final int issuedAt;
   final int expiresAt;
@@ -278,6 +280,7 @@ class SharedSpaceInvite {
         'spaceId': spaceId,
         'spaceName': spaceName,
         'owner': owner.toJson(),
+        'spaceCreatedAt': spaceCreatedAt,
         'role': role.name,
         'issuedAt': issuedAt,
         'expiresAt': expiresAt,
@@ -317,6 +320,8 @@ class SharedSpaceInvite {
       spaceId: _requiredId(map['spaceId'], 'spazio'),
       spaceName: _spaceName(map['spaceName']),
       owner: SharedMember.fromJson(_stringMap(map['owner'], 'proprietario')),
+      spaceCreatedAt:
+          _timestamp(map['spaceCreatedAt'], 'creazione spazio'),
       role: role.first,
       issuedAt: _timestamp(map['issuedAt'], 'invito'),
       expiresAt: _timestamp(map['expiresAt'], 'scadenza invito'),
@@ -680,7 +685,7 @@ abstract final class SharedSpaces {
         name: invite.spaceName,
         description: '',
         ownerId: invite.owner.id,
-        createdAt: invite.owner.updatedAt,
+        createdAt: invite.spaceCreatedAt,
         nameUpdatedAt: invite.issuedAt,
         descriptionUpdatedAt: invite.issuedAt,
         members: [invite.owner, recipient],
@@ -735,6 +740,7 @@ abstract final class SharedSpaces {
       spaceId: space.id,
       spaceName: space.name,
       owner: owner,
+      spaceCreatedAt: space.createdAt,
       role: role,
       issuedAt: issuedAt,
       expiresAt: issuedAt + const Duration(days: 7).inMilliseconds,
