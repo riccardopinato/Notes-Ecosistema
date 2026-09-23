@@ -51,6 +51,19 @@ jobs:
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
           if 'androidx.work:work-runtime:2.11.2' not in s:
               s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n}\n'
+          if 'proguard-rules.pro' not in s:
+              s += '''
+android {
+    buildTypes {
+        getByName("release") {
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
+}
+'''
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -146,6 +159,7 @@ jobs:
           cp android_overrides/res/drawable/capture_widget_background.xml android/app/src/main/res/drawable/capture_widget_background.xml
           cp android_overrides/res/values/capture.xml android/app/src/main/res/values/capture.xml
           cp android_overrides/res/values-night/capture.xml android/app/src/main/res/values-night/capture.xml
+          cp android_overrides/proguard-rules.pro android/app/proguard-rules.pro
 
       - name: Dependencies
         run: flutter pub get
