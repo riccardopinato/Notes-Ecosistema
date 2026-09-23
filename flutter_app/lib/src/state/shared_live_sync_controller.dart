@@ -158,9 +158,8 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         if (!mounted) return;
         state = state.copyWith(
           busy: false,
-          message: 'GitHub @' +
-              (identity.githubLogin ?? '') +
-              ' collegato · nessuno Shared Space.',
+          message: 'GitHub @${identity.githubLogin ?? ''} collegato · '
+              'nessuno Shared Space.',
           clearError: true,
         );
         return;
