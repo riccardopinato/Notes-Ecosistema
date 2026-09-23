@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/shared_spaces.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
+import '../sync/github_sync_service.dart';
+import '../sync/shared_github_api.dart';
 import '../sync/shared_spaces_live_sync.dart';
 
 class SharedLiveSyncState {
@@ -101,30 +103,75 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     );
   }
 
+  Future<SharedIdentity> _ensureGitHubIdentity() async {
+    final shared = ref.read(sharedSpacesProvider);
+    if (shared.loading || shared.identity == null) {
+      throw const FormatException(
+        'Profilo collaborazione non ancora disponibile.',
+      );
+    }
+    final database = ref.read(databaseProvider);
+    final config = await GitHubSyncService(database).config();
+    if (config == null) {
+      throw const FormatException(
+        'Collega prima GitHub Sync nelle Impostazioni.',
+      );
+    }
+
+    final api = SharedGitHubApi(config);
+    try {
+      final account = await api.authenticatedAccount();
+      await ref.read(sharedSpacesProvider.notifier).bindGitHubAccount(
+            userId: account.id,
+            login: account.login,
+          );
+    } finally {
+      api.close();
+    }
+
+    final identity = ref.read(sharedSpacesProvider).identity;
+    if (identity == null || !identity.githubBound) {
+      throw const FormatException(
+        'Associazione account GitHub non riuscita.',
+      );
+    }
+    return identity;
+  }
+
   Future<void> syncNow({bool silent = false}) async {
     if (state.busy) return;
 
-    final shared = ref.read(sharedSpacesProvider);
-    final identity = shared.identity;
-    if (identity == null || shared.loading) return;
-
-    if (shared.spaces.isEmpty) {
-      if (!mounted) return;
-      state = state.copyWith(
-        busy: false,
-        message: 'Nessuno Shared Space da sincronizzare.',
-        clearError: true,
-      );
-      return;
-    }
+    final initial = ref.read(sharedSpacesProvider);
+    if (initial.identity == null || initial.loading) return;
 
     state = state.copyWith(
       busy: true,
-      message: 'Shared Spaces in sincronizzazione…',
+      message: 'Verifica account GitHub…',
       clearError: true,
     );
 
     try {
+      final identity = await _ensureGitHubIdentity();
+      final shared = ref.read(sharedSpacesProvider);
+
+      if (shared.spaces.isEmpty) {
+        if (!mounted) return;
+        state = state.copyWith(
+          busy: false,
+          message: 'GitHub @' +
+              (identity.githubLogin ?? '') +
+              ' collegato · nessuno Shared Space.',
+          clearError: true,
+        );
+        return;
+      }
+
+      state = state.copyWith(
+        busy: true,
+        message: 'Shared Spaces in sincronizzazione…',
+        clearError: true,
+      );
+
       final database = ref.read(databaseProvider);
       final service = SharedSpacesLiveSyncService(database);
       final result = await service.run(
