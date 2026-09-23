@@ -46,7 +46,7 @@ class _SpaceSyncRecords {
 
   final Map<String, String> baseHashes;
 
-  factory _SpaceSyncRecords.empty() => const _SpaceSyncRecords({});
+  factory _SpaceSyncRecords.empty() => _SpaceSyncRecords({});
 
   factory _SpaceSyncRecords.decode(String raw) {
     final decoded = jsonDecode(raw);
