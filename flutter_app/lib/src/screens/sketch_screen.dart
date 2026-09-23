@@ -25,11 +25,13 @@ class SketchScreen extends StatefulWidget {
   const SketchScreen({
     required this.note,
     required this.onSave,
+    this.readOnly = false,
     super.key,
   });
 
   final Note note;
   final Future<void> Function(Note note) onSave;
+  final bool readOnly;
 
   @override
   State<SketchScreen> createState() => _SketchScreenState();
@@ -80,7 +82,7 @@ class _SketchScreenState extends State<SketchScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || widget.readOnly) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -453,6 +455,7 @@ class _SketchScreenState extends State<SketchScreen> {
       appBar: AppBar(
         title: TextField(
           controller: _title,
+          readOnly: widget.readOnly,
           decoration: const InputDecoration(
             hintText: 'Nuovo disegno',
             border: InputBorder.none,
@@ -469,10 +472,11 @@ class _SketchScreenState extends State<SketchScreen> {
             tooltip: 'Condividi PNG',
             icon: const Icon(Icons.share_outlined),
           ),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Salvataggio…' : 'Salva'),
-          ),
+          if (!widget.readOnly)
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: Text(_saving ? 'Salvataggio…' : 'Salva'),
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -487,7 +491,8 @@ class _SketchScreenState extends State<SketchScreen> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-          SizedBox(
+          if (!widget.readOnly)
+            SizedBox(
             height: 56,
             child: ListView(
               scrollDirection: Axis.horizontal,
@@ -550,10 +555,10 @@ class _SketchScreenState extends State<SketchScreen> {
                 constrained: false,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onPanStart: _panStart,
-                  onPanUpdate: _panUpdate,
-                  onPanEnd: _panEnd,
-                  onTapUp: _tap,
+                  onPanStart: widget.readOnly ? null : _panStart,
+                  onPanUpdate: widget.readOnly ? null : _panUpdate,
+                  onPanEnd: widget.readOnly ? null : _panEnd,
+                  onTapUp: widget.readOnly ? null : _tap,
                   child: CustomPaint(
                     size: const Size(1000, 1400),
                     painter: _SketchPainter(
@@ -600,17 +605,17 @@ class _SketchScreenState extends State<SketchScreen> {
                     icon: const Icon(Icons.chevron_right),
                   ),
                   IconButton(
-                    onPressed: _addPage,
+                    onPressed: widget.readOnly ? null : _addPage,
                     tooltip: 'Nuova pagina',
                     icon: const Icon(Icons.note_add),
                   ),
                   IconButton(
-                    onPressed: _duplicatePage,
+                    onPressed: widget.readOnly ? null : _duplicatePage,
                     tooltip: 'Duplica pagina',
                     icon: const Icon(Icons.copy),
                   ),
                   IconButton(
-                    onPressed: _deletePage,
+                    onPressed: widget.readOnly ? null : _deletePage,
                     tooltip: 'Elimina pagina',
                     icon: const Icon(Icons.delete_outline),
                   ),
@@ -629,7 +634,8 @@ class _SketchScreenState extends State<SketchScreen> {
     _SketchTool tool,
   ) =>
       IconButton.filledTonal(
-        onPressed: () => setState(() => _tool = tool),
+        onPressed:
+            widget.readOnly ? null : () => setState(() => _tool = tool),
         tooltip: tooltip,
         isSelected: _tool == tool,
         icon: Icon(icon),
