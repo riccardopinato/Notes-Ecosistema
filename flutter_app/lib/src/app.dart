@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
+import 'domain/media_bundle.dart';
 import 'domain/note.dart';
 import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
@@ -537,17 +538,48 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   Future<void> _exportBackup() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final store = await AttachmentStore.open();
+      final bytes = await MediaBundle.encode(snapshot, store);
       final now = DateTime.now();
       final stamp =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       await FilePicker.platform.saveFile(
-        dialogTitle: 'Esporta backup Notes',
+        dialogTitle: 'Esporta backup completo Notes',
+        fileName: 'notes-ecosistema-$stamp.zip',
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Backup completo esportato con allegati.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _exportLegacyJson() async {
+    try {
+      final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Esporta backup JSON Notes',
         fileName: 'notes-ecosistema-$stamp.json',
         bytes: backupUtf8(snapshot),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup esportato.')),
+        const SnackBar(content: Text('Backup JSON esportato.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -567,16 +599,27 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         allowMultiple: false,
         withData: true,
         type: FileType.custom,
-        allowedExtensions: const ['json'],
+        allowedExtensions: const ['zip', 'json'],
       );
       if (result == null || result.files.isEmpty) return;
-      final bytes = result.files.single.bytes;
+      final file = result.files.single;
+      final bytes = file.bytes;
       if (bytes == null) {
         throw const FormatException('Impossibile leggere il backup.');
       }
-      final snapshot = BackupCodec.decode(
-        utf8.decode(bytes, allowMalformed: false),
-      );
+
+      final isZip = file.extension?.toLowerCase() == 'zip';
+      late final BackupSnapshot snapshot;
+      MediaBundlePreview? bundle;
+      if (isZip) {
+        bundle = MediaBundle.decode(Uint8List.fromList(bytes));
+        snapshot = bundle.snapshot;
+      } else {
+        snapshot = BackupCodec.decode(
+          utf8.decode(bytes, allowMalformed: false),
+        );
+      }
+
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
@@ -586,7 +629,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
             'Verranno create copie separate: '
             '${snapshot.notes.length} elementi, '
             '${snapshot.collections.length} raccolte e '
-            '${snapshot.drafts.length} bozze. '
+            '${snapshot.drafts.length} bozze.'
+            '${bundle == null ? '' : ' Il pacchetto include ${bundle.assets.length} allegati.'} '
             'I dati esistenti non verranno sovrascritti.',
           ),
           actions: [
@@ -602,10 +646,63 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         ),
       );
       if (confirmed != true) return;
+
+      if (bundle != null) {
+        final store = await AttachmentStore.open();
+        await MediaBundle.installAssets(bundle, store);
+      }
       await ref.read(workspaceProvider.notifier).importCopies(snapshot);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup importato come copie.')),
+        SnackBar(
+          content: Text(
+            bundle == null
+                ? 'Backup JSON importato come copie.'
+                : 'Backup completo importato con allegati.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _cleanupAttachments() async {
+    try {
+      final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final referenced = <String>{};
+      for (final note in snapshot.notes) {
+        if (!note.isVisual) {
+          referenced.addAll(
+            Attachments.refs(note.body).map((ref) => ref.key),
+          );
+        }
+      }
+      for (final draft in snapshot.drafts) {
+        referenced.addAll(
+          Attachments.refs(draft.body).map((ref) => ref.key),
+        );
+      }
+
+      final store = await AttachmentStore.open();
+      final result = await store.cleanup(referenced);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.files == 0
+                ? 'Nessun allegato orfano trovato.'
+                : 'Rimossi ${result.files} allegati orfani '
+                    '(${(result.bytes / 1024 / 1024).toStringAsFixed(1)} MiB).',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -638,8 +735,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.file_upload_outlined),
-                  title: const Text('Esporta backup'),
-                  subtitle: const Text('Backup JSON v6 compatibile con la versione Kotlin.'),
+                  title: const Text('Esporta backup completo'),
+                  subtitle: const Text(
+                    'ZIP con note, attività, disegni, lavagne e allegati.',
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _exportBackup();
@@ -652,6 +751,28 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                   onTap: () {
                     Navigator.pop(context);
                     _importBackup();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.data_object),
+                  title: const Text('Esporta JSON compatibile'),
+                  subtitle: const Text(
+                    'Backup v6 senza file multimediali, per compatibilità Kotlin.',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exportLegacyJson();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cleaning_services_outlined),
+                  title: const Text('Pulisci allegati orfani'),
+                  subtitle: const Text(
+                    'Rimuove solo file locali non più referenziati da note o bozze.',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _cleanupAttachments();
                   },
                 ),
                 ListTile(
@@ -696,7 +817,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                   },
                 ),
                 const ListTile(
-                  title: Text('Notes · Flutter port 0.25.0'),
+                  title: Text('Notes · Flutter port 0.25.1'),
                   subtitle: Text(
                     'Database locale compatibile con Notes Ecosistema Kotlin / Room v8.',
                   ),
