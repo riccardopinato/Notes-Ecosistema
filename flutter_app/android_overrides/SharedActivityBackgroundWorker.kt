@@ -230,7 +230,10 @@ class SharedActivityBackgroundWorker(
                 if (activity.length() > 200) continue
 
                 val seenKey = "seen_$spaceId"
-                val seenAt = native.getLong(seenKey, enabledAt)
+                val seenAt = maxOf(
+                    native.getLong(seenKey, enabledAt),
+                    enabledAt,
+                )
                 val events = newRemoteEvents(
                     activity = activity,
                     identityId = identityId,
