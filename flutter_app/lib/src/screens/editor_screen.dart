@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -22,7 +23,7 @@ import '../widgets/knowledge_tools.dart';
 import '../widgets/smart_capture_sheet.dart';
 import '../widgets/universal_block_editor.dart';
 
-enum _EditorMode { text, blocks, checklist }
+enum _EditorMode { text, preview, blocks, checklist }
 
 class EditorScreen extends ConsumerStatefulWidget {
   const EditorScreen({
@@ -1031,6 +1032,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         label: const Text('Testo'),
                       ),
                       ChoiceChip(
+                        selected: _mode == _EditorMode.preview,
+                        onSelected: _saving
+                            ? null
+                            : (_) =>
+                                setState(() => _mode = _EditorMode.preview),
+                        label: const Text('Anteprima'),
+                      ),
+                      ChoiceChip(
                         selected: _mode == _EditorMode.blocks,
                         onSelected: _saving
                             ? null
@@ -1081,6 +1090,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
                     ),
+                  ] else if (_mode == _EditorMode.preview) ...[
+                    Text(
+                      'Anteprima di lettura · le immagini esterne non vengono caricate automaticamente.',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    if (_body.text.length > 200000)
+                      const Text(
+                        'Questa nota è troppo lunga per l’anteprima. '
+                        'Il testo completo resta disponibile in Testo.',
+                      )
+                    else
+                      MarkdownBody(
+                        data: _body.text,
+                        selectable: true,
+                        onTapLink: (text, href, title) {
+                          if (href == null) return;
+                          final id = Knowledge.targetId(href);
+                          if (id != null) {
+                            _openLinkedNote(id);
+                          }
+                        },
+                      ),
                   ] else if (_mode == _EditorMode.blocks) ...[
                     UniversalBlockEditor(
                       noteId: _id,
