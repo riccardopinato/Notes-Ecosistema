@@ -116,6 +116,31 @@ void main() {
     );
   });
 
+  test('saved search rename preserves identity and filters', () {
+    const source = SavedSearch(
+      id: 'saved-rename',
+      name: 'Prima',
+      query: 'casa',
+      scope: NoteScope.favorites,
+      options: SearchOptions(tags: ['casa']),
+      kind: 'Testo',
+      order: NoteOrder.recent,
+    );
+
+    final renamed = validateSavedSearch(
+      source.copyWith(name: '  Dopo  '),
+    );
+    final decoded = SavedSearchCodec.decode(
+      SavedSearchCodec.encode([renamed]),
+    ).single;
+
+    expect(decoded.id, source.id);
+    expect(decoded.name, 'Dopo');
+    expect(decoded.query, source.query);
+    expect(decoded.scope, source.scope);
+    expect(decoded.options.tags, source.options.tags);
+  });
+
   test('saved search v1 codec preserves filters and order', () {
     const search = SavedSearch(
       id: 'saved-1',
