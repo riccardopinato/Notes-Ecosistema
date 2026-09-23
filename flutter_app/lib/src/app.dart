@@ -89,6 +89,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         builder: (_) => EditorScreen(
           note: note,
           collections: collections,
+          allNotes: ref.read(workspaceProvider).notes,
         ),
       ),
     );
