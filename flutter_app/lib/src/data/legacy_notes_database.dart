@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/backup.dart';
 import '../domain/blocks.dart';
 import '../domain/note.dart';
 
@@ -233,6 +236,71 @@ class LegacyNotesDatabase {
     );
   }
 
+  Future<BackupSnapshot> snapshot() async {
+    final db = await database;
+    final notes = await loadNotes();
+    final collections = await loadCollections();
+    final rows = await db.query('drafts', orderBy: 'updatedAt DESC, id ASC');
+    final drafts = rows
+        .map(
+          (row) => BackupDraft(
+            id: row['id']?.toString() ?? '',
+            title: row['title']?.toString() ?? '',
+            body: row['body']?.toString() ?? '',
+            collectionId: row['collectionId']?.toString(),
+            updatedAt: (row['updatedAt'] as num?)?.toInt() ?? 0,
+            tags: _decodeTags(row['tagsJson']?.toString()),
+          ),
+        )
+        .toList(growable: false);
+    return BackupSnapshot(
+      notes: notes,
+      collections: collections,
+      drafts: drafts,
+    );
+  }
+
+  Future<void> importCopies(BackupSnapshot snapshot) async {
+    final db = await database;
+    final existing = await loadCollections();
+    final plan = BackupImport.asCopies(
+      snapshot,
+      existingCollectionNames: existing.map((item) => item.name).toSet(),
+      newId: () => const Uuid().v4(),
+    );
+
+    await db.transaction((txn) async {
+      for (final collection in plan.collections) {
+        await txn.insert(
+          'collections',
+          {'id': collection.id, 'name': collection.name},
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final note in plan.notes) {
+        await txn.insert(
+          'notes',
+          note.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final draft in plan.drafts) {
+        await txn.insert(
+          'drafts',
+          {
+            'id': draft.id,
+            'title': draft.title,
+            'body': draft.body,
+            'collectionId': draft.collectionId,
+            'updatedAt': draft.updatedAt,
+            'tagsJson': jsonEncode(draft.tags),
+          },
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> createCollection(NoteCollection collection) async {
     final db = await database;
     await db.insert(
@@ -266,5 +334,16 @@ class LegacyNotesDatabase {
   Future<void> close() async {
     await _db?.close();
     _db = null;
+  }
+
+  static List<String> _decodeTags(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.map((item) => item.toString()).toList(growable: false);
+      }
+    } catch (_) {}
+    return const [];
   }
 }
