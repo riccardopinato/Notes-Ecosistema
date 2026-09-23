@@ -293,6 +293,26 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     await _replace(merged);
   }
 
+  Future<void> applyLiveSync(List<SharedSpace> spaces) async {
+    if (spaces.length > SharedSpaces.maxSpaces) {
+      throw const FormatException('Troppi Shared Spaces sincronizzati.');
+    }
+    final ids = <String>{};
+    for (final space in spaces) {
+      SharedSpaces.validateSpace(space);
+      if (!ids.add(space.id)) {
+        throw const FormatException('Shared Space duplicato nel sync.');
+      }
+    }
+    final ordered = [...spaces]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    state = state.copyWith(
+      spaces: ordered,
+      clearError: true,
+    );
+    await _persist();
+  }
+
   Future<void> forgetSpace(String spaceId) async {
     _space(spaceId);
     final spaces =
