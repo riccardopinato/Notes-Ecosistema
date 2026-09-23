@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../domain/attachments.dart';
+import '../domain/shared_activity.dart';
 import '../domain/shared_spaces.dart';
 import '../domain/sync.dart';
 import 'github_sync_service.dart';
@@ -51,6 +52,113 @@ SharedLiveDecision decideSharedLiveDocument({
     return SharedLiveDecision.download;
   }
   return SharedLiveDecision.conflict;
+}
+
+
+SharedActivityEvent sharedActivityEvent({
+  required SharedIdentity actor,
+  required String spaceId,
+  required SharedActivityKind kind,
+  required int at,
+  String? subjectId,
+}) {
+  final seed = [
+    spaceId,
+    kind.name,
+    subjectId ?? '',
+    at.toString(),
+    actor.id,
+  ].join('\u0000');
+  return SharedActivityEvent(
+    id: sha256.convert(utf8.encode(seed)).toString(),
+    spaceId: spaceId,
+    actorId: actor.id,
+    actorName: actor.displayName,
+    kind: kind,
+    at: at,
+    subjectId: subjectId,
+  );
+}
+
+List<SharedActivityEvent> buildSharedStateActivity({
+  required SharedIdentity actor,
+  required SharedSpace current,
+  SharedSpace? previous,
+}) {
+  if (previous == null) {
+    return [
+      sharedActivityEvent(
+        actor: actor,
+        spaceId: current.id,
+        kind: SharedActivityKind.spaceCreated,
+        at: current.createdAt,
+      ),
+    ];
+  }
+
+  final events = <SharedActivityEvent>[];
+  final metadataAt = [
+    if (current.nameUpdatedAt > previous.nameUpdatedAt)
+      current.nameUpdatedAt,
+    if (current.descriptionUpdatedAt > previous.descriptionUpdatedAt)
+      current.descriptionUpdatedAt,
+  ];
+  if (metadataAt.isNotEmpty) {
+    events.add(
+      sharedActivityEvent(
+        actor: actor,
+        spaceId: current.id,
+        kind: SharedActivityKind.spaceUpdated,
+        at: metadataAt.reduce((a, b) => a > b ? a : b),
+      ),
+    );
+  }
+
+  for (final entry in current.contentAddedAt.entries) {
+    if (entry.value > (previous.contentAddedAt[entry.key] ?? -1)) {
+      events.add(
+        sharedActivityEvent(
+          actor: actor,
+          spaceId: current.id,
+          kind: SharedActivityKind.contentAdded,
+          at: entry.value,
+          subjectId: entry.key,
+        ),
+      );
+    }
+  }
+  for (final entry in current.contentRemovedAt.entries) {
+    if (entry.value > (previous.contentRemovedAt[entry.key] ?? -1)) {
+      events.add(
+        sharedActivityEvent(
+          actor: actor,
+          spaceId: current.id,
+          kind: SharedActivityKind.contentRemoved,
+          at: entry.value,
+          subjectId: entry.key,
+        ),
+      );
+    }
+  }
+
+  final previousMembers = {
+    for (final member in previous.members) member.id: member,
+  };
+  for (final member in current.members) {
+    final before = previousMembers[member.id];
+    if (before == null || member.clock > before.clock) {
+      events.add(
+        sharedActivityEvent(
+          actor: actor,
+          spaceId: current.id,
+          kind: SharedActivityKind.memberChanged,
+          at: member.clock,
+          subjectId: member.id,
+        ),
+      );
+    }
+  }
+  return mergeSharedActivity(const [], events);
 }
 
 List<SharedSpace> mergeDiscoveredSharedSpaces({
@@ -125,6 +233,7 @@ class SharedLiveSyncResult {
   const SharedLiveSyncResult({
     required this.spaces,
     required this.spaceSummaries,
+    required this.activitiesBySpace,
     required this.uploaded,
     required this.downloaded,
     required this.conflicts,
@@ -134,6 +243,7 @@ class SharedLiveSyncResult {
 
   final List<SharedSpace> spaces;
   final Map<String, SharedSpaceSyncSummary> spaceSummaries;
+  final Map<String, List<SharedActivityEvent>> activitiesBySpace;
   final int uploaded;
   final int downloaded;
   final int conflicts;
@@ -195,10 +305,12 @@ class _SpaceSyncRecords {
 class _SpaceRemoteState {
   const _SpaceRemoteState({
     required this.space,
+    required this.activity,
     required this.sha,
   });
 
   final SharedSpace space;
+  final List<SharedActivityEvent> activity;
   final String sha;
 }
 
@@ -208,7 +320,7 @@ class SharedSpacesLiveSyncService {
   final LegacyNotesDatabase database;
 
   static const _remoteFormat = 'notes-ecosystem-shared-live';
-  static const _remoteVersion = 1;
+  static const _remoteVersion = 2;
   static const _remoteStateLimit = 1024 * 1024;
 
   Future<SharedLiveSyncResult> run(
@@ -270,6 +382,7 @@ class SharedSpacesLiveSyncService {
     final localDocuments = await database.syncDocuments();
     final resultSpaces = <SharedSpace>[];
     final spaceSummaries = <String, SharedSpaceSyncSummary>{};
+    final activitiesBySpace = <String, List<SharedActivityEvent>>{};
     var uploaded = 0;
     var downloaded = 0;
     var conflicts = 0;
@@ -297,6 +410,7 @@ class SharedSpacesLiveSyncService {
         purged: result.purged,
         waiting: result.waiting,
       );
+      activitiesBySpace[result.space.id] = result.activity;
       uploaded += result.uploaded;
       downloaded += result.downloaded;
       conflicts += result.conflicts;
@@ -315,6 +429,7 @@ class SharedSpacesLiveSyncService {
     return SharedLiveSyncResult(
       spaces: resultSpaces,
       spaceSummaries: Map.unmodifiable(spaceSummaries),
+      activitiesBySpace: Map.unmodifiable(activitiesBySpace),
       uploaded: uploaded,
       downloaded: downloaded,
       conflicts: conflicts,
@@ -384,6 +499,7 @@ class SharedSpacesLiveSyncService {
           !canonicalLocalSpace.canEdit(identity.id)) {
         return _SpaceRun(
           space: canonicalLocalSpace,
+          activity: const [],
           waiting: 1,
         );
       }
@@ -400,9 +516,20 @@ class SharedSpacesLiveSyncService {
               canonicalLocalSpace,
               canonicalRemoteSpace,
             );
+      var activity = mergeSharedActivity(
+        remoteState?.activity ?? const [],
+        buildSharedStateActivity(
+          actor: identity,
+          current: canonicalLocalSpace,
+          previous: canonicalRemoteSpace,
+        ),
+      );
 
       if (!mergedSpace.canRead(identity.id)) {
-        return _SpaceRun(space: mergedSpace);
+        return _SpaceRun(
+          space: mergedSpace,
+          activity: activity,
+        );
       }
 
       final canEdit = mergedSpace.canEdit(identity.id);
@@ -488,6 +615,18 @@ class SharedSpacesLiveSyncService {
             await api.writeNote(local, remoteFile?.sha);
             finalDocuments[id] = local;
             records.baseHashes[id] = sharedLiveDocumentHash(local);
+            activity = mergeSharedActivity(
+              activity,
+              [
+                sharedActivityEvent(
+                  actor: identity,
+                  spaceId: mergedSpace.id,
+                  kind: SharedActivityKind.documentUpdated,
+                  at: local.updatedAt,
+                  subjectId: local.id,
+                ),
+              ],
+            );
             uploaded++;
             break;
           case SharedLiveDecision.download:
@@ -497,6 +636,18 @@ class SharedSpacesLiveSyncService {
                 await api.writeNote(local, null);
                 finalDocuments[id] = local;
                 records.baseHashes[id] = sharedLiveDocumentHash(local);
+                activity = mergeSharedActivity(
+                  activity,
+                  [
+                    sharedActivityEvent(
+                      actor: identity,
+                      spaceId: mergedSpace.id,
+                      kind: SharedActivityKind.documentUpdated,
+                      at: local.updatedAt,
+                      subjectId: local.id,
+                    ),
+                  ],
+                );
                 uploaded++;
               } else {
                 waiting++;
@@ -532,6 +683,20 @@ class SharedSpacesLiveSyncService {
             await database.applySyncDocument(remote);
             finalDocuments[id] = remote;
             records.baseHashes[id] = sharedLiveDocumentHash(remote);
+            activity = mergeSharedActivity(
+              activity,
+              [
+                sharedActivityEvent(
+                  actor: identity,
+                  spaceId: mergedSpace.id,
+                  kind: SharedActivityKind.conflictPreserved,
+                  at: local != null && local.updatedAt > remote.updatedAt
+                      ? local.updatedAt
+                      : remote.updatedAt,
+                  subjectId: id,
+                ),
+              ],
+            );
             conflicts++;
             downloaded++;
             break;
@@ -561,11 +726,11 @@ class SharedSpacesLiveSyncService {
       }
 
       final encodedState = Uint8List.fromList(
-        utf8.encode(_encodeRemoteState(mergedSpace)),
+        utf8.encode(_encodeRemoteState(mergedSpace, activity)),
       );
       final remoteRaw = remoteState == null
           ? null
-          : _encodeRemoteState(remoteState.space);
+          : _encodeRemoteState(remoteState.space, remoteState.activity);
       final nextRaw = utf8.decode(encodedState);
       if (remoteRaw != nextRaw) {
         await api.writeState(
@@ -580,6 +745,7 @@ class SharedSpacesLiveSyncService {
 
       return _SpaceRun(
         space: mergedSpace,
+        activity: activity,
         uploaded: uploaded,
         downloaded: downloaded,
         conflicts: conflicts,
@@ -631,10 +797,15 @@ class SharedSpacesLiveSyncService {
     final decoded = jsonDecode(raw);
     if (decoded is! Map ||
         decoded['format'] != _remoteFormat ||
-        decoded['version'] != _remoteVersion ||
         decoded['space'] is! Map) {
       throw const FormatException(
         'Stato Shared Space remoto non valido.',
+      );
+    }
+    final version = (decoded['version'] as num?)?.toInt();
+    if (version != 1 && version != _remoteVersion) {
+      throw const FormatException(
+        'Versione Shared Space remota non supportata.',
       );
     }
     final space = SharedSpace.fromJson(
@@ -642,15 +813,43 @@ class SharedSpacesLiveSyncService {
         (key, value) => MapEntry(key.toString(), value),
       ),
     );
-    return _SpaceRemoteState(space: space, sha: file.sha);
+    final activityRaw = decoded['activity'];
+    final activity = <SharedActivityEvent>[];
+    if (activityRaw != null) {
+      if (activityRaw is! List || activityRaw.length > sharedActivityLimit) {
+        throw const FormatException('Cronologia Shared remota non valida.');
+      }
+      for (final item in activityRaw) {
+        if (item is! Map) {
+          throw const FormatException('Cronologia Shared remota non valida.');
+        }
+        activity.add(
+          SharedActivityEvent.fromJson(
+            item.map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          ),
+        );
+      }
+    }
+    return _SpaceRemoteState(
+      space: space,
+      activity: mergeSharedActivity(const [], activity),
+      sha: file.sha,
+    );
   }
 
-  String _encodeRemoteState(SharedSpace space) {
+  String _encodeRemoteState(
+    SharedSpace space,
+    List<SharedActivityEvent> activity,
+  ) {
     SharedSpaces.validateSpace(space);
+    final normalized = mergeSharedActivity(const [], activity);
     return jsonEncode({
       'format': _remoteFormat,
       'version': _remoteVersion,
       'space': space.toJson(),
+      'activity': normalized.map((event) => event.toJson()).toList(),
     });
   }
 
@@ -720,6 +919,7 @@ class SharedSpacesLiveSyncService {
 class _SpaceRun {
   const _SpaceRun({
     required this.space,
+    required this.activity,
     this.uploaded = 0,
     this.downloaded = 0,
     this.conflicts = 0,
@@ -728,6 +928,7 @@ class _SpaceRun {
   });
 
   final SharedSpace space;
+  final List<SharedActivityEvent> activity;
   final int uploaded;
   final int downloaded;
   final int conflicts;
