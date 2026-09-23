@@ -15,6 +15,7 @@ class NotesScreen extends StatefulWidget {
     required this.onOpen,
     required this.onFavorite,
     required this.onPin,
+    required this.onArchive,
     required this.onTrash,
     required this.onBulkEdit,
     required this.onRenameCollection,
@@ -31,6 +32,7 @@ class NotesScreen extends StatefulWidget {
   final ValueChanged<Note> onOpen;
   final ValueChanged<String> onFavorite;
   final void Function(String id, bool value) onPin;
+  final void Function(String id, bool value) onArchive;
   final ValueChanged<String> onTrash;
   final Future<int> Function(List<Note>, BulkChange) onBulkEdit;
   final Future<void> Function(NoteCollection, String) onRenameCollection;
@@ -76,13 +78,29 @@ class _NotesScreenState extends State<NotesScreen> {
       final value = SavedSearchCodec.decode(
         prefs.getString('saved_searches_v1'),
       );
-      if (mounted) setState(() => _saved = value);
+      final storedOrder = prefs.getString('library_order_v1');
+      final order = NoteOrder.values.firstWhere(
+        (item) => item.name == storedOrder,
+        orElse: () => NoteOrder.recent,
+      );
+      if (mounted) {
+        setState(() {
+          _saved = value;
+          _order = order;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _error =
             e.toString().replaceFirst('FormatException: ', ''));
       }
     }
+  }
+
+  Future<void> _setOrder(NoteOrder value) async {
+    setState(() => _order = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('library_order_v1', value.name);
   }
 
   Future<void> _persistSaved() async {
@@ -617,7 +635,7 @@ class _NotesScreenState extends State<NotesScreen> {
               label: const Text('Filtri'),
             ),
             PopupMenuButton<NoteOrder>(
-              onSelected: (v) => setState(() => _order = v),
+              onSelected: _setOrder,
               itemBuilder: (_) => NoteOrder.values
                   .map(
                     (v) => PopupMenuItem(
@@ -733,6 +751,7 @@ class _NotesScreenState extends State<NotesScreen> {
         onOpen: () => widget.onOpen(note),
         onFavorite: () => widget.onFavorite(note.id),
         onPin: () => widget.onPin(note.id, !note.pinned),
+        onArchive: () => widget.onArchive(note.id, !note.archived),
         onTrash: () => widget.onTrash(note.id),
       );
 }
@@ -747,6 +766,7 @@ class _NoteCard extends StatelessWidget {
     required this.onOpen,
     required this.onFavorite,
     required this.onPin,
+    required this.onArchive,
     required this.onTrash,
   });
 
@@ -758,6 +778,7 @@ class _NoteCard extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onFavorite;
   final VoidCallback onPin;
+  final VoidCallback onArchive;
   final VoidCallback onTrash;
 
   @override
@@ -797,6 +818,7 @@ class _NoteCard extends StatelessWidget {
                       onSelected: (v) {
                         if (v == 'favorite') onFavorite();
                         if (v == 'pin') onPin();
+                        if (v == 'archive') onArchive();
                         if (v == 'trash') onTrash();
                       },
                       itemBuilder: (_) => [
@@ -814,6 +836,14 @@ class _NoteCard extends StatelessWidget {
                             note.pinned
                                 ? 'Non fissare più'
                                 : 'Fissa in alto',
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'archive',
+                          child: Text(
+                            note.archived
+                                ? 'Riporta nelle note'
+                                : 'Archivia',
                           ),
                         ),
                         if (!note.isDeleted)
