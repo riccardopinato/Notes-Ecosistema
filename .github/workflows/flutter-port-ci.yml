@@ -141,6 +141,7 @@ jobs:
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
           cp android_overrides/QuickCaptureWidget.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickCaptureWidget.kt
           cp android_overrides/QuickSyncTileService.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickSyncTileService.kt
+          cp android_overrides/SharedActivityBackgroundWorker.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/SharedActivityBackgroundWorker.kt
           mkdir -p android/app/src/main/res/layout android/app/src/main/res/xml android/app/src/main/res/drawable android/app/src/main/res/values android/app/src/main/res/values-night
           cp android_overrides/res/layout/quick_capture_widget.xml android/app/src/main/res/layout/quick_capture_widget.xml
           cp android_overrides/res/xml/quick_capture_widget.xml android/app/src/main/res/xml/quick_capture_widget.xml
@@ -184,7 +185,7 @@ jobs:
       - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-0.29.0-release-split
+          name: Notes-Ecosistema-Flutter-0.30.0-release-split
           path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error
           retention-days: 14
