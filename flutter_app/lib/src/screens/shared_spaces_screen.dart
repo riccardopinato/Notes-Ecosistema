@@ -293,7 +293,7 @@ class SharedSpaceDetailScreen extends ConsumerStatefulWidget {
   });
 
   final String spaceId;
-  final Future<void> Function(Note note) onOpenNote;
+  final Future<void> Function(Note note, bool readOnly) onOpenNote;
   final Future<void> Function(String spaceId) onCreateNote;
   final Future<void> Function(String spaceId) onCreateTask;
   final Future<void> Function(SharedSpace space) onExportBundle;
@@ -1311,7 +1311,9 @@ String _noteKind(Note note) {
     if (due != null) return 'Attività · scadenza $due';
     return 'Attività';
   }
-  if (note.visualKind == VisualDocumentKind.sketch) return 'Disegno';
+  if (note.visualKind == VisualDocumentKind.sketch) {
+    return 'Disegno';
+  }
   if (note.visualKind == VisualDocumentKind.whiteboard) return 'Lavagna / Mind Map';
   return 'Nota';
 }
