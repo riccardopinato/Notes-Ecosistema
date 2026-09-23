@@ -11,6 +11,7 @@ import '../domain/attachments.dart';
 import '../domain/shared_spaces.dart';
 import '../domain/sync.dart';
 import 'github_sync_service.dart';
+import 'shared_github_api.dart';
 
 class SharedLiveSyncResult {
   const SharedLiveSyncResult({
@@ -115,9 +116,9 @@ class SharedSpacesLiveSyncService {
       );
     }
 
-    final rootApi = GitHubApi(root);
+    final rootApi = SharedGitHubApi(root);
     try {
-      final private = await rootApi.verify();
+      final private = await rootApi.verifyPrivateWritable();
       if (!private) {
         throw const FormatException(
           'Shared Spaces Live Sync richiede un repository GitHub privato.',
@@ -219,7 +220,7 @@ class SharedSpacesLiveSyncService {
     );
     config.validate();
 
-    final api = GitHubApi(config);
+    final api = SharedGitHubApi(config);
     try {
       final head = await api.head();
       final remoteState = await _readRemoteState(api, head);
@@ -259,11 +260,7 @@ class SharedSpacesLiveSyncService {
         };
         for (final remoteFile in remoteFiles) {
           if (!expectedNames.contains(remoteFile.name)) {
-            await api.deleteFile(
-              remoteFile.name,
-              remoteFile.sha,
-              message: 'Notes Shared: rimuovi contenuto non condiviso',
-            );
+            await api.deleteNote(remoteFile);
             purged++;
           }
         }
@@ -321,7 +318,7 @@ class SharedSpacesLiveSyncService {
               waiting++;
               break;
             }
-            await _publishAssets(local, api);
+            await _publishAssets(local, api, head);
             await api.writeNote(local, remoteFile?.sha);
             finalDocuments[id] = local;
             records.baseHashes[id] = _documentHash(local);
@@ -330,7 +327,7 @@ class SharedSpacesLiveSyncService {
           case _SharedDecision.download:
             if (remote == null) {
               if (canEdit && local != null) {
-                await _publishAssets(local, api);
+                await _publishAssets(local, api, head);
                 await api.writeNote(local, null);
                 finalDocuments[id] = local;
                 records.baseHashes[id] = _documentHash(local);
@@ -348,7 +345,7 @@ class SharedSpacesLiveSyncService {
             break;
           case _SharedDecision.conflict:
             if (remote == null && local != null && canEdit) {
-              await _publishAssets(local, api);
+              await _publishAssets(local, api, head);
               await api.writeNote(local, null);
               finalDocuments[id] = local;
               records.baseHashes[id] = _documentHash(local);
@@ -391,11 +388,7 @@ class SharedSpacesLiveSyncService {
         final remoteAssets = await api.listAssets(root.branch);
         for (final entry in remoteAssets.entries) {
           if (!referenced.contains(entry.key)) {
-            await api.deleteFile(
-              'assets/${entry.key}',
-              entry.value.sha,
-              message: 'Notes Shared: rimuovi allegato orfano',
-            );
+            await api.deleteAsset(entry.value);
             purged++;
           }
         }
@@ -409,11 +402,9 @@ class SharedSpacesLiveSyncService {
           : _encodeRemoteState(remoteState.space);
       final nextRaw = utf8.decode(encodedState);
       if (remoteRaw != nextRaw) {
-        await api.writeFile(
-          'space.json',
+        await api.writeState(
           encodedState,
           expectedSha: remoteState?.sha,
-          message: 'Notes Shared: aggiorna spazio',
           limit: _remoteStateLimit,
         );
         uploaded++;
@@ -466,19 +457,20 @@ class SharedSpacesLiveSyncService {
 
   Future<void> _publishAssets(
     SyncDocument document,
-    GitHubApi api,
+    SharedGitHubApi api,
+    String head,
   ) async {
     if (document.sketchJson != null) return;
     final store = await AttachmentStore.open();
     for (final ref in Attachments.refs(document.body)) {
       final bytes = await store.read(ref.key);
-      await api.ensureAssetUploaded(ref.key, bytes);
+      await api.ensureAssetUploaded(ref.key, bytes, head);
     }
   }
 
   Future<void> _receiveAssets(
     SyncDocument document,
-    GitHubApi api,
+    SharedGitHubApi api,
     String head,
   ) async {
     if (document.sketchJson != null) return;
@@ -491,11 +483,10 @@ class SharedSpacesLiveSyncService {
   }
 
   Future<_SpaceRemoteState?> _readRemoteState(
-    GitHubApi api,
+    SharedGitHubApi api,
     String head,
   ) async {
-    final file = await api.readFile(
-      'space.json',
+    final file = await api.readState(
       head,
       limit: _remoteStateLimit,
     );
