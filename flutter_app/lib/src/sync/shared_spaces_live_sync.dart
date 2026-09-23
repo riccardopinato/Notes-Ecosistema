@@ -13,6 +13,46 @@ import '../domain/sync.dart';
 import 'github_sync_service.dart';
 import 'shared_github_api.dart';
 
+enum SharedLiveDecision {
+  same,
+  upload,
+  download,
+  conflict,
+}
+
+String sharedLiveDocumentHash(SyncDocument document) =>
+    sha256.convert(utf8.encode(SyncCodec.encode(document))).toString();
+
+SharedLiveDecision decideSharedLiveDocument({
+  required String? baseHash,
+  required SyncDocument? local,
+  required SyncDocument? remote,
+}) {
+  if (local == null && remote == null) {
+    return SharedLiveDecision.same;
+  }
+  if (local == null) return SharedLiveDecision.download;
+  if (remote == null) return SharedLiveDecision.upload;
+
+  final localHash = sharedLiveDocumentHash(local);
+  final remoteHash = sharedLiveDocumentHash(remote);
+  if (localHash == remoteHash) return SharedLiveDecision.same;
+
+  if (baseHash != null) {
+    if (localHash == baseHash) return SharedLiveDecision.download;
+    if (remoteHash == baseHash) return SharedLiveDecision.upload;
+    return SharedLiveDecision.conflict;
+  }
+
+  if (local.updatedAt > remote.updatedAt) {
+    return SharedLiveDecision.upload;
+  }
+  if (remote.updatedAt > local.updatedAt) {
+    return SharedLiveDecision.download;
+  }
+  return SharedLiveDecision.conflict;
+}
+
 class SharedLiveSyncResult {
   const SharedLiveSyncResult({
     required this.spaces,
@@ -281,20 +321,20 @@ class SharedSpacesLiveSyncService {
         }
 
         final baseHash = records.baseHashes[id];
-        final decision = _decide(
+        final decision = decideSharedLiveDocument(
           baseHash: baseHash,
           local: local,
           remote: remote,
         );
 
         switch (decision) {
-          case _SharedDecision.same:
+          case SharedLiveDecision.same:
             if (local != null) {
               finalDocuments[id] = local;
-              records.baseHashes[id] = _documentHash(local);
+              records.baseHashes[id] = sharedLiveDocumentHash(local);
             }
             break;
-          case _SharedDecision.upload:
+          case SharedLiveDecision.upload:
             if (!canEdit) {
               if (remote != null) {
                 if (local != null && local != remote) {
@@ -307,7 +347,7 @@ class SharedSpacesLiveSyncService {
                 await _receiveAssets(remote, api, head);
                 await database.applySyncDocument(remote);
                 finalDocuments[id] = remote;
-                records.baseHashes[id] = _documentHash(remote);
+                records.baseHashes[id] = sharedLiveDocumentHash(remote);
                 downloaded++;
               } else {
                 waiting++;
@@ -321,16 +361,16 @@ class SharedSpacesLiveSyncService {
             await _publishAssets(local, api, head);
             await api.writeNote(local, remoteFile?.sha);
             finalDocuments[id] = local;
-            records.baseHashes[id] = _documentHash(local);
+            records.baseHashes[id] = sharedLiveDocumentHash(local);
             uploaded++;
             break;
-          case _SharedDecision.download:
+          case SharedLiveDecision.download:
             if (remote == null) {
               if (canEdit && local != null) {
                 await _publishAssets(local, api, head);
                 await api.writeNote(local, null);
                 finalDocuments[id] = local;
-                records.baseHashes[id] = _documentHash(local);
+                records.baseHashes[id] = sharedLiveDocumentHash(local);
                 uploaded++;
               } else {
                 waiting++;
@@ -340,15 +380,15 @@ class SharedSpacesLiveSyncService {
             await _receiveAssets(remote, api, head);
             await database.applySyncDocument(remote);
             finalDocuments[id] = remote;
-            records.baseHashes[id] = _documentHash(remote);
+            records.baseHashes[id] = sharedLiveDocumentHash(remote);
             downloaded++;
             break;
-          case _SharedDecision.conflict:
+          case SharedLiveDecision.conflict:
             if (remote == null && local != null && canEdit) {
               await _publishAssets(local, api, head);
               await api.writeNote(local, null);
               finalDocuments[id] = local;
-              records.baseHashes[id] = _documentHash(local);
+              records.baseHashes[id] = sharedLiveDocumentHash(local);
               uploaded++;
               break;
             }
@@ -365,7 +405,7 @@ class SharedSpacesLiveSyncService {
             await _receiveAssets(remote, api, head);
             await database.applySyncDocument(remote);
             finalDocuments[id] = remote;
-            records.baseHashes[id] = _documentHash(remote);
+            records.baseHashes[id] = sharedLiveDocumentHash(remote);
             conflicts++;
             downloaded++;
             break;
@@ -423,36 +463,6 @@ class SharedSpacesLiveSyncService {
     } finally {
       api.close();
     }
-  }
-
-  _SharedDecision _decide({
-    required String? baseHash,
-    required SyncDocument? local,
-    required SyncDocument? remote,
-  }) {
-    if (local == null && remote == null) {
-      return _SharedDecision.same;
-    }
-    if (local == null) return _SharedDecision.download;
-    if (remote == null) return _SharedDecision.upload;
-
-    final localHash = _documentHash(local);
-    final remoteHash = _documentHash(remote);
-    if (localHash == remoteHash) return _SharedDecision.same;
-
-    if (baseHash != null) {
-      if (localHash == baseHash) return _SharedDecision.download;
-      if (remoteHash == baseHash) return _SharedDecision.upload;
-      return _SharedDecision.conflict;
-    }
-
-    if (local.updatedAt > remote.updatedAt) {
-      return _SharedDecision.upload;
-    }
-    if (remote.updatedAt > local.updatedAt) {
-      return _SharedDecision.download;
-    }
-    return _SharedDecision.conflict;
   }
 
   Future<void> _publishAssets(
@@ -529,9 +539,6 @@ class SharedSpacesLiveSyncService {
     return folder;
   }
 
-  String _documentHash(SyncDocument document) =>
-      sha256.convert(utf8.encode(SyncCodec.encode(document))).toString();
-
   Future<File> _recordsFile(
     GitHubConfig config,
     String spaceId,
@@ -582,13 +589,6 @@ class SharedSpacesLiveSyncService {
     await temp.writeAsString(raw, flush: true);
     await temp.rename(file.path);
   }
-}
-
-enum _SharedDecision {
-  same,
-  upload,
-  download,
-  conflict,
 }
 
 class _SpaceRun {
