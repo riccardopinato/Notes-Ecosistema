@@ -581,7 +581,7 @@ class LegacyNotesDatabase {
         reminderTime: task.reminderTime ?? fallbackTime,
       );
       final now = DateTime.now().millisecondsSinceEpoch;
-      await txn.update(
+      final changed = await txn.update(
         'notes',
         {
           'taskJson': updated.encode(),
@@ -590,7 +590,7 @@ class LegacyNotesDatabase {
         where: 'id = ? AND updatedAt = ?',
         whereArgs: [id, note.updatedAt],
       );
-      return true;
+      return changed == 1;
     });
   }
 
