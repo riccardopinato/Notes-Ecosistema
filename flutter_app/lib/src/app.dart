@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -7,11 +8,14 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/note.dart';
+import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
+import 'platform/quick_capture_bridge.dart';
 import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
 import 'screens/home_screen.dart';
@@ -80,6 +84,75 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   String _query = '';
 
   static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      QuickCaptureBridge.initialize(_handleIncomingCapture);
+    });
+  }
+
+  Future<void> _handleIncomingCapture(IncomingCapture capture) async {
+    if (!mounted) return;
+
+    if (capture.error != null && capture.error!.trim().isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(capture.error!)),
+      );
+      return;
+    }
+
+    try {
+      var body = capture.seed.body;
+      if (capture.seed.checklist && body.trim().isEmpty) {
+        body = '- [ ] ';
+      }
+
+      if (capture.files.isNotEmpty) {
+        final store = await AttachmentStore.open();
+        for (final shared in capture.files.take(20)) {
+          final file = File(shared.path);
+          if (!await file.exists()) continue;
+          final bytes = await file.readAsBytes();
+          final type = Attachments.typeFromName(shared.name) ??
+              switch (shared.mime.toLowerCase()) {
+                'application/pdf' => AttachmentType.pdf,
+                'image/png' => AttachmentType.png,
+                'image/webp' => AttachmentType.webp,
+                _ => AttachmentType.jpeg,
+              };
+          final key = await store.ingest(bytes, type);
+          body = Attachments.append(body, key, shared.name);
+          await file.delete().catchError((_) => file);
+        }
+      }
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await _openEditor(
+        Note(
+          id: const Uuid().v4(),
+          title: capture.seed.title,
+          body: body,
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+          pinned: false,
+          archived: false,
+          tags: const [],
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
 
   Future<void> _openEditor([Note? note]) async {
     if (note?.isVisual == true) {
