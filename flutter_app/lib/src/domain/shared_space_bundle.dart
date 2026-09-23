@@ -225,19 +225,19 @@ abstract final class SharedSpaceBundle {
     }
 
     if (manifest == null ||
-        manifest!['format'] != format ||
-        manifest!['version'] != version) {
+        manifest['format'] != format ||
+        manifest['version'] != version) {
       throw const FormatException(
         'Manifest Shared Space mancante o non supportato.',
       );
     }
     final actor = SharedIdentity.fromJson(
-      _map(manifest!['actor']),
+      _map(manifest['actor']),
     );
     final space = SharedSpace.fromJson(
-      _map(manifest!['space']),
+      _map(manifest['space']),
     );
-    final exportedAt = _integer(manifest!['exportedAt']);
+    final exportedAt = _integer(manifest['exportedAt']);
     final ids = space.contentIds;
     if (documents.length != ids.length ||
         !documents.keys.toSet().containsAll(ids) ||
