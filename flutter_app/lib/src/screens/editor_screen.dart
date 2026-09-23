@@ -438,7 +438,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                           );
                         } catch (error) {
                           if (!context.mounted) return;
-                          ScaffoldMessenger.of(this.context).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 error
@@ -467,7 +467,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                           );
                         } catch (error) {
                           if (!context.mounted) return;
-                          ScaffoldMessenger.of(this.context).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(error.toString())),
                           );
                         }
