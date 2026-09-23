@@ -88,6 +88,7 @@ class WorkspaceShell extends ConsumerStatefulWidget {
 class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   int _index = 0;
   String _query = '';
+  String? _libraryCollectionId;
   String _reminderSignature = '';
 
   static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
@@ -378,10 +379,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         notes: workspace.notes,
         collections: workspace.collections,
         onCreate: _openEditor,
-        onNotes: () => setState(() => _index = 1),
+        onNotes: () => setState(() {
+          _libraryCollectionId = null;
+          _index = 1;
+        }),
         onAgenda: () => setState(() => _index = 3),
         onTasks: () => setState(() => _index = 3),
         onSketch: () => _createVisual(kind: VisualInfoKind.sketch),
+        onCollection: (id) => setState(() {
+          _libraryCollectionId = id;
+          _index = 1;
+        }),
       );
     } else if (_index == 1 || _index == 4) {
       body = NotesScreen(
@@ -407,6 +415,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
             ref.read(workspaceProvider.notifier).deleteEmptyCollection(
                   collection,
                 ),
+        initialCollectionId: _index == 1 ? _libraryCollectionId : null,
       );
     } else if (_index == 2) {
       body = DiaryScreen(
@@ -448,7 +457,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
             ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
+        onDestinationSelected: (value) => setState(() {
+          if (value == 1) _libraryCollectionId = null;
+          _index = value;
+        }),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.description), label: 'Note'),
