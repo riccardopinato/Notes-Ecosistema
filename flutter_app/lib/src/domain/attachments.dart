@@ -242,6 +242,21 @@ class AttachmentStore {
     return bytes;
   }
 
+  Future<({int files, int bytes})> cleanup(Set<String> referenced) async {
+    var files = 0;
+    var bytes = 0;
+    await for (final entity in root.list()) {
+      if (entity is! File) continue;
+      final key = p.basename(entity.path);
+      if (!Attachments.validKey(key) || referenced.contains(key)) continue;
+      final length = await entity.length();
+      await entity.delete();
+      files++;
+      bytes += length;
+    }
+    return (files: files, bytes: bytes);
+  }
+
   Future<({int count, int bytes})> usage() async {
     var count = 0;
     var bytes = 0;
