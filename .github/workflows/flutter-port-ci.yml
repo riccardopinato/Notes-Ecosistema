@@ -101,6 +101,20 @@ jobs:
           if 'android.appwidget.action.APPWIDGET_UPDATE' not in ms:
               ms = ms.replace('</application>', widget_receiver + '\\n    </application>')
 
+          attachment_provider = r'''
+            <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="${applicationId}.attachments"
+                android:exported="false"
+                android:grantUriPermissions="true">
+                <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/attachment_paths"/>
+            </provider>
+          '''
+          if 'android.support.FILE_PROVIDER_PATHS' not in ms:
+              ms = ms.replace('</application>', attachment_provider + '\\n    </application>')
+
           quick_sync_tile = r'''
             <service
                 android:name=".QuickSyncTileService"
@@ -123,6 +137,7 @@ jobs:
           mkdir -p android/app/src/main/res/layout android/app/src/main/res/xml android/app/src/main/res/drawable android/app/src/main/res/values android/app/src/main/res/values-night
           cp android_overrides/res/layout/quick_capture_widget.xml android/app/src/main/res/layout/quick_capture_widget.xml
           cp android_overrides/res/xml/quick_capture_widget.xml android/app/src/main/res/xml/quick_capture_widget.xml
+          cp android_overrides/res/xml/attachment_paths.xml android/app/src/main/res/xml/attachment_paths.xml
           cp android_overrides/res/drawable/capture_widget_background.xml android/app/src/main/res/drawable/capture_widget_background.xml
           cp android_overrides/res/values/capture.xml android/app/src/main/res/values/capture.xml
           cp android_overrides/res/values-night/capture.xml android/app/src/main/res/values-night/capture.xml
