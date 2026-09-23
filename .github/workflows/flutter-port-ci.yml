@@ -2,12 +2,12 @@ name: Flutter Port CI
 
 on:
   push:
-    branches: [ "flutter-port" ]
+    branches: [ "main", "flutter-port" ]
     paths:
       - "flutter_app/**"
       - ".github/workflows/flutter-port-ci.yml"
   pull_request:
-    branches: [ "flutter-port" ]
+    branches: [ "main", "flutter-port" ]
     paths:
       - "flutter_app/**"
   workflow_dispatch:
