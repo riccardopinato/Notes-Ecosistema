@@ -8,6 +8,12 @@ class QuickCaptureBridge {
   static const _channel = MethodChannel('notes.ecosystem/capture');
   static bool _ready = false;
 
+  static Future<bool> pinNoteShortcut() async =>
+      await _channel.invokeMethod<bool>('pinNoteShortcut') ?? false;
+
+  static Future<bool> pinCaptureWidget() async =>
+      await _channel.invokeMethod<bool>('pinCaptureWidget') ?? false;
+
   static Future<void> initialize(
     Future<void> Function(IncomingCapture capture) onCapture,
   ) async {
