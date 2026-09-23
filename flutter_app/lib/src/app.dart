@@ -1,9 +1,13 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/note.dart';
 import 'domain/templates.dart';
@@ -386,6 +390,91 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     );
   }
 
+  Future<void> _exportBackup() async {
+    try {
+      final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Esporta backup Notes',
+        fileName: 'notes-ecosistema-$stamp.json',
+        bytes: backupUtf8(snapshot),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup esportato.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importBackup() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.single.bytes;
+      if (bytes == null) {
+        throw const FormatException('Impossibile leggere il backup.');
+      }
+      final snapshot = BackupCodec.decode(
+        utf8.decode(bytes, allowMalformed: false),
+      );
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Importare il backup?'),
+          content: Text(
+            'Verranno create copie separate: '
+            '${snapshot.notes.length} elementi, '
+            '${snapshot.collections.length} raccolte e '
+            '${snapshot.drafts.length} bozze. '
+            'I dati esistenti non verranno sovrascritti.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Importa copie'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      await ref.read(workspaceProvider.notifier).importCopies(snapshot);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup importato come copie.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _settings(BuildContext context) =>
       showModalBottomSheet<void>(
         context: context,
@@ -402,6 +491,24 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                   title: const Text('Tema scuro'),
                   value: widget.dark,
                   onChanged: widget.onDarkChanged,
+                ),
+                ListTile(
+                  leading: const Icon(Icons.file_upload_outlined),
+                  title: const Text('Esporta backup'),
+                  subtitle: const Text('Backup JSON v6 compatibile con la versione Kotlin.'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exportBackup();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.file_download_outlined),
+                  title: const Text('Importa backup'),
+                  subtitle: const Text('Importa come copie senza sovrascrivere i dati attuali.'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _importBackup();
+                  },
                 ),
                 const ListTile(
                   title: Text('Notes · Flutter port 0.25.0'),
