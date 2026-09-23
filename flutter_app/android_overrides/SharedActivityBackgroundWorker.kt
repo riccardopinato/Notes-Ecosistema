@@ -13,7 +13,7 @@ import android.os.Build
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.work.Constraints
-import androidx.work.CoroutineWorker
+import androidx.work.Worker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
@@ -110,13 +110,13 @@ object SharedBackgroundContract {
 class SharedActivityBackgroundWorker(
     context: Context,
     params: WorkerParameters,
-) : CoroutineWorker(context, params) {
+) : Worker(context, params) {
     companion object {
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         private const val MAX_STATE_BYTES = 1024 * 1024
     }
 
-    override suspend fun doWork(): Result {
+    override fun doWork(): Result {
         val flutter = SharedBackgroundContract.flutterPreferences(
             applicationContext,
         )
