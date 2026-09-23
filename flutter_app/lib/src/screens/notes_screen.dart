@@ -834,7 +834,7 @@ class _NoteCard extends StatelessWidget {
               if (preview.isNotEmpty)
                 Text(
                   preview,
-                  maxLines: _grid ? 5 : 3,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               const Spacer(),
