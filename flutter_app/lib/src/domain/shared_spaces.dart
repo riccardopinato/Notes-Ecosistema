@@ -21,25 +21,65 @@ class SharedIdentity {
   const SharedIdentity({
     required this.id,
     required this.displayName,
+    this.githubUserId,
+    this.githubLogin,
+    this.legacyIds = const [],
   });
 
   final String id;
   final String displayName;
+  final String? githubUserId;
+  final String? githubLogin;
+  final List<String> legacyIds;
 
-  SharedIdentity copyWith({String? displayName}) => SharedIdentity(
-        id: id,
+  bool get githubBound => githubUserId != null && githubLogin != null;
+
+  SharedIdentity copyWith({
+    String? id,
+    String? displayName,
+    String? githubUserId,
+    String? githubLogin,
+    List<String>? legacyIds,
+  }) =>
+      SharedIdentity(
+        id: id ?? this.id,
         displayName: displayName ?? this.displayName,
+        githubUserId: githubUserId ?? this.githubUserId,
+        githubLogin: githubLogin ?? this.githubLogin,
+        legacyIds: legacyIds ?? this.legacyIds,
       );
 
   Map<String, Object?> toJson() => {
         'id': id,
         'displayName': displayName,
+        if (githubUserId != null) 'githubUserId': githubUserId,
+        if (githubLogin != null) 'githubLogin': githubLogin,
+        if (legacyIds.isNotEmpty) 'legacyIds': legacyIds,
       };
 
-  factory SharedIdentity.fromJson(Map<String, Object?> map) => SharedIdentity(
-        id: _requiredId(map['id'], 'identità'),
-        displayName: _displayName(map['displayName']),
-      );
+  factory SharedIdentity.fromJson(Map<String, Object?> map) {
+    final legacyRaw = map['legacyIds'];
+    if (legacyRaw != null && legacyRaw is! List) {
+      throw const FormatException('Alias identità non validi.');
+    }
+    final identity = SharedIdentity(
+      id: _requiredId(map['id'], 'identità'),
+      displayName: _displayName(map['displayName']),
+      githubUserId: map['githubUserId'] == null
+          ? null
+          : _githubUserId(map['githubUserId']),
+      githubLogin: map['githubLogin'] == null
+          ? null
+          : _githubLogin(map['githubLogin']),
+      legacyIds: legacyRaw == null
+          ? const []
+          : legacyRaw
+              .map((value) => _requiredId(value, 'alias identità'))
+              .toList(growable: false),
+    );
+    SharedSpaces.validateIdentity(identity);
+    return identity;
+  }
 }
 
 class SharedMember {
@@ -63,13 +103,14 @@ class SharedMember {
       removedAt == null || updatedAt >= removedAt! ? updatedAt : removedAt!;
 
   SharedMember copyWith({
+    String? id,
     String? displayName,
     SharedRole? role,
     int? updatedAt,
     Object? removedAt = _sharedUnset,
   }) =>
       SharedMember(
-        id: id,
+        id: id ?? this.id,
         displayName: displayName ?? this.displayName,
         role: role ?? this.role,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -176,6 +217,7 @@ class SharedSpace {
   SharedSpace copyWith({
     String? name,
     String? description,
+    String? ownerId,
     int? nameUpdatedAt,
     int? descriptionUpdatedAt,
     List<SharedMember>? members,
@@ -186,7 +228,7 @@ class SharedSpace {
         id: id,
         name: name ?? this.name,
         description: description ?? this.description,
-        ownerId: ownerId,
+        ownerId: ownerId ?? this.ownerId,
         createdAt: createdAt,
         nameUpdatedAt: nameUpdatedAt ?? this.nameUpdatedAt,
         descriptionUpdatedAt:
@@ -422,12 +464,107 @@ abstract final class SharedSpaces {
   static const maxSpaces = 30;
   static const maxMembers = 50;
   static const maxContentPerSpace = 500;
+  static const maxLegacyIdentityIds = 8;
 
   static SharedIdentity newIdentity({String displayName = 'Io'}) =>
       SharedIdentity(
         id: const Uuid().v4(),
         displayName: _displayName(displayName),
       );
+
+  static String githubIdentityId(String userId) =>
+      'github:' + _githubUserId(userId);
+
+  static SharedSpacesSnapshot bindGitHubIdentity(
+    SharedSpacesSnapshot snapshot, {
+    required String userId,
+    required String login,
+  }) {
+    validateIdentity(snapshot.identity);
+    final verifiedUserId = _githubUserId(userId);
+    final verifiedLogin = _githubLogin(login);
+    final current = snapshot.identity;
+
+    if (current.githubUserId != null &&
+        current.githubUserId != verifiedUserId &&
+        snapshot.spaces.isNotEmpty) {
+      throw const FormatException(
+        'Questo profilo Shared Spaces è già associato a un altro account GitHub.',
+      );
+    }
+
+    final canonicalId = githubIdentityId(verifiedUserId);
+    final aliases = <String>{
+      ...current.legacyIds,
+      if (current.id != canonicalId) current.id,
+    }..remove(canonicalId);
+    if (aliases.length > maxLegacyIdentityIds) {
+      throw const FormatException(
+        'Troppi alias identità durante la migrazione GitHub.',
+      );
+    }
+
+    final identity = SharedIdentity(
+      id: canonicalId,
+      displayName: current.displayName,
+      githubUserId: verifiedUserId,
+      githubLogin: verifiedLogin,
+      legacyIds: aliases.toList(growable: false)..sort(),
+    );
+    validateIdentity(identity);
+
+    final spaces = snapshot.spaces
+        .map((space) => canonicalizeIdentity(space, identity))
+        .toList(growable: false);
+    return SharedSpacesSnapshot(identity: identity, spaces: spaces);
+  }
+
+  static SharedSpace canonicalizeIdentity(
+    SharedSpace space,
+    SharedIdentity identity,
+  ) {
+    validateIdentity(identity);
+    final aliases = <String>{identity.id, ...identity.legacyIds};
+    final matches = space.members
+        .where((member) => aliases.contains(member.id))
+        .toList(growable: false);
+    final ownsSpace = aliases.contains(space.ownerId);
+
+    if (matches.isEmpty) {
+      if (ownsSpace) {
+        throw const FormatException(
+          'Proprietario Shared Space non coerente con i membri.',
+        );
+      }
+      return space;
+    }
+
+    var selected = matches.first;
+    for (final candidate in matches.skip(1)) {
+      if (candidate.clock > selected.clock ||
+          (candidate.clock == selected.clock &&
+              candidate.updatedAt > selected.updatedAt)) {
+        selected = candidate;
+      }
+    }
+
+    final canonical = selected.copyWith(
+      id: identity.id,
+      role: ownsSpace ? SharedRole.owner : selected.role,
+      removedAt: ownsSpace ? null : selected.removedAt,
+    );
+    final members = <SharedMember>[
+      for (final member in space.members)
+        if (!aliases.contains(member.id)) member,
+      canonical,
+    ];
+    final result = space.copyWith(
+      ownerId: ownsSpace ? identity.id : space.ownerId,
+      members: members,
+    );
+    validateSpace(result);
+    return result;
+  }
 
   static SharedSpace create({
     required SharedIdentity owner,
@@ -750,6 +887,30 @@ abstract final class SharedSpaces {
   static void validateIdentity(SharedIdentity identity) {
     _requiredId(identity.id, 'identità');
     _displayName(identity.displayName);
+    if ((identity.githubUserId == null) != (identity.githubLogin == null)) {
+      throw const FormatException(
+        'Associazione account GitHub incompleta.',
+      );
+    }
+    if (identity.githubUserId != null) {
+      _githubUserId(identity.githubUserId);
+      _githubLogin(identity.githubLogin);
+      if (identity.id != githubIdentityId(identity.githubUserId!)) {
+        throw const FormatException(
+          'ID collaborazione GitHub non coerente.',
+        );
+      }
+    }
+    if (identity.legacyIds.length > maxLegacyIdentityIds) {
+      throw const FormatException('Troppi alias identità.');
+    }
+    final aliases = <String>{};
+    for (final alias in identity.legacyIds) {
+      final value = _requiredId(alias, 'alias identità');
+      if (value == identity.id || !aliases.add(value)) {
+        throw const FormatException('Alias identità duplicato.');
+      }
+    }
   }
 
   static void validateSpace(SharedSpace space) {
@@ -862,6 +1023,106 @@ String _displayName(Object? value) {
       clean.length > 80 ||
       clean.codeUnits.any((value) => value < 32)) {
     throw const FormatException('Nome profilo tra 1 e 80 caratteri.');
+  }
+  return clean;
+}
+
+String _githubUserId(Object? value) {
+  final text = value?.toString() ?? '';
+  if (!RegExp(r'^[1-9][0-9]{0,19}
+  if (value is! String) {
+    throw const FormatException('Nome spazio non valido.');
+  }
+  final clean = value.trim();
+  if (clean.isEmpty ||
+      clean.length > 100 ||
+      clean.codeUnits.any((value) => value < 32)) {
+    throw const FormatException('Nome spazio tra 1 e 100 caratteri.');
+  }
+  return clean;
+}
+
+String _description(Object? value) {
+  if (value == null) return '';
+  if (value is! String ||
+      value.length > 1000 ||
+      value.contains('\u0000')) {
+    throw const FormatException('Descrizione spazio non valida.');
+  }
+  return value.trim();
+}
+
+int _timestamp(Object? value, String field) {
+  if (value is! num ||
+      value.toInt() != value ||
+      value.toInt() < 0) {
+    throw FormatException('Data $field non valida.');
+  }
+  return value.toInt();
+}
+
+Map<String, int> _clockMap(Map source, String field) {
+  final result = <String, int>{};
+  for (final entry in source.entries) {
+    final key = _requiredId(entry.key, field);
+    result[key] = _timestamp(entry.value, field);
+  }
+  return result;
+}
+).hasMatch(text)) {
+    throw const FormatException('Account GitHub non valido.');
+  }
+  return text;
+}
+
+String _githubLogin(Object? value) {
+  if (value is! String) {
+    throw const FormatException('Login GitHub non valido.');
+  }
+  final clean = value.trim();
+  if (!RegExp(r'^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?
+  if (value is! String) {
+    throw const FormatException('Nome spazio non valido.');
+  }
+  final clean = value.trim();
+  if (clean.isEmpty ||
+      clean.length > 100 ||
+      clean.codeUnits.any((value) => value < 32)) {
+    throw const FormatException('Nome spazio tra 1 e 100 caratteri.');
+  }
+  return clean;
+}
+
+String _description(Object? value) {
+  if (value == null) return '';
+  if (value is! String ||
+      value.length > 1000 ||
+      value.contains('\u0000')) {
+    throw const FormatException('Descrizione spazio non valida.');
+  }
+  return value.trim();
+}
+
+int _timestamp(Object? value, String field) {
+  if (value is! num ||
+      value.toInt() != value ||
+      value.toInt() < 0) {
+    throw FormatException('Data $field non valida.');
+  }
+  return value.toInt();
+}
+
+Map<String, int> _clockMap(Map source, String field) {
+  final result = <String, int>{};
+  for (final entry in source.entries) {
+    final key = _requiredId(entry.key, field);
+    result[key] = _timestamp(entry.value, field);
+  }
+  return result;
+}
+)
+      .hasMatch(clean)) {
+    throw const FormatException('Login GitHub non valido.');
   }
   return clean;
 }
