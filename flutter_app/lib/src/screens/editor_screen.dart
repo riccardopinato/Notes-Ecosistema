@@ -15,6 +15,7 @@ import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
+import '../platform/attachment_bridge.dart';
 import '../screens/sketch_screen.dart';
 import '../screens/whiteboard_screen.dart';
 import '../state/workspace_controller.dart';
@@ -373,6 +374,129 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _error = error.toString().replaceFirst('FormatException: ', '');
         });
       }
+    }
+  }
+
+  Future<void> _attachmentPanel(AttachmentRef ref) async {
+    try {
+      final store = await AttachmentStore.open();
+      await store.read(ref.key);
+      final file = store.file(ref.key);
+      if (!mounted) return;
+
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  ref.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  ref.type.mime,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                if (ref.type.category == AttachmentCategory.image) ...[
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 4,
+                      child: Image.file(
+                        file,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Text('Anteprima immagine non disponibile.'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: () async {
+                        try {
+                          await AttachmentBridge.open(
+                            key: ref.key,
+                            name: ref.name,
+                            mime: ref.type.mime,
+                          );
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                error
+                                    .toString()
+                                    .replaceFirst('PlatformException', '')
+                                    .replaceFirst('FormatException: ', ''),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.open_in_new),
+                      label: Text(
+                        ref.type.category == AttachmentCategory.audio
+                            ? 'Ascolta'
+                            : 'Apri',
+                      ),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: () async {
+                        try {
+                          await AttachmentBridge.share(
+                            key: ref.key,
+                            name: ref.name,
+                            mime: ref.type.mime,
+                          );
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(content: Text(error.toString())),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.share_outlined),
+                      label: const Text('Condividi'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () {
+                              Navigator.pop(context);
+                              _removeAttachment(ref.key);
+                            },
+                      icon: const Icon(Icons.link_off),
+                      label: const Text('Rimuovi collegamento'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString().replaceFirst('FormatException: ', '');
+      });
     }
   }
 
@@ -1008,13 +1132,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                                   : Icons.insert_drive_file,
                         ),
                         title: Text(ref.name),
-                        subtitle: Text(ref.key, maxLines: 1),
+                        subtitle: Text(ref.type.mime),
+                        onTap: _saving ? null : () => _attachmentPanel(ref),
                         trailing: IconButton(
-                          onPressed: _saving
-                              ? null
-                              : () => _removeAttachment(ref.key),
-                          icon: const Icon(Icons.close),
-                          tooltip: 'Rimuovi riferimento',
+                          onPressed:
+                              _saving ? null : () => _attachmentPanel(ref),
+                          icon: const Icon(Icons.more_horiz),
+                          tooltip: 'Apri allegato',
                         ),
                       ),
                     ),
