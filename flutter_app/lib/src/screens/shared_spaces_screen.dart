@@ -745,6 +745,80 @@ class _SharedSpaceDetailScreenState
   }
 }
 
+class SharedTaskReadOnlyScreen extends StatelessWidget {
+  const SharedTaskReadOnlyScreen({
+    required this.note,
+    super.key,
+  });
+
+  final Note note;
+
+  @override
+  Widget build(BuildContext context) {
+    final task = TaskDetails.tryDecode(note.taskJson);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Attività condivisa'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 60),
+        children: [
+          const EditorialEyebrow('SOLO LETTURA · SHARED SPACE'),
+          const SizedBox(height: 6),
+          Text(
+            note.title.trim().isEmpty ? 'Attività' : note.title.trim(),
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 16),
+          if (task != null)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  avatar: const Icon(Icons.flag_outlined, size: 18),
+                  label: Text('Priorità ${task.priority}'),
+                ),
+                if (task.due != null)
+                  Chip(
+                    avatar: const Icon(Icons.event_outlined, size: 18),
+                    label: Text('Scadenza ${task.due}'),
+                  ),
+                if (task.plannedDate != null)
+                  Chip(
+                    avatar: const Icon(Icons.schedule, size: 18),
+                    label: Text(
+                      task.plannedTime == null
+                          ? 'Pianificata ${task.plannedDate}'
+                          : 'Pianificata ${task.plannedDate} · ${task.plannedTime}',
+                    ),
+                  ),
+                Chip(
+                  avatar: Icon(
+                    task.completed
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    size: 18,
+                  ),
+                  label: Text(task.completed ? 'Completata' : task.stage),
+                ),
+              ],
+            ),
+          if (note.body.trim().isNotEmpty) ...[
+            const SizedBox(height: 22),
+            Text(
+              'Note',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            SelectableText(note.body),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.identity,
