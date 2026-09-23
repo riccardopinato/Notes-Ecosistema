@@ -1064,7 +1064,7 @@ String _description(Object? value) {
   if (value == null) return '';
   if (value is! String ||
       value.length > 1000 ||
-      value.contains('\\u0000')) {
+      value.contains('\u0000')) {
     throw const FormatException('Descrizione spazio non valida.');
   }
   return value.trim();
