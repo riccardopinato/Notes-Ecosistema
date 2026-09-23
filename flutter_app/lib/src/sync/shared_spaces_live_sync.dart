@@ -252,7 +252,11 @@ class SharedSpacesLiveSyncService {
     SharedSpace localSpace,
     Map<String, SyncDocument> localDocuments,
   ) async {
-    final folder = _spaceFolder(root.folder, localSpace.id);
+    final canonicalLocalSpace = SharedSpaces.canonicalizeIdentity(
+      localSpace,
+      identity,
+    );
+    final folder = _spaceFolder(root.folder, canonicalLocalSpace.id);
     final config = GitHubConfig(
       owner: root.owner,
       repo: root.repo,
@@ -267,16 +271,26 @@ class SharedSpacesLiveSyncService {
     try {
       final head = await api.head();
       final remoteState = await _readRemoteState(api, head);
-      if (remoteState == null && !localSpace.canEdit(identity.id)) {
+      if (remoteState == null &&
+          !canonicalLocalSpace.canEdit(identity.id)) {
         return _SpaceRun(
-          space: localSpace,
+          space: canonicalLocalSpace,
           waiting: 1,
         );
       }
 
-      final mergedSpace = remoteState == null
-          ? localSpace
-          : SharedSpaces.merge(localSpace, remoteState.space);
+      final canonicalRemoteSpace = remoteState == null
+          ? null
+          : SharedSpaces.canonicalizeIdentity(
+              remoteState.space,
+              identity,
+            );
+      final mergedSpace = canonicalRemoteSpace == null
+          ? canonicalLocalSpace
+          : SharedSpaces.merge(
+              canonicalLocalSpace,
+              canonicalRemoteSpace,
+            );
 
       if (!mergedSpace.canRead(identity.id)) {
         return _SpaceRun(space: mergedSpace);
