@@ -16,6 +16,7 @@ import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
 import 'platform/quick_capture_bridge.dart';
+import 'platform/reminder_bridge.dart';
 import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
 import 'screens/home_screen.dart';
@@ -82,6 +83,7 @@ class WorkspaceShell extends ConsumerStatefulWidget {
 class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   int _index = 0;
   String _query = '';
+  String _reminderSignature = '';
 
   static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Cerca'];
 
@@ -303,6 +305,24 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   Widget build(BuildContext context) {
     final workspace = ref.watch(workspaceProvider);
     final section = labels[_index];
+
+    if (!workspace.loading) {
+      final reminderSignature = workspace.notes
+          .where((note) => note.isTask)
+          .map(
+            (note) =>
+                '${note.id}|${note.title}|${note.taskJson}|${note.deletedAt}|${note.archived}',
+          )
+          .join('\n');
+      if (reminderSignature != _reminderSignature) {
+        _reminderSignature = reminderSignature;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ReminderBridge.sync(workspace.notes).catchError((_) {});
+          }
+        });
+      }
+    }
 
     Widget body;
     if (workspace.loading && workspace.notes.isEmpty) {
@@ -581,6 +601,28 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                   onTap: () {
                     Navigator.pop(context);
                     _importBackup();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.notifications_outlined),
+                  title: const Text('Notifiche promemoria'),
+                  subtitle: const Text(
+                    'Abilita le notifiche Android per i promemoria delle attività.',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final allowed =
+                        await ReminderBridge.requestPermission();
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          allowed
+                              ? 'Notifiche promemoria abilitate.'
+                              : 'Notifiche non abilitate. I promemoria restano salvati.',
+                        ),
+                      ),
+                    );
                   },
                 ),
                 const ListTile(
