@@ -1029,47 +1029,7 @@ String _displayName(Object? value) {
 
 String _githubUserId(Object? value) {
   final text = value?.toString() ?? '';
-  if (!RegExp(r'^[1-9][0-9]{0,19}
-  if (value is! String) {
-    throw const FormatException('Nome spazio non valido.');
-  }
-  final clean = value.trim();
-  if (clean.isEmpty ||
-      clean.length > 100 ||
-      clean.codeUnits.any((value) => value < 32)) {
-    throw const FormatException('Nome spazio tra 1 e 100 caratteri.');
-  }
-  return clean;
-}
-
-String _description(Object? value) {
-  if (value == null) return '';
-  if (value is! String ||
-      value.length > 1000 ||
-      value.contains('\u0000')) {
-    throw const FormatException('Descrizione spazio non valida.');
-  }
-  return value.trim();
-}
-
-int _timestamp(Object? value, String field) {
-  if (value is! num ||
-      value.toInt() != value ||
-      value.toInt() < 0) {
-    throw FormatException('Data $field non valida.');
-  }
-  return value.toInt();
-}
-
-Map<String, int> _clockMap(Map source, String field) {
-  final result = <String, int>{};
-  for (final entry in source.entries) {
-    final key = _requiredId(entry.key, field);
-    result[key] = _timestamp(entry.value, field);
-  }
-  return result;
-}
-).hasMatch(text)) {
+  if (!RegExp(r'^[1-9][0-9]{0,19}$').hasMatch(text)) {
     throw const FormatException('Account GitHub non valido.');
   }
   return text;
@@ -1080,47 +1040,7 @@ String _githubLogin(Object? value) {
     throw const FormatException('Login GitHub non valido.');
   }
   final clean = value.trim();
-  if (!RegExp(r'^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?
-  if (value is! String) {
-    throw const FormatException('Nome spazio non valido.');
-  }
-  final clean = value.trim();
-  if (clean.isEmpty ||
-      clean.length > 100 ||
-      clean.codeUnits.any((value) => value < 32)) {
-    throw const FormatException('Nome spazio tra 1 e 100 caratteri.');
-  }
-  return clean;
-}
-
-String _description(Object? value) {
-  if (value == null) return '';
-  if (value is! String ||
-      value.length > 1000 ||
-      value.contains('\u0000')) {
-    throw const FormatException('Descrizione spazio non valida.');
-  }
-  return value.trim();
-}
-
-int _timestamp(Object? value, String field) {
-  if (value is! num ||
-      value.toInt() != value ||
-      value.toInt() < 0) {
-    throw FormatException('Data $field non valida.');
-  }
-  return value.toInt();
-}
-
-Map<String, int> _clockMap(Map source, String field) {
-  final result = <String, int>{};
-  for (final entry in source.entries) {
-    final key = _requiredId(entry.key, field);
-    result[key] = _timestamp(entry.value, field);
-  }
-  return result;
-}
-)
+  if (!RegExp(r'^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$')
       .hasMatch(clean)) {
     throw const FormatException('Login GitHub non valido.');
   }
@@ -1144,7 +1064,7 @@ String _description(Object? value) {
   if (value == null) return '';
   if (value is! String ||
       value.length > 1000 ||
-      value.contains('\u0000')) {
+      value.contains('\\u0000')) {
     throw const FormatException('Descrizione spazio non valida.');
   }
   return value.trim();
