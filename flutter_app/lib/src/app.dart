@@ -516,16 +516,15 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       }
 
       final now = DateTime.now();
-      final stamp = now.year.toString().padLeft(4, '0') +
-          '-' +
-          now.month.toString().padLeft(2, '0') +
-          '-' +
-          now.day.toString().padLeft(2, '0');
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')}';
       final baseName = cleanName.isEmpty ? 'notes' : cleanName;
 
       await FilePicker.platform.saveFile(
         dialogTitle: 'Esporta Shared Space',
-        fileName: 'shared-space-' + baseName + '-' + stamp + '.zip',
+        fileName: 'shared-space-$baseName-$stamp.zip',
         bytes: bytes,
       );
       if (!mounted) return;
@@ -582,15 +581,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Importare “' + preview.space.name + '”?'),
+          title: Text('Importare “${preview.space.name}”?'),
           content: Text(
-            'Pacchetto di ' +
-                preview.actor.displayName +
-                ': ' +
-                preview.documents.length.toString() +
-                ' elementi e ' +
-                preview.assets.length.toString() +
-                ' allegati. Le versioni locali più recenti non verranno sovrascritte.',
+            'Pacchetto di ${preview.actor.displayName}: '
+            '${preview.documents.length} elementi e '
+            '${preview.assets.length} allegati. '
+            'Le versioni locali più recenti non verranno sovrascritte.',
           ),
           actions: [
             TextButton(
@@ -646,13 +642,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Shared Space aggiornato · ricevuti ' +
-                downloaded.toString() +
-                ' · locali mantenuti ' +
-                keptLocal.toString() +
-                ' · conflitti ' +
-                conflicts.toString() +
-                '.',
+            'Shared Space aggiornato · ricevuti $downloaded · '
+            'locali mantenuti $keptLocal · conflitti $conflicts.',
           ),
         ),
       );
