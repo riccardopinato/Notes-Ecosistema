@@ -49,6 +49,8 @@ jobs:
           s = p.read_text()
           s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
+          if 'androidx.work:work-runtime:2.11.2' not in s:
+              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n}\n'
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -57,6 +59,11 @@ jobs:
               ms = ms.replace(
                   '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
                   '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.INTERNET"/>'
+              )
+          if 'android.permission.POST_NOTIFICATIONS' not in ms:
+              ms = ms.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'
               )
           ms = ms.replace(
               'android:launchMode="singleTop"',
