@@ -122,6 +122,16 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     await refresh();
   }
 
+  Future<bool> snoozeReminder(
+    String id,
+    int expectedAt,
+    int nextAt,
+  ) async {
+    final changed = await _database.snoozeReminder(id, expectedAt, nextAt);
+    if (changed) await refresh();
+    return changed;
+  }
+
   Future<void> favorite(String id) async {
     await _database.toggleFavorite(id);
     await refresh();
