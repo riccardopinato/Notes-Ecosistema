@@ -27,17 +27,17 @@ void main() {
     const b = '22222222-2222-2222-2222-222222222222';
     final edit = Knowledge.insert('Ciao mondo', 5, 10, a, 'Pagina A');
 
-    expect(edit.text, 'Ciao [Pagina A](notes://note/' + a + ')');
+    expect(edit.text, 'Ciao [Pagina A](notes://note/$a)');
     expect(Knowledge.links(edit.text).single.id, a);
 
     final remapped = Knowledge.remap(edit.text, const {a: b});
-    expect(remapped, contains('notes://note/' + b));
+    expect(remapped, contains('notes://note/$b'));
 
     final grave = String.fromCharCode(0x60);
     final fence = List<String>.filled(3, grave).join();
     final headings = Knowledge.headings([
       '# Uno',
-      fence + 'dart',
+      '${fence}dart',
       '## Nascosto',
       fence,
       '### Tre',
@@ -125,7 +125,7 @@ void main() {
         const Note(
           id: sourceNote,
           title: 'Pagina',
-          body: 'Collega [me](notes://note/' + sourceNote + ')',
+          body: 'Collega [me](notes://note/$sourceNote)',
           collectionId: 'book',
           favorite: false,
           createdAt: 1,
@@ -171,7 +171,7 @@ void main() {
     final importedPage = plan.notes.first;
     final importedTask = plan.notes.last;
     expect(importedPage.id, ids[1]);
-    expect(importedPage.body, contains('notes://note/' + ids[1]));
+    expect(importedPage.body, contains('notes://note/${ids[1]}'));
     expect(
       TaskDetails.decode(importedTask.taskJson!).linkedNoteId,
       ids[1],
