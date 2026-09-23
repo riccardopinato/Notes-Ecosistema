@@ -19,6 +19,7 @@ import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
 import 'platform/quick_capture_bridge.dart';
 import 'platform/quick_sync_bridge.dart';
+import 'platform/reminder_action_bridge.dart';
 import 'platform/reminder_bridge.dart';
 import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
@@ -99,7 +100,47 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       QuickCaptureBridge.initialize(_handleIncomingCapture);
       QuickSyncBridge.initialize(_handleQuickSync);
+      ReminderActionBridge.initialize(_handleReminderAction);
     });
+  }
+
+  Future<void> _handleReminderAction(ReminderAction action) async {
+    if (!mounted) return;
+
+    if (action.action == 'open') {
+      setState(() => _index = 3);
+      return;
+    }
+
+    if (action.action != 'snooze' ||
+        action.expectedAt == null ||
+        action.nextAt == null) {
+      return;
+    }
+
+    final changed = await ref.read(workspaceProvider.notifier).snoozeReminder(
+          action.id,
+          action.expectedAt!,
+          action.nextAt!,
+        );
+    if (!mounted) return;
+
+    if (changed) {
+      await ReminderBridge.sync(ref.read(workspaceProvider).notes);
+      if (!mounted) return;
+      setState(() => _index = 3);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Promemoria rinviato di 10 minuti.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Il promemoria è già cambiato: nessuna modifica applicata.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _handleQuickSync() async {
