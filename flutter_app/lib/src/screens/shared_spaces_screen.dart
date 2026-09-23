@@ -1294,8 +1294,12 @@ class _InlineError extends StatelessWidget {
 }
 
 IconData _noteIcon(Note note) {
-  if (note.isTask) return Icons.check_circle_outline;
-  if (note.visualKind == VisualDocumentKind.sketch) return Icons.draw_outlined;
+  if (note.isTask) {
+    return Icons.check_circle_outline;
+  }
+  if (note.visualKind == VisualDocumentKind.sketch) {
+    return Icons.draw_outlined;
+  }
   if (note.visualKind == VisualDocumentKind.whiteboard) {
     return Icons.account_tree_outlined;
   }
@@ -1307,13 +1311,19 @@ String _noteKind(Note note) {
     final task = TaskDetails.tryDecode(note.taskJson);
     final planned = task?.plannedDate;
     final due = task?.due;
-    if (planned != null) return 'Attività · pianificata $planned';
-    if (due != null) return 'Attività · scadenza $due';
+    if (planned != null) {
+      return 'Attività · pianificata $planned';
+    }
+    if (due != null) {
+      return 'Attività · scadenza $due';
+    }
     return 'Attività';
   }
   if (note.visualKind == VisualDocumentKind.sketch) {
     return 'Disegno';
   }
-  if (note.visualKind == VisualDocumentKind.whiteboard) return 'Lavagna / Mind Map';
+  if (note.visualKind == VisualDocumentKind.whiteboard) {
+    return 'Lavagna / Mind Map';
+  }
   return 'Nota';
 }
