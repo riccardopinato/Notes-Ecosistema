@@ -376,4 +376,80 @@ void main() {
       SharedLiveDecision.upload,
     );
   });
+
+  test('GitHub binding migrates legacy owner without losing the space', () {
+    final legacySpace = spaceAt(100);
+    final migrated = SharedSpaces.bindGitHubIdentity(
+      SharedSpacesSnapshot(
+        identity: owner,
+        spaces: [legacySpace],
+      ),
+      userId: '143192448',
+      login: 'riccardopinato',
+    );
+
+    expect(migrated.identity.id, 'github:143192448');
+    expect(migrated.identity.githubUserId, '143192448');
+    expect(migrated.identity.githubLogin, 'riccardopinato');
+    expect(migrated.identity.legacyIds, contains(owner.id));
+
+    final space = migrated.spaces.single;
+    expect(space.ownerId, migrated.identity.id);
+    expect(space.roleFor(migrated.identity.id), SharedRole.owner);
+    expect(space.member(owner.id), isNull);
+
+    final roundtrip = SharedSpacesCodec.decode(
+      SharedSpacesCodec.encode(migrated),
+    );
+    expect(roundtrip.identity.id, migrated.identity.id);
+    expect(roundtrip.identity.legacyIds, contains(owner.id));
+    expect(roundtrip.spaces.single.ownerId, migrated.identity.id);
+  });
+
+  test('legacy remote identity is canonicalized before merge', () {
+    final remoteLegacy = spaceAt(100);
+    final migrated = SharedSpaces.bindGitHubIdentity(
+      SharedSpacesSnapshot(
+        identity: owner,
+        spaces: [remoteLegacy],
+      ),
+      userId: '143192448',
+      login: 'riccardopinato',
+    );
+
+    final normalizedRemote = SharedSpaces.canonicalizeIdentity(
+      remoteLegacy,
+      migrated.identity,
+    );
+    final merged = SharedSpaces.merge(
+      migrated.spaces.single,
+      normalizedRemote,
+    );
+
+    expect(merged.ownerId, 'github:143192448');
+    expect(merged.roleFor('github:143192448'), SharedRole.owner);
+    expect(merged.members.where((member) => member.role == SharedRole.owner),
+        hasLength(1));
+  });
+
+  test('GitHub binding refuses account switch with existing spaces', () {
+    final migrated = SharedSpaces.bindGitHubIdentity(
+      SharedSpacesSnapshot(
+        identity: owner,
+        spaces: [spaceAt(100)],
+      ),
+      userId: '143192448',
+      login: 'riccardopinato',
+    );
+
+    expect(
+      () => SharedSpaces.bindGitHubIdentity(
+        migrated,
+        userId: '999999',
+        login: 'another-user',
+      ),
+      throwsFormatException,
+    );
+  });
+
 }
