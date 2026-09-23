@@ -864,7 +864,9 @@ class _ProfileCard extends StatelessWidget {
           ),
           title: Text(identity.displayName),
           subtitle: Text(
-            '$spaceCount Shared Space${spaceCount == 1 ? '' : 's'} · profilo locale',
+            identity.githubBound
+                ? '$spaceCount Shared Space${spaceCount == 1 ? '' : 's'} · GitHub @${identity.githubLogin}'
+                : '$spaceCount Shared Space${spaceCount == 1 ? '' : 's'} · profilo locale',
           ),
           trailing: IconButton(
             tooltip: 'Modifica nome',
@@ -959,8 +961,8 @@ class _LiveSyncCard extends StatelessWidget {
               ),
               title: const Text('Shared Spaces Live Sync'),
               subtitle: const Text(
-                'Usa il repository GitHub privato già collegato. '
-                'Sincronizzazione automatica mentre Notes è aperta.',
+                'Usa il repository GitHub privato già collegato e verifica '
+                'l’identità dell’account. Sync automatico mentre Notes è aperta.',
               ),
               value: state.enabled,
               onChanged: state.busy ? null : onToggle,
