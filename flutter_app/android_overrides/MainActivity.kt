@@ -64,19 +64,23 @@ class MainActivity : FlutterActivity() {
 
     private var channel: MethodChannel? = null
     private var quickSyncChannel: MethodChannel? = null
+    private var sharedBackgroundChannel: MethodChannel? = null
     private var reminderActionChannel: MethodChannel? = null
     private var reminderPermissionResult: MethodChannel.Result? = null
     private var pendingCapture: Map<String, Any?>? = null
     private var pendingQuickSync = false
+    private var pendingSharedSpaceId: String? = null
     private var pendingReminderAction: Map<String, Any?>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingCapture = parseCapture(intent)
         pendingQuickSync = intent?.action == QUICK_SYNC
+        pendingSharedSpaceId = parseSharedSpaceIntent(intent)
         pendingReminderAction = parseReminderAction(intent)
         super.onCreate(savedInstanceState)
         installShortcuts()
         ensureReminderChannel()
+        SharedBackgroundContract.syncWithFlutterPreference(this)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -108,6 +112,29 @@ class MainActivity : FlutterActivity() {
                         result.success(pendingQuickSync)
                         pendingQuickSync = false
                     }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+
+        sharedBackgroundChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SharedBackgroundContract.CHANNEL,
+        ).also { methodChannel ->
+            methodChannel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialSpace" -> {
+                        result.success(pendingSharedSpaceId)
+                        pendingSharedSpaceId = null
+                    }
+                    "setEnabled" -> {
+                        val enabled = call.arguments as? Boolean ?: false
+                        SharedBackgroundContract.setEnabled(this, enabled)
+                        result.success(null)
+                    }
+                    "status" -> result.success(
+                        SharedBackgroundContract.status(this)
+                    )
                     else -> result.notImplemented()
                 }
             }
@@ -260,6 +287,17 @@ class MainActivity : FlutterActivity() {
             return
         }
 
+        val sharedSpaceId = parseSharedSpaceIntent(intent)
+        if (sharedSpaceId != null) {
+            val currentShared = sharedBackgroundChannel
+            if (currentShared == null) {
+                pendingSharedSpaceId = sharedSpaceId
+            } else {
+                currentShared.invokeMethod("openSpace", sharedSpaceId)
+            }
+            return
+        }
+
         val capture = parseCapture(intent) ?: return
         val current = channel
         if (current == null) {
@@ -267,6 +305,15 @@ class MainActivity : FlutterActivity() {
         } else {
             current.invokeMethod("capture", capture)
         }
+    }
+
+    private fun parseSharedSpaceIntent(intent: Intent?): String? {
+        intent ?: return null
+        if (intent.action != SharedBackgroundContract.ACTION_OPEN_SHARED_SPACE) {
+            return null
+        }
+        return intent.getStringExtra(SharedBackgroundContract.EXTRA_SPACE_ID)
+            ?.takeIf { it.isNotBlank() && it.length <= 200 }
     }
 
     private fun parseReminderAction(intent: Intent?): Map<String, Any?>? {
