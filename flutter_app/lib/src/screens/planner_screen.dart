@@ -526,6 +526,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
     );
     final reminderZone =
         initial.reminderZone ?? await ReminderBridge.zoneId();
+    if (!mounted) {
+      title.dispose();
+      body.dispose();
+      due.dispose();
+      plannedDate.dispose();
+      plannedTime.dispose();
+      reminderDate.dispose();
+      reminderTime.dispose();
+      return null;
+    }
     var priority = initial.priority;
     var repeat = initial.repeat;
     var plannedMinutes = initial.plannedMinutes;
