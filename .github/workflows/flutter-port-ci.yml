@@ -65,6 +65,11 @@ jobs:
                   '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
                   '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'
               )
+          if 'android.permission.RECORD_AUDIO' not in ms:
+              ms = ms.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>'
+              )
           ms = ms.replace(
               'android:launchMode="singleTop"',
               'android:launchMode="singleTop"'
