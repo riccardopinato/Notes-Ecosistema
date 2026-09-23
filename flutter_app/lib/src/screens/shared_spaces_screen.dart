@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/shared_spaces.dart';
+import '../state/shared_live_sync_controller.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
@@ -38,6 +41,12 @@ class _SharedSpacesScreenState
     try {
       setState(() => _error = null);
       await action();
+      final live = ref.read(sharedLiveSyncProvider);
+      if (live.enabled) {
+        unawaited(
+          ref.read(sharedLiveSyncProvider.notifier).syncSoon(),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -203,6 +212,7 @@ class _SharedSpacesScreenState
   @override
   Widget build(BuildContext context) {
     final shared = ref.watch(sharedSpacesProvider);
+    final live = ref.watch(sharedLiveSyncProvider);
     final workspace = ref.watch(workspaceProvider);
     final identity = shared.identity;
 
@@ -234,6 +244,20 @@ class _SharedSpacesScreenState
         _PrivacyCard(
           onJoin: _joinSpace,
           onImport: widget.onImportBundle,
+        ),
+        const SizedBox(height: 12),
+        _LiveSyncCard(
+          state: live,
+          onToggle: (value) => _run(
+            () => ref
+                .read(sharedLiveSyncProvider.notifier)
+                .setEnabled(value),
+          ),
+          onSync: () => _run(
+            () => ref
+                .read(sharedLiveSyncProvider.notifier)
+                .syncNow(),
+          ),
         ),
         const SizedBox(height: 22),
         Row(
@@ -899,6 +923,102 @@ class _PrivacyCard extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _LiveSyncCard extends StatelessWidget {
+  const _LiveSyncCard({
+    required this.state,
+    required this.onToggle,
+    required this.onSync,
+  });
+
+  final SharedLiveSyncState state;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onSync;
+
+  @override
+  Widget build(BuildContext context) {
+    final last = state.lastSyncAt == null
+        ? 'Mai sincronizzato'
+        : _formatSyncTime(state.lastSyncAt!);
+    final error = state.error
+        ?.toString()
+        .replaceFirst('FormatException: ', '')
+        .replaceFirst('GitHubHttpFailure: ', '');
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 12, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: Icon(
+                state.busy ? Icons.sync : Icons.cloud_sync_outlined,
+              ),
+              title: const Text('Shared Spaces Live Sync'),
+              subtitle: const Text(
+                'Usa il repository GitHub privato già collegato. '
+                'Sincronizzazione automatica mentre Notes è aperta.',
+              ),
+              value: state.enabled,
+              onChanged: state.busy ? null : onToggle,
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    state.busy
+                        ? 'Sincronizzazione in corso…'
+                        : state.message,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: state.busy ? null : onSync,
+                  icon: const Icon(Icons.sync),
+                  label: const Text('Sincronizza ora'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              last,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            if (state.conflicts > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${state.conflicts} conflitti preservati come copie locali.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.tertiary,
+                ),
+              ),
+            ],
+            if (error != null && error.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                error,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatSyncTime(int millis) {
+  final date = DateTime.fromMillisecondsSinceEpoch(millis);
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return 'Ultimo sync: $day/$month · $hour:$minute';
 }
 
 class _SpaceCard extends StatelessWidget {
