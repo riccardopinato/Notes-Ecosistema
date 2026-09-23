@@ -916,7 +916,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _saveAsTemplate() async {
-    if (_saving || _readOnlyVisual) return;
+    if (_saving || _readOnly) return;
     try {
       final content = PersonalTemplates.capture(
         _title.text,
