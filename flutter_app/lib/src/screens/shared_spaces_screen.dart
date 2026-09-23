@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../domain/shared_activity.dart';
 import '../domain/shared_spaces.dart';
 import '../state/shared_live_sync_controller.dart';
 import '../state/shared_spaces_controller.dart';
@@ -224,6 +225,7 @@ class _SharedSpacesScreenState
     final spaces = shared.spaces
         .where((space) => space.canRead(identity.id))
         .toList(growable: false);
+    final totalUnread = live.totalUnread(identity.id);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
@@ -269,6 +271,14 @@ class _SharedSpacesScreenState
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
+            if (totalUnread > 0)
+              TextButton.icon(
+                onPressed: () => ref
+                    .read(sharedLiveSyncProvider.notifier)
+                    .markAllRead(),
+                icon: const Icon(Icons.done_all),
+                label: Text('Letti · $totalUnread'),
+              ),
             FilledButton.tonalIcon(
               onPressed: _createSpace,
               icon: const Icon(Icons.add),
@@ -301,6 +311,7 @@ class _SharedSpacesScreenState
                 syncBusy: live.enabled && live.busy,
                 syncSummary: live.spaceSummaries[space.id],
                 lastSyncAt: live.lastSyncAt,
+                unreadCount: live.unreadFor(space.id, identity.id),
                 onTap: () => _openSpace(space.id),
               ),
             );
@@ -606,6 +617,18 @@ class _SharedSpaceDetailScreenState
         .length;
     final canEdit = role.canEdit;
     final canManage = role.canManage;
+    final activity = live.activitiesBySpace[space.id] ?? const [];
+    final unread = live.unreadFor(space.id, identity.id);
+    final lastReadAt = live.lastReadAt[space.id] ?? 0;
+    if (unread > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref
+              .read(sharedLiveSyncProvider.notifier)
+              .markSpaceRead(space.id);
+        }
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -667,6 +690,16 @@ class _SharedSpaceDetailScreenState
                   .syncNow(),
             ),
           ),
+          if (activity.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _ActivityFeedCard(
+              events: activity,
+              space: space,
+              notes: workspace.notes,
+              identityId: identity.id,
+              lastReadAt: lastReadAt,
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             _InlineError(message: _error!),
@@ -1104,6 +1137,7 @@ class _SpaceCard extends StatelessWidget {
     required this.syncBusy,
     required this.syncSummary,
     required this.lastSyncAt,
+    required this.unreadCount,
     required this.onTap,
   });
 
@@ -1116,6 +1150,7 @@ class _SpaceCard extends StatelessWidget {
   final bool syncBusy;
   final SharedSpaceSyncSummary? syncSummary;
   final int? lastSyncAt;
+  final int unreadCount;
   final VoidCallback onTap;
 
   @override
@@ -1140,6 +1175,15 @@ class _SpaceCard extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
+                    if (unreadCount > 0) ...[
+                      Badge(
+                        label: Text(
+                          unreadCount > 99 ? '99+' : '$unreadCount',
+                        ),
+                        child: const Icon(Icons.notifications_outlined),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     Chip(label: Text(role.label)),
                   ],
                 ),
@@ -1182,6 +1226,114 @@ class _SpaceCard extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _ActivityFeedCard extends StatelessWidget {
+  const _ActivityFeedCard({
+    required this.events,
+    required this.space,
+    required this.notes,
+    required this.identityId,
+    required this.lastReadAt,
+  });
+
+  final List<SharedActivityEvent> events;
+  final SharedSpace space;
+  final List<Note> notes;
+  final String identityId;
+  final int lastReadAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = events.take(10).toList(growable: false);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.history),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Ultima attività',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Text(
+                  '${events.length} eventi',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...visible.map((event) {
+              final isUnread =
+                  event.actorId != identityId && event.at > lastReadAt;
+              return ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  _activityIcon(event.kind),
+                  size: 20,
+                ),
+                title: Text(
+                  '${event.actorName} ${event.kind.label}'
+                  '${_activitySubject(event, space, notes)}',
+                  style: isUnread
+                      ? const TextStyle(fontWeight: FontWeight.w700)
+                      : null,
+                ),
+                subtitle: Text(_formatActivityTime(event.at)),
+                trailing: isUnread
+                    ? const Icon(Icons.fiber_new, size: 18)
+                    : null,
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+IconData _activityIcon(SharedActivityKind kind) => switch (kind) {
+      SharedActivityKind.spaceCreated => Icons.add_box_outlined,
+      SharedActivityKind.spaceUpdated => Icons.tune,
+      SharedActivityKind.contentAdded => Icons.add_link,
+      SharedActivityKind.contentRemoved => Icons.link_off,
+      SharedActivityKind.memberChanged => Icons.group_outlined,
+      SharedActivityKind.documentUpdated => Icons.edit_note,
+      SharedActivityKind.conflictPreserved => Icons.call_split,
+    };
+
+String _activitySubject(
+  SharedActivityEvent event,
+  SharedSpace space,
+  List<Note> notes,
+) {
+  final id = event.subjectId;
+  if (id == null) return '';
+  if (event.kind == SharedActivityKind.memberChanged) {
+    final members = space.members.where((member) => member.id == id);
+    if (members.isNotEmpty) return ' · ${members.first.displayName}';
+    return '';
+  }
+  final matching = notes.where((note) => note.id == id);
+  if (matching.isEmpty) return '';
+  final title = matching.first.title.trim();
+  return title.isEmpty ? ' · Senza titolo' : ' · $title';
+}
+
+String _formatActivityTime(int millis) {
+  final date = DateTime.fromMillisecondsSinceEpoch(millis);
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$day/$month · $hour:$minute';
 }
 
 class _SpaceSyncBadge extends StatelessWidget {
