@@ -432,6 +432,53 @@ void main() {
         hasLength(1));
   });
 
+  test('fresh install discovers a canonical remote shared space', () {
+    const canonical = SharedIdentity(
+      id: 'github:143192448',
+      displayName: 'Riccardo',
+      githubUserId: '143192448',
+      githubLogin: 'riccardopinato',
+    );
+    final remote = SharedSpaces.create(
+      owner: canonical,
+      name: 'Casa',
+      description: 'Condiviso',
+      now: 100,
+    );
+
+    final discovered = mergeDiscoveredSharedSpaces(
+      identity: canonical,
+      localSpaces: const [],
+      remoteSpaces: [remote],
+    );
+
+    expect(discovered, hasLength(1));
+    expect(discovered.single.id, remote.id);
+    expect(discovered.single.roleFor(canonical.id), SharedRole.owner);
+  });
+
+  test('remote discovery ignores spaces where identity is not a member', () {
+    const canonical = SharedIdentity(
+      id: 'github:143192448',
+      displayName: 'Riccardo',
+      githubUserId: '143192448',
+      githubLogin: 'riccardopinato',
+    );
+    final foreign = SharedSpaces.create(
+      owner: owner,
+      name: 'Altro',
+      now: 100,
+    );
+
+    final discovered = mergeDiscoveredSharedSpaces(
+      identity: canonical,
+      localSpaces: const [],
+      remoteSpaces: [foreign],
+    );
+
+    expect(discovered, isEmpty);
+  });
+
   test('GitHub binding refuses account switch with existing spaces', () {
     final migrated = SharedSpaces.bindGitHubIdentity(
       SharedSpacesSnapshot(
