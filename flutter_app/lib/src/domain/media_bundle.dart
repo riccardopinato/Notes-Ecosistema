@@ -30,10 +30,27 @@ abstract final class MediaBundle {
     BackupSnapshot snapshot,
     AttachmentStore store,
   ) async {
+    final keys = referencedKeys(snapshot).toList()..sort();
+    final assets = <String, Uint8List>{};
+    for (final key in keys) {
+      assets[key] = await store.read(key);
+    }
+    return encodeLoaded(snapshot, assets);
+  }
+
+  static Uint8List encodeLoaded(
+    BackupSnapshot snapshot,
+    Map<String, Uint8List> assets,
+  ) {
     BackupCodec.validate(snapshot);
-    final keys = _keys(snapshot).toList()..sort();
-    if (keys.length > Attachments.maxFiles) {
-      throw const FormatException('Troppi allegati nel backup.');
+    final keys = referencedKeys(snapshot).toList()..sort();
+    if (keys.length > Attachments.maxFiles ||
+        assets.length != keys.length ||
+        !assets.keys.toSet().containsAll(keys) ||
+        !keys.toSet().containsAll(assets.keys)) {
+      throw const FormatException(
+        'Allegati mancanti o non coerenti con le note.',
+      );
     }
 
     final backup = BackupCodec.encode(snapshot);
@@ -56,7 +73,8 @@ abstract final class MediaBundle {
 
     var assetBytes = 0;
     for (final key in keys) {
-      final bytes = await store.read(key);
+      final bytes = assets[key]!;
+      Attachments.verify(key, bytes);
       assetBytes += bytes.length;
       if (assetBytes > maxAssetBatchBytes) {
         throw const FormatException(
@@ -208,7 +226,7 @@ abstract final class MediaBundle {
       throw const FormatException('backup.json o bundle.json mancante.');
     }
     final snapshot = BackupCodec.decode(backupText);
-    final referenced = _keys(snapshot);
+    final referenced = referencedKeys(snapshot);
     if (manifest.length != assets.length ||
         !manifest.containsAll(assets.keys) ||
         !assets.keys.toSet().containsAll(manifest) ||
@@ -231,7 +249,7 @@ abstract final class MediaBundle {
     }
   }
 
-  static Set<String> _keys(BackupSnapshot snapshot) {
+  static Set<String> referencedKeys(BackupSnapshot snapshot) {
     final keys = <String>{};
     for (final note in snapshot.notes) {
       if (note.sketchJson == null) {
