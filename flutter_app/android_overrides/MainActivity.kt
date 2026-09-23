@@ -80,6 +80,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "allowed" -> result.success(notificationsAllowed())
                 "requestPermission" -> requestNotificationPermission(result)
+                "zoneId" -> result.success(java.time.ZoneId.systemDefault().id)
                 else -> result.notImplemented()
             }
         }
