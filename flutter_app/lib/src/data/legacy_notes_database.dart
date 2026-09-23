@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/backup.dart';
 import '../domain/blocks.dart';
+import '../domain/editing.dart';
 import '../domain/library.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
