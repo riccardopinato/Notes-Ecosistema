@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/shared_space_bundle.dart';
 import 'package:notes_ecosistema/src/domain/shared_spaces.dart';
 import 'package:notes_ecosistema/src/domain/sync.dart';
+import 'package:notes_ecosistema/src/sync/shared_spaces_live_sync.dart';
 
 void main() {
   const owner = SharedIdentity(
@@ -269,6 +270,110 @@ void main() {
     expect(
       () => SharedSpaceBundle.decode(bytes),
       throwsFormatException,
+    );
+  });
+
+  test('live sync bootstraps from the newest document', () {
+    const older = SyncDocument(
+      id: 'note-1',
+      title: 'Vecchia',
+      body: 'A',
+      favorite: false,
+      createdAt: 100,
+      updatedAt: 200,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const newer = SyncDocument(
+      id: 'note-1',
+      title: 'Nuova',
+      body: 'B',
+      favorite: false,
+      createdAt: 100,
+      updatedAt: 300,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+
+    expect(
+      decideSharedLiveDocument(
+        baseHash: null,
+        local: newer,
+        remote: older,
+      ),
+      SharedLiveDecision.upload,
+    );
+    expect(
+      decideSharedLiveDocument(
+        baseHash: null,
+        local: older,
+        remote: newer,
+      ),
+      SharedLiveDecision.download,
+    );
+  });
+
+  test('live sync detects two-sided edits from the same base', () {
+    const base = SyncDocument(
+      id: 'note-1',
+      title: 'Base',
+      body: 'A',
+      favorite: false,
+      createdAt: 100,
+      updatedAt: 100,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const local = SyncDocument(
+      id: 'note-1',
+      title: 'Locale',
+      body: 'B',
+      favorite: false,
+      createdAt: 100,
+      updatedAt: 200,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const remote = SyncDocument(
+      id: 'note-1',
+      title: 'Remota',
+      body: 'C',
+      favorite: false,
+      createdAt: 100,
+      updatedAt: 210,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+
+    final baseHash = sharedLiveDocumentHash(base);
+    expect(
+      decideSharedLiveDocument(
+        baseHash: baseHash,
+        local: local,
+        remote: remote,
+      ),
+      SharedLiveDecision.conflict,
+    );
+    expect(
+      decideSharedLiveDocument(
+        baseHash: sharedLiveDocumentHash(local),
+        local: local,
+        remote: remote,
+      ),
+      SharedLiveDecision.download,
+    );
+    expect(
+      decideSharedLiveDocument(
+        baseHash: sharedLiveDocumentHash(remote),
+        local: local,
+        remote: remote,
+      ),
+      SharedLiveDecision.upload,
     );
   });
 }
