@@ -39,12 +39,14 @@ class EditorScreen extends ConsumerStatefulWidget {
     required this.collections,
     this.note,
     this.allNotes = const [],
+    this.readOnly = false,
     super.key,
   });
 
   final Note? note;
   final List<NoteCollection> collections;
   final List<Note> allNotes;
+  final bool readOnly;
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -75,6 +77,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   String? _error;
 
   bool get _readOnlyVisual => widget.note?.isVisual == true;
+  bool get _readOnly => widget.readOnly || _readOnlyVisual;
   DateTime? get _diaryDate => Diary.date(_tags);
 
   @override
@@ -96,7 +99,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   void dispose() {
     _recordingTimer?.cancel();
     _draftTimer?.cancel();
-    if (_dirty && _draftLoaded && !_saving && !_readOnlyVisual) {
+    if (_dirty && _draftLoaded && !_saving && !_readOnly) {
       final snapshot = _draftSnapshot();
       unawaited(
         _database.saveDraft(snapshot).catchError((Object _) {}),
@@ -123,7 +126,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       );
 
   Future<void> _restoreDraft() async {
-    if (_readOnlyVisual) {
+    if (_readOnly) {
       _draftLoaded = true;
       return;
     }
@@ -159,7 +162,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   void _rememberDraft({bool immediate = false}) {
-    if (_readOnlyVisual || _saving) return;
+    if (_readOnly || _saving) return;
     if (!_draftLoaded) {
       _changedBeforeDraftLoad = true;
       return;
@@ -210,7 +213,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving || _recording || _readOnlyVisual) return;
+    if (_saving || _recording || _readOnly) return;
     _draftTimer?.cancel();
     _draftTimer = null;
     setState(() {
@@ -1336,6 +1339,64 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.readOnly && !_readOnlyVisual) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const EditorialAppTitle(
+            'Solo lettura',
+            eyebrow: 'SHARED SPACE',
+          ),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 60),
+          children: [
+            Text(
+              _title.text.trim().isEmpty ? 'Senza titolo' : _title.text.trim(),
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            if (_tags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _tags
+                    .map((tag) => Chip(label: Text('#$tag')))
+                    .toList(growable: false),
+              ),
+            ],
+            const SizedBox(height: 16),
+            if (_body.text.trim().isEmpty)
+              const Text('Nessun contenuto.')
+            else
+              MarkdownBody(
+                data: _body.text,
+                selectable: true,
+                onTapLink: (text, href, title) {
+                  if (href == null) return;
+                  final id = Knowledge.targetId(href);
+                  if (id != null) _openLinkedNote(id);
+                },
+              ),
+            if (Attachments.refs(_body.text).isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text(
+                'Allegati',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              ...Attachments.refs(_body.text).map(
+                (attachment) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.attach_file),
+                  title: Text(attachment.name),
+                  subtitle: Text(attachment.type.mime),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     if (_readOnlyVisual) {
       return Scaffold(
         appBar: AppBar(
