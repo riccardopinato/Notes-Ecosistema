@@ -17,7 +17,7 @@ class PageTemplate {
 
 abstract final class PersonalTemplates {
   static const tag = 'modello';
-  static final _variable = RegExp(r'\\{\\{(data|ora|giorno)\\}\\}');
+  static final _variable = RegExp(r'\{\{(data|ora|giorno)\}\}');
 
   static bool eligible(Note note) =>
       !note.isDeleted && !note.isTask && !note.isVisual && note.tags.contains(tag);
