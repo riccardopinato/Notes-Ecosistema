@@ -10,6 +10,7 @@ import '../domain/shared_spaces.dart';
 import '../state/shared_live_sync_controller.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
+import '../sync/shared_spaces_live_sync.dart';
 import '../widgets/editorial.dart';
 
 class SharedSpacesScreen extends ConsumerStatefulWidget {
