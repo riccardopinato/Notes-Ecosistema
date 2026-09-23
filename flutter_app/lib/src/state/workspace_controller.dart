@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
+import '../domain/backup.dart';
 import '../domain/note.dart';
+import '../domain/templates.dart';
 
 final databaseProvider = Provider<LegacyNotesDatabase>((ref) {
   final database = LegacyNotesDatabase();
@@ -53,6 +55,38 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
 
   Future<void> save(Note note) async {
     await _database.saveNote(note);
+    await refresh();
+  }
+
+  Future<String> createTemplate(TemplateContent content) async {
+    final valid = PersonalTemplates.capture(
+      content.title,
+      content.body,
+      content.tags,
+    );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = const Uuid().v4();
+    await _database.saveNote(
+      Note(
+        id: id,
+        title: valid.title,
+        body: valid.body,
+        favorite: false,
+        createdAt: now,
+        updatedAt: now,
+        pinned: false,
+        archived: true,
+        tags: valid.tags,
+      ),
+    );
+    await refresh();
+    return id;
+  }
+
+  Future<BackupSnapshot> snapshot() => _database.snapshot();
+
+  Future<void> importCopies(BackupSnapshot snapshot) async {
+    await _database.importCopies(snapshot);
     await refresh();
   }
 
