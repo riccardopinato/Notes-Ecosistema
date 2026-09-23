@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/shared_space_bundle.dart';
 import 'package:notes_ecosistema/src/domain/shared_spaces.dart';
 import 'package:notes_ecosistema/src/domain/sync.dart';
+import 'package:notes_ecosistema/src/state/shared_live_sync_controller.dart';
 import 'package:notes_ecosistema/src/sync/shared_spaces_live_sync.dart';
 
 void main() {
@@ -477,6 +478,39 @@ void main() {
     );
 
     expect(discovered, isEmpty);
+  });
+
+  test('live sync retry backoff grows and caps at five minutes', () {
+    expect(sharedLiveRetryDelay(0), Duration.zero);
+    expect(sharedLiveRetryDelay(1), const Duration(seconds: 15));
+    expect(sharedLiveRetryDelay(2), const Duration(seconds: 30));
+    expect(sharedLiveRetryDelay(3), const Duration(minutes: 1));
+    expect(sharedLiveRetryDelay(4), const Duration(minutes: 2));
+    expect(sharedLiveRetryDelay(5), const Duration(minutes: 5));
+    expect(sharedLiveRetryDelay(20), const Duration(minutes: 5));
+  });
+
+  test('per-space sync summary prioritizes conflicts and waiting state', () {
+    const conflict = SharedSpaceSyncSummary(
+      spaceId: 'space-1',
+      uploaded: 2,
+      downloaded: 1,
+      conflicts: 1,
+    );
+    const waiting = SharedSpaceSyncSummary(
+      spaceId: 'space-2',
+      waiting: 3,
+    );
+    const clean = SharedSpaceSyncSummary(
+      spaceId: 'space-3',
+    );
+
+    expect(conflict.hasAttention, isTrue);
+    expect(conflict.label, '1 conflitto');
+    expect(waiting.hasAttention, isTrue);
+    expect(waiting.label, '3 in attesa');
+    expect(clean.hasAttention, isFalse);
+    expect(clean.label, 'Aggiornato');
   });
 
   test('GitHub binding refuses account switch with existing spaces', () {
