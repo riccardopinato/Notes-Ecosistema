@@ -296,6 +296,10 @@ class _SharedSpacesScreenState
                 contentCount: content.length,
                 taskCount: tasks,
                 plannedCount: planned,
+                syncEnabled: live.enabled,
+                syncBusy: live.enabled && live.busy,
+                syncSummary: live.spaceSummaries[space.id],
+                lastSyncAt: live.lastSyncAt,
                 onTap: () => _openSpace(space.id),
               ),
             );
@@ -562,6 +566,7 @@ class _SharedSpaceDetailScreenState
   Widget build(BuildContext context) {
     final shared = ref.watch(sharedSpacesProvider);
     final workspace = ref.watch(workspaceProvider);
+    final live = ref.watch(sharedLiveSyncProvider);
     final identity = shared.identity;
     final space = shared.byId(widget.spaceId);
 
@@ -643,6 +648,18 @@ class _SharedSpaceDetailScreenState
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 120),
         children: [
           _SpaceHero(space: space, role: role),
+          const SizedBox(height: 10),
+          _SpaceSyncStatusCard(
+            enabled: live.enabled,
+            busy: live.enabled && live.busy,
+            summary: live.spaceSummaries[space.id],
+            lastSyncAt: live.lastSyncAt,
+            onSync: () => _run(
+              () => ref
+                  .read(sharedLiveSyncProvider.notifier)
+                  .syncNow(),
+            ),
+          ),
           if (_error != null) ...[
             const SizedBox(height: 12),
             _InlineError(message: _error!),
@@ -984,7 +1001,37 @@ class _LiveSyncCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  avatar: Icon(
+                    _connectionIcon(state.connection),
+                    size: 18,
+                  ),
+                  label: Text(
+                    state.enabled
+                        ? state.connection.label
+                        : 'Auto-sync disattivato',
+                  ),
+                ),
+                if (state.nextRetryAt != null && state.enabled)
+                  Chip(
+                    avatar: const Icon(Icons.schedule, size: 18),
+                    label: Text(_formatRetryTime(state.nextRetryAt!)),
+                  ),
+                if (state.failureStreak > 0 && state.enabled)
+                  Chip(
+                    avatar: const Icon(Icons.replay, size: 18),
+                    label: Text(
+                      'Tentativo ${state.failureStreak + 1}',
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
             Text(
               last,
               style: Theme.of(context).textTheme.labelSmall,
@@ -1014,6 +1061,22 @@ class _LiveSyncCard extends StatelessWidget {
   }
 }
 
+IconData _connectionIcon(SharedLiveConnectionStatus status) =>
+    switch (status) {
+      SharedLiveConnectionStatus.idle => Icons.cloud_off_outlined,
+      SharedLiveConnectionStatus.online => Icons.cloud_done_outlined,
+      SharedLiveConnectionStatus.offline => Icons.cloud_off_outlined,
+      SharedLiveConnectionStatus.attention => Icons.warning_amber_rounded,
+    };
+
+String _formatRetryTime(int millis) {
+  final date = DateTime.fromMillisecondsSinceEpoch(millis);
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  final second = date.second.toString().padLeft(2, '0');
+  return 'Riprovo alle $hour:$minute:$second';
+}
+
 String _formatSyncTime(int millis) {
   final date = DateTime.fromMillisecondsSinceEpoch(millis);
   final day = date.day.toString().padLeft(2, '0');
@@ -1030,6 +1093,10 @@ class _SpaceCard extends StatelessWidget {
     required this.contentCount,
     required this.taskCount,
     required this.plannedCount,
+    required this.syncEnabled,
+    required this.syncBusy,
+    required this.syncSummary,
+    required this.lastSyncAt,
     required this.onTap,
   });
 
@@ -1038,6 +1105,10 @@ class _SpaceCard extends StatelessWidget {
   final int contentCount;
   final int taskCount;
   final int plannedCount;
+  final bool syncEnabled;
+  final bool syncBusy;
+  final SharedSpaceSyncSummary? syncSummary;
+  final int? lastSyncAt;
   final VoidCallback onTap;
 
   @override
@@ -1069,6 +1140,13 @@ class _SpaceCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(space.description),
                 ],
+                const SizedBox(height: 10),
+                _SpaceSyncBadge(
+                  enabled: syncEnabled,
+                  busy: syncBusy,
+                  summary: syncSummary,
+                  lastSyncAt: lastSyncAt,
+                ),
                 const SizedBox(height: 14),
                 Wrap(
                   spacing: 14,
@@ -1097,6 +1175,107 @@ class _SpaceCard extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _SpaceSyncBadge extends StatelessWidget {
+  const _SpaceSyncBadge({
+    required this.enabled,
+    required this.busy,
+    required this.summary,
+    required this.lastSyncAt,
+  });
+
+  final bool enabled;
+  final bool busy;
+  final SharedSpaceSyncSummary? summary;
+  final int? lastSyncAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = !enabled
+        ? 'Live Sync disattivato'
+        : busy
+            ? 'Sincronizzazione…'
+            : summary?.label ?? 'Non ancora sincronizzato';
+    final icon = !enabled
+        ? Icons.cloud_off_outlined
+        : busy
+            ? Icons.sync
+            : summary?.hasAttention == true
+                ? Icons.warning_amber_rounded
+                : Icons.cloud_done_outlined;
+    final suffix = enabled && !busy && lastSyncAt != null
+        ? ' · ${_formatCompactSyncTime(lastSyncAt!)}'
+        : '';
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            '$label$suffix',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SpaceSyncStatusCard extends StatelessWidget {
+  const _SpaceSyncStatusCard({
+    required this.enabled,
+    required this.busy,
+    required this.summary,
+    required this.lastSyncAt,
+    required this.onSync,
+  });
+
+  final bool enabled;
+  final bool busy;
+  final SharedSpaceSyncSummary? summary;
+  final int? lastSyncAt;
+  final VoidCallback onSync;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: ListTile(
+          leading: Icon(
+            busy
+                ? Icons.sync
+                : summary?.hasAttention == true
+                    ? Icons.warning_amber_rounded
+                    : enabled
+                        ? Icons.cloud_done_outlined
+                        : Icons.cloud_off_outlined,
+          ),
+          title: Text(
+            busy
+                ? 'Shared Space in sincronizzazione…'
+                : summary?.label ??
+                    (enabled
+                        ? 'In attesa del primo Live Sync'
+                        : 'Live Sync disattivato'),
+          ),
+          subtitle: lastSyncAt == null
+              ? const Text('Nessuna sincronizzazione completata.')
+              : Text(_formatSyncTime(lastSyncAt!)),
+          trailing: IconButton(
+            tooltip: 'Sincronizza ora',
+            onPressed: busy ? null : onSync,
+            icon: const Icon(Icons.sync),
+          ),
+        ),
+      );
+}
+
+String _formatCompactSyncTime(int millis) {
+  final date = DateTime.fromMillisecondsSinceEpoch(millis);
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }
 
 class _SpaceHero extends StatelessWidget {
