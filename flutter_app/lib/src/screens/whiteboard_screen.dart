@@ -14,11 +14,13 @@ class WhiteboardScreen extends StatefulWidget {
   const WhiteboardScreen({
     required this.note,
     required this.onSave,
+    this.readOnly = false,
     super.key,
   });
 
   final Note note;
   final Future<void> Function(Note note) onSave;
+  final bool readOnly;
 
   @override
   State<WhiteboardScreen> createState() => _WhiteboardScreenState();
@@ -57,7 +59,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || widget.readOnly) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -317,6 +319,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       appBar: AppBar(
         title: TextField(
           controller: _title,
+          readOnly: widget.readOnly,
           decoration: InputDecoration(
             hintText: _document.mode == WhiteboardMode.mindMap
                 ? 'Nuova mind map'
@@ -335,10 +338,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
             tooltip: 'Condividi PNG',
             icon: const Icon(Icons.share_outlined),
           ),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Salvataggio…' : 'Salva'),
-          ),
+          if (!widget.readOnly)
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: Text(_saving ? 'Salvataggio…' : 'Salva'),
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -353,7 +357,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-          SizedBox(
+          if (!widget.readOnly)
+            SizedBox(
             height: 62,
             child: ListView(
               scrollDirection: Axis.horizontal,
@@ -457,9 +462,10 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       width: node.width.toDouble(),
       height: node.height.toDouble(),
       child: GestureDetector(
-        onPanUpdate: (details) => _moveNode(node, details),
-        onTap: () => _nodeTap(node),
-        onLongPress: () {
+        onPanUpdate:
+            widget.readOnly ? null : (details) => _moveNode(node, details),
+        onTap: widget.readOnly ? null : () => _nodeTap(node),
+        onLongPress: widget.readOnly ? null : () {
           if (_document.mode == WhiteboardMode.mindMap) {
             _addNode(kind: BoardNodeKind.mindNode, parent: node);
           } else {
