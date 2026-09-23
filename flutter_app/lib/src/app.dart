@@ -671,10 +671,30 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   @override
   Widget build(BuildContext context) {
     final workspace = ref.watch(workspaceProvider);
+    final shared = ref.watch(sharedSpacesProvider);
     final section = labels[_index];
 
+    final editableSharedIds = <String>{};
+    final viewerSharedIds = <String>{};
+    final identity = shared.identity;
+    if (identity != null) {
+      for (final space in shared.spaces) {
+        final role = space.roleFor(identity.id);
+        if (role == null) continue;
+        if (role.canEdit) {
+          editableSharedIds.addAll(space.contentIds);
+        } else {
+          viewerSharedIds.addAll(space.contentIds);
+        }
+      }
+    }
+    final viewerOnlyIds = viewerSharedIds.difference(editableSharedIds);
+    final personalNotes = workspace.notes
+        .where((note) => !viewerOnlyIds.contains(note.id))
+        .toList(growable: false);
+
     if (!workspace.loading) {
-      final reminderSignature = workspace.notes
+      final reminderSignature = personalNotes
           .where((note) => note.isTask)
           .map(
             (note) =>
@@ -685,7 +705,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         _reminderSignature = reminderSignature;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            ReminderBridge.sync(workspace.notes).catchError((_) {});
+            ReminderBridge.sync(personalNotes).catchError((_) {});
           }
         });
       }
@@ -700,7 +720,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       );
     } else if (_index == 0) {
       body = HomeScreen(
-        notes: workspace.notes,
+        notes: personalNotes,
         collections: workspace.collections,
         onCreate: _openEditor,
         onNotes: () => setState(() {
@@ -715,12 +735,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
           _index = 1;
         }),
       );
-    } else if (_index == 1 || _index == 4) {
+    } else if (_index == 1 || _index == 5) {
       body = NotesScreen(
-        notes: workspace.notes,
+        notes: personalNotes,
         collections: workspace.collections,
         query: _query,
-        searchMode: _index == 4,
+        searchMode: _index == 5,
         onQueryChanged: (value) => setState(() => _query = value),
         onOpen: _openEditor,
         onFavorite: (id) =>
@@ -745,7 +765,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       );
     } else if (_index == 2) {
       body = DiaryScreen(
-        notes: workspace.notes,
+        notes: personalNotes,
         collections: workspace.collections,
         onOpen: _openEditor,
         onCreate: _createDiaryEntry,
@@ -753,13 +773,21 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         onCreateCollection: (name) =>
             ref.read(workspaceProvider.notifier).createCollection(name),
       );
-    } else {
+    } else if (_index == 3) {
       body = PlannerScreen(
-        notes: workspace.notes,
+        notes: personalNotes,
         initialTaskId: _plannerTaskId,
         onSave: (note) => ref.read(workspaceProvider.notifier).save(note),
         onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
         onOpenNote: _openEditor,
+      );
+    } else {
+      body = SharedSpacesScreen(
+        onOpenNote: _openSharedItem,
+        onCreateNote: _createSharedNote,
+        onCreateTask: _createSharedTask,
+        onExportBundle: _exportSharedSpaceBundle,
+        onImportBundle: _importSharedSpaceBundle,
       );
     }
 
@@ -775,7 +803,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
         ],
       ),
       body: body,
-      floatingActionButton: (_index == 4 || _index == 2 || _index == 3)
+      floatingActionButton: (_index == 5 || _index == 4 || _index == 2 || _index == 3)
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _createMenu(context),
@@ -794,6 +822,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
           NavigationDestination(icon: Icon(Icons.description), label: 'Note'),
           NavigationDestination(icon: Icon(Icons.calendar_month), label: 'Diario'),
           NavigationDestination(icon: Icon(Icons.check_circle), label: 'Attività'),
+          NavigationDestination(icon: Icon(Icons.group_work_outlined), label: 'Spazi'),
           NavigationDestination(icon: Icon(Icons.search), label: 'Cerca'),
         ],
       ),
@@ -1210,9 +1239,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
                   },
                 ),
                 const ListTile(
-                  title: Text('Notes · Flutter port 0.25.1'),
+                  title: Text('Notes · Flutter 0.26.0'),
                   subtitle: Text(
-                    'Database locale compatibile con Notes Ecosistema Kotlin / Room v8.',
+                    'Shared Spaces selettivi · database locale ancora compatibile con Room v8.',
                   ),
                 ),
               ],
