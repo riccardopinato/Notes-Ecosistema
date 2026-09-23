@@ -19,6 +19,7 @@ class NotesScreen extends StatefulWidget {
     required this.onBulkEdit,
     required this.onRenameCollection,
     required this.onDeleteCollection,
+    this.initialCollectionId,
     super.key,
   });
 
@@ -34,6 +35,7 @@ class NotesScreen extends StatefulWidget {
   final Future<int> Function(List<Note>, BulkChange) onBulkEdit;
   final Future<void> Function(NoteCollection, String) onRenameCollection;
   final Future<void> Function(NoteCollection) onDeleteCollection;
+  final String? initialCollectionId;
 
   @override
   State<NotesScreen> createState() => _NotesScreenState();
@@ -55,7 +57,17 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   void initState() {
     super.initState();
+    _collectionId = widget.initialCollectionId;
     _loadSaved();
+  }
+
+  @override
+  void didUpdateWidget(covariant NotesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialCollectionId != widget.initialCollectionId &&
+        widget.initialCollectionId != _collectionId) {
+      setState(() => _collectionId = widget.initialCollectionId);
+    }
   }
 
   Future<void> _loadSaved() async {
