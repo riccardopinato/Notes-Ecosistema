@@ -58,8 +58,30 @@ jobs:
                   '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
                   '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.INTERNET"/>'
               )
+          ms = ms.replace(
+              'android:launchMode="singleTop"',
+              'android:launchMode="singleTop"'
+          )
+          capture_filters = r'''
+                <intent-filter>
+                    <action android:name="android.intent.action.SEND"/>
+                    <category android:name="android.intent.category.DEFAULT"/>
+                    <data android:mimeType="text/plain"/>
+                    <data android:mimeType="image/*"/>
+                    <data android:mimeType="application/pdf"/>
+                </intent-filter>
+                <intent-filter>
+                    <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                    <category android:name="android.intent.category.DEFAULT"/>
+                    <data android:mimeType="image/*"/>
+                    <data android:mimeType="application/pdf"/>
+                </intent-filter>
+          '''
+          if 'android.intent.action.SEND_MULTIPLE' not in ms:
+              ms = ms.replace('</activity>', capture_filters + '\\n            </activity>', 1)
           manifest.write_text(ms)
           PY
+          cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
 
       - name: Dependencies
         run: flutter pub get
