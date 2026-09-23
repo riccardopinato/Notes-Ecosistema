@@ -239,6 +239,80 @@ class LegacyNotesDatabase {
     );
   }
 
+  Future<BackupDraft?> loadDraft(String id) async {
+    final db = await database;
+    final rows = await db.query(
+      'drafts',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return BackupDraft(
+      id: row['id']?.toString() ?? '',
+      title: row['title']?.toString() ?? '',
+      body: row['body']?.toString() ?? '',
+      collectionId: row['collectionId']?.toString(),
+      updatedAt: (row['updatedAt'] as num?)?.toInt() ?? 0,
+      tags: _decodeTags(row['tagsJson']?.toString()),
+    );
+  }
+
+  Future<void> saveDraft(BackupDraft draft) async {
+    if (draft.id.trim().isEmpty || draft.id.length > 200) {
+      throw const FormatException('Bozza non valida.');
+    }
+    final tags = NoteTags.normalize(draft.tags);
+    final db = await database;
+    await db.transaction((txn) async {
+      final noteRows = await txn.query(
+        'notes',
+        columns: ['deletedAt', 'archived'],
+        where: 'id = ?',
+        whereArgs: [draft.id],
+        limit: 1,
+      );
+      if (noteRows.isNotEmpty) {
+        if (noteRows.first['deletedAt'] != null ||
+            (noteRows.first['archived'] as num?)?.toInt() == 1) {
+          throw const FormatException(
+            'La nota non è modificabile mentre è archiviata o nel cestino.',
+          );
+        }
+      }
+      if (draft.collectionId != null) {
+        final collections = await txn.query(
+          'collections',
+          columns: ['id'],
+          where: 'id = ?',
+          whereArgs: [draft.collectionId],
+          limit: 1,
+        );
+        if (collections.isEmpty) {
+          throw const FormatException('Raccolta non più disponibile.');
+        }
+      }
+      await txn.insert(
+        'drafts',
+        {
+          'id': draft.id,
+          'title': draft.title,
+          'body': draft.body,
+          'collectionId': draft.collectionId,
+          'updatedAt': draft.updatedAt,
+          'tagsJson': jsonEncode(tags),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+  }
+
+  Future<void> discardDraft(String id) async {
+    final db = await database;
+    await db.delete('drafts', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<BackupSnapshot> snapshot() async {
     final db = await database;
     final notes = await loadNotes();
