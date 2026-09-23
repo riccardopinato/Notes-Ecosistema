@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../platform/reminder_bridge.dart';
 import '../widgets/editorial.dart';
+import 'focus_screen.dart';
 
 class PlannerScreen extends StatefulWidget {
   const PlannerScreen({
@@ -114,24 +116,32 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _focus(Note note) async {
-    final task = TaskDetails.tryDecode(note.taskJson);
-    if (task == null) return;
-    final seconds = await showDialog<int>(
-      context: context,
-      builder: (_) => _FocusDialog(
-        title: note.title.isEmpty ? 'Attività' : note.title,
-        suggestedMinutes: task.plannedDate == null ? 25 : task.plannedMinutes,
+    if (TaskDetails.tryDecode(note.taskJson) == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FocusSessionScreen(
+          note: note,
+          onSave: widget.onSave,
+        ),
       ),
     );
-    if (seconds == null || seconds <= 0 || !mounted) return;
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _moveStatus(Note note, TaskStatus status) async {
+    final task = TaskDetails.tryDecode(note.taskJson);
+    if (task == null) return;
     await _run(() async {
       final now = DateTime.now().millisecondsSinceEpoch;
-      final updated = task.addFocusSession(
-        sessionId: const Uuid().v4(),
-        seconds: seconds,
-        endedAt: now,
+      final updated = changeTaskStatus(
+        task,
+        status,
+        now: now,
+        today: DateTime.now(),
       );
-      await widget.onSave(note.copyWith(taskJson: updated.encode(), updatedAt: now));
+      await widget.onSave(
+        note.copyWith(taskJson: updated.encode(), updatedAt: now),
+      );
     });
   }
 
@@ -157,12 +167,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
               .toList(),
         ),
         const SizedBox(height: 12),
-        _DateNavigator(
-          view: _view,
-          selected: _selected,
-          enabled: !_busy,
-          onChanged: (value) => setState(() => _selected = value),
-        ),
+        if (_view != PlannerView.kanban && _view != PlannerView.focus)
+          _DateNavigator(
+            view: _view,
+            selected: _selected,
+            enabled: !_busy,
+            onChanged: (value) => setState(() => _selected = value),
+          ),
         if (_error != null) ...[
           const SizedBox(height: 8),
           Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
@@ -178,8 +189,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
           _day(index)
         else if (_view == PlannerView.week)
           _week(index)
+        else if (_view == PlannerView.month)
+          _month(index)
+        else if (_view == PlannerView.kanban)
+          _kanban()
         else
-          _month(index),
+          _focusInsights(),
       ],
     );
   }
@@ -407,6 +422,197 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ),
           ...due.where((n) => !planned.any((p) => p.id == n.id)).map(_taskCard),
         ],
+      ],
+    );
+  }
+
+  Widget _kanban() {
+    final tasks = widget.notes
+        .where((note) => note.isTask && !note.isDeleted)
+        .toList(growable: false);
+    return SizedBox(
+      height: 470,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: TaskStatus.values.map((status) {
+          final group = tasks.where((note) {
+            final details = TaskDetails.tryDecode(note.taskJson);
+            return details != null && taskStatus(details) == status;
+          }).toList();
+          return SizedBox(
+            width: 285,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        _taskStatusLabel(status) +
+                            ' · ' +
+                            group.length.toString(),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: group.isEmpty
+                            ? const Center(child: Text('Nessuna attività'))
+                            : ListView.builder(
+                                itemCount: group.length,
+                                itemBuilder: (_, index) {
+                                  final note = group[index];
+                                  final task =
+                                      TaskDetails.tryDecode(note.taskJson)!;
+                                  return Card(
+                                    child: ListTile(
+                                      title: Text(
+                                        note.title.isEmpty
+                                            ? 'Attività'
+                                            : note.title,
+                                      ),
+                                      subtitle: task.due == null
+                                          ? null
+                                          : Text('Scadenza ' + task.due!),
+                                      onTap: _busy
+                                          ? null
+                                          : () => _editTask(note),
+                                      trailing: PopupMenuButton<TaskStatus>(
+                                        enabled: !_busy,
+                                        onSelected: (value) =>
+                                            _moveStatus(note, value),
+                                        itemBuilder: (_) => TaskStatus.values
+                                            .where((value) => value != status)
+                                            .map(
+                                              (value) => PopupMenuItem(
+                                                value: value,
+                                                child: Text(
+                                                  _taskStatusLabel(value),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _focusInsights() {
+    final days = weeklyFocus(widget.notes, DateTime.now());
+    final history = focusHistory(widget.notes);
+    final total = days.fold<int>(0, (sum, row) => sum + row.value);
+    final maxSeconds = days.fold<int>(
+      1,
+      (value, row) => row.value > value ? row.value : value,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Il tempo che ti sei dedicato',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  (total ~/ 60).toString() + ' minuti negli ultimi 7 giorni',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: days.map((row) {
+                    final fraction = row.value / maxSeconds;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              height: 100,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: FractionallySizedBox(
+                                  heightFactor:
+                                      fraction.clamp(0.03, 1).toDouble(),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat('dd/MM').format(row.key),
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                            Text(
+                              (row.value ~/ 60).toString() + 'm',
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Sessioni Focus',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (history.isEmpty)
+          const Text('Nessuna sessione datata registrata.')
+        else
+          ...history.take(50).map(
+                (row) => Card(
+                  child: ListTile(
+                    title: Text(
+                      row.title.isEmpty ? 'Attività' : row.title,
+                    ),
+                    subtitle: Text(
+                      DateFormat('dd/MM/yyyy HH:mm').format(
+                        DateTime.fromMillisecondsSinceEpoch(row.endedAt),
+                      ),
+                    ),
+                    trailing: Text(
+                      (row.seconds ~/ 60).toString() +
+                          'm ' +
+                          (row.seconds % 60).toString() +
+                          's',
+                    ),
+                  ),
+                ),
+              ),
       ],
     );
   }
@@ -954,6 +1160,15 @@ String _viewLabel(PlannerView view) => switch (view) {
       PlannerView.day => 'Giorno',
       PlannerView.week => 'Settimana',
       PlannerView.month => 'Mese',
+      PlannerView.kanban => 'Kanban',
+      PlannerView.focus => 'Focus',
+    };
+
+String _taskStatusLabel(TaskStatus status) => switch (status) {
+      TaskStatus.todo => 'Da fare',
+      TaskStatus.doing => 'In corso',
+      TaskStatus.waiting => 'In attesa',
+      TaskStatus.done => 'Completata',
     };
 
 String _scopeLabel(PlannerScope scope) => switch (scope) {
