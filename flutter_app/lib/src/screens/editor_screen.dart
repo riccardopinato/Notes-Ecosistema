@@ -9,13 +9,16 @@ import '../domain/attachments.dart';
 import '../domain/blocks.dart';
 import '../domain/diary.dart';
 import '../domain/editing.dart';
+import '../domain/knowledge.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
 import '../screens/sketch_screen.dart';
 import '../screens/whiteboard_screen.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
+import '../widgets/knowledge_tools.dart';
 import '../widgets/smart_capture_sheet.dart';
 import '../widgets/universal_block_editor.dart';
 
@@ -25,11 +28,13 @@ class EditorScreen extends ConsumerStatefulWidget {
   const EditorScreen({
     required this.collections,
     this.note,
+    this.allNotes = const [],
     super.key,
   });
 
   final Note? note;
   final List<NoteCollection> collections;
+  final List<Note> allNotes;
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -380,6 +385,70 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _blocks = BlockEditorCodec.parse(_id, body);
       }
     });
+  }
+
+  void _applyKnowledgeEdit(MarkdownSelectionEdit edit) {
+    _body.value = TextEditingValue(
+      text: edit.text,
+      selection: TextSelection(
+        baseOffset: edit.start.clamp(0, edit.text.length).toInt(),
+        extentOffset: edit.end.clamp(0, edit.text.length).toInt(),
+      ),
+    );
+    setState(() {
+      _dirty = true;
+      _error = null;
+      if (_blocksInitialized) {
+        _blocks = BlockEditorCodec.parse(_id, edit.text);
+      }
+    });
+  }
+
+  Future<void> _openLinkedNote(String id) async {
+    Note? target;
+    for (final note in widget.allNotes) {
+      if (note.id == id && !note.isDeleted && !note.isTask && !note.isVisual) {
+        target = note;
+        break;
+      }
+    }
+    if (target == null) {
+      setState(() => _error = 'Nota collegata non disponibile.');
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditorScreen(
+          note: target,
+          collections: widget.collections,
+          allNotes: widget.allNotes,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveAsTemplate() async {
+    if (_saving || _readOnlyVisual) return;
+    try {
+      final content = PersonalTemplates.capture(
+        _title.text,
+        _body.text,
+        _tags,
+      );
+      await ref.read(workspaceProvider.notifier).createTemplate(content);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Modello creato: lo trovi in Crea → Modelli.'),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.toString().replaceFirst('FormatException: ', '');
+        });
+      }
+    }
   }
 
   void _applyMarkdown(MarkdownAction action) {
@@ -811,6 +880,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ),
         actions: [
           IconButton(
+            onPressed: _saving ? null : _saveAsTemplate,
+            tooltip: 'Salva come modello',
+            icon: const Icon(Icons.dashboard_customize),
+          ),
+          IconButton(
             onPressed: _saving ? null : _history,
             tooltip: 'Cronologia',
             icon: const Icon(Icons.history),
@@ -980,6 +1054,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       enabled: !_saving,
                       onAction: _applyMarkdown,
                       onLink: _insertLink,
+                    ),
+                    KnowledgeToolsBar(
+                      text: _body.text,
+                      selection: _body.selection,
+                      notes: widget.allNotes,
+                      currentNoteId: _id,
+                      enabled: !_saving,
+                      onEdit: _applyKnowledgeEdit,
+                      onOpenNote: _openLinkedNote,
                     ),
                     const SizedBox(height: 8),
                     TextField(
