@@ -11,7 +11,6 @@ import 'package:uuid/uuid.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
-import 'domain/library.dart';
 import 'domain/note.dart';
 import 'domain/quick_capture.dart';
 import 'domain/templates.dart';
