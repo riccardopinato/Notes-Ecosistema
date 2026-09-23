@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/backup.dart';
 import '../domain/blocks.dart';
+import '../domain/library.dart';
 import '../domain/note.dart';
 import '../domain/sync.dart';
 
@@ -402,6 +403,140 @@ class LegacyNotesDatabase {
       {'id': collection.id, 'name': collection.name},
       conflictAlgorithm: ConflictAlgorithm.abort,
     );
+  }
+
+  Future<int> bulkEdit(
+    List<Note> expected,
+    BulkChange change,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final planned = planBulkEdit(expected, change, now);
+    final db = await database;
+    return db.transaction((txn) async {
+      for (var index = 0; index < expected.length; index++) {
+        final before = expected[index];
+        final current = await txn.query(
+          'notes',
+          where: 'id = ?',
+          whereArgs: [before.id],
+          limit: 1,
+        );
+        if (current.isEmpty) {
+          throw const FormatException(
+            'Una nota non è più disponibile. Aggiorna la selezione.',
+          );
+        }
+        final actual = Note.fromMap(current.first);
+        if (actual.updatedAt != before.updatedAt ||
+            actual.deletedAt != before.deletedAt ||
+            actual.collectionId != before.collectionId ||
+            actual.tags.toString() != before.tags.toString()) {
+          throw const FormatException(
+            'Una nota è cambiata. Aggiorna la selezione e riprova.',
+          );
+        }
+        await txn.update(
+          'notes',
+          planned[index].toMap(),
+          where: 'id = ?',
+          whereArgs: [before.id],
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      return planned.length;
+    });
+  }
+
+  Future<void> renameCollection(
+    NoteCollection expected,
+    String rawName,
+  ) async {
+    final name = rawName.trim();
+    if (name.isEmpty || name.length > 120) {
+      throw const FormatException('Usa un nome di 1–120 caratteri.');
+    }
+    final db = await database;
+    await db.transaction((txn) async {
+      final current = await txn.query(
+        'collections',
+        where: 'id = ?',
+        whereArgs: [expected.id],
+        limit: 1,
+      );
+      if (current.isEmpty ||
+          current.first['name']?.toString() != expected.name) {
+        throw const FormatException(
+          'La raccolta è cambiata. Riapri la gestione raccolte.',
+        );
+      }
+      final duplicate = await txn.query(
+        'collections',
+        columns: ['id'],
+        where: 'lower(name) = lower(?) AND id != ?',
+        whereArgs: [name, expected.id],
+        limit: 1,
+      );
+      if (duplicate.isNotEmpty) {
+        throw const FormatException(
+          'Esiste già una raccolta con questo nome.',
+        );
+      }
+      await txn.update(
+        'collections',
+        {'name': name},
+        where: 'id = ?',
+        whereArgs: [expected.id],
+      );
+    });
+  }
+
+  Future<void> deleteEmptyCollection(NoteCollection expected) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final current = await txn.query(
+        'collections',
+        where: 'id = ?',
+        whereArgs: [expected.id],
+        limit: 1,
+      );
+      if (current.isEmpty ||
+          current.first['name']?.toString() != expected.name) {
+        throw const FormatException(
+          'La raccolta è cambiata. Riapri la gestione raccolte.',
+        );
+      }
+      final notes = Sqflite.firstIntValue(
+            await txn.rawQuery(
+              'SELECT COUNT(*) FROM notes WHERE collectionId = ?',
+              [expected.id],
+            ),
+          ) ??
+          0;
+      final drafts = Sqflite.firstIntValue(
+            await txn.rawQuery(
+              'SELECT COUNT(*) FROM drafts WHERE collectionId = ?',
+              [expected.id],
+            ),
+          ) ??
+          0;
+      final revisions = Sqflite.firstIntValue(
+            await txn.rawQuery(
+              'SELECT COUNT(*) FROM note_revisions WHERE collectionId = ?',
+              [expected.id],
+            ),
+          ) ??
+          0;
+      if (notes + drafts + revisions != 0) {
+        throw const FormatException(
+          'Puoi eliminare solo raccolte completamente vuote.',
+        );
+      }
+      await txn.delete(
+        'collections',
+        where: 'id = ?',
+        whereArgs: [expected.id],
+      );
+    });
   }
 
   Future<void> toggleFavorite(String id) async {
