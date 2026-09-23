@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import 'domain/diary.dart';
 import 'domain/note.dart';
+import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
 import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
@@ -13,6 +14,7 @@ import 'screens/home_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/sketch_screen.dart';
+import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
 import 'state/workspace_controller.dart';
 import 'theme/notes_theme.dart';
@@ -116,6 +118,43 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       );
     }
     await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  Future<void> _openTemplates() async {
+    final workspace = ref.read(workspaceProvider);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TemplatesScreen(
+          notes: workspace.notes,
+          onUse: (content) {
+            Navigator.pop(context);
+            _openTemplateDraft(content);
+          },
+          onEdit: (note) {
+            Navigator.pop(context);
+            _openEditor(note);
+          },
+        ),
+      ),
+    );
+    await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  Future<void> _openTemplateDraft(TemplateContent content) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _openEditor(
+      Note(
+        id: const Uuid().v4(),
+        title: content.title,
+        body: content.body,
+        favorite: false,
+        createdAt: now,
+        updatedAt: now,
+        pinned: false,
+        archived: false,
+        tags: content.tags,
+      ),
+    );
   }
 
   Future<void> _createVisual({
@@ -324,6 +363,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
       await _createDiaryEntry(DateTime.now(), null);
     } else if (action == 'task') {
       setState(() => _index = 3);
+    } else if (action == 'templates') {
+      await _openTemplates();
     } else if (action == 'sketch') {
       await _createVisual(kind: VisualInfoKind.sketch);
     } else if (action == 'board') {
