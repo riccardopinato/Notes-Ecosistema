@@ -100,10 +100,26 @@ jobs:
           '''
           if 'android.appwidget.action.APPWIDGET_UPDATE' not in ms:
               ms = ms.replace('</application>', widget_receiver + '\\n    </application>')
+
+          quick_sync_tile = r'''
+            <service
+                android:name=".QuickSyncTileService"
+                android:exported="true"
+                android:icon="@mipmap/ic_launcher"
+                android:label="Sincronizza Notes"
+                android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+                <intent-filter>
+                    <action android:name="android.service.quicksettings.action.QS_TILE"/>
+                </intent-filter>
+            </service>
+          '''
+          if 'android.service.quicksettings.action.QS_TILE' not in ms:
+              ms = ms.replace('</application>', quick_sync_tile + '\\n    </application>')
           manifest.write_text(ms)
           PY
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
           cp android_overrides/QuickCaptureWidget.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickCaptureWidget.kt
+          cp android_overrides/QuickSyncTileService.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickSyncTileService.kt
           mkdir -p android/app/src/main/res/layout android/app/src/main/res/xml android/app/src/main/res/drawable android/app/src/main/res/values android/app/src/main/res/values-night
           cp android_overrides/res/layout/quick_capture_widget.xml android/app/src/main/res/layout/quick_capture_widget.xml
           cp android_overrides/res/xml/quick_capture_widget.xml android/app/src/main/res/xml/quick_capture_widget.xml
