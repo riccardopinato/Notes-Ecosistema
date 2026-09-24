@@ -42,21 +42,43 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   }
 
   final LegacyNotesDatabase _database;
+  int _refreshGeneration = 0;
 
   Future<void> refresh() async {
+    final generation = ++_refreshGeneration;
     state = state.copyWith(loading: true, clearError: true);
     try {
       final notes = await _database.loadNotes();
       final collections = await _database.loadCollections();
-      state = WorkspaceState(notes: notes, collections: collections, loading: false);
+      if (generation != _refreshGeneration) return;
+      state = WorkspaceState(
+        notes: notes,
+        collections: collections,
+        loading: false,
+      );
     } catch (error) {
+      if (generation != _refreshGeneration) return;
       state = state.copyWith(loading: false, error: error);
     }
   }
 
   Future<void> save(Note note) async {
     await _database.saveNote(note);
-    await refresh();
+    if (state.loading) {
+      await refresh();
+      return;
+    }
+    _refreshGeneration++;
+    final notes = [
+      for (final current in state.notes)
+        if (current.id != note.id) current,
+      note,
+    ]..sort(_compareNotes);
+    state = state.copyWith(
+      notes: notes,
+      loading: false,
+      clearError: true,
+    );
   }
 
   Future<String> createTemplate(TemplateContent content) async {
@@ -151,6 +173,16 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     await _database.trash(id);
     await refresh();
   }
+}
+
+int _compareNotes(Note a, Note b) {
+  final favorite = (b.favorite ? 1 : 0).compareTo(a.favorite ? 1 : 0);
+  if (favorite != 0) return favorite;
+  final pinned = (b.pinned ? 1 : 0).compareTo(a.pinned ? 1 : 0);
+  if (pinned != 0) return pinned;
+  final updated = b.updatedAt.compareTo(a.updatedAt);
+  if (updated != 0) return updated;
+  return a.id.compareTo(b.id);
 }
 
 final workspaceProvider = StateNotifierProvider<WorkspaceController, WorkspaceState>((ref) {
