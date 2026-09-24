@@ -547,8 +547,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final bytes = await photo.readAsBytes();
       final store = await AttachmentStore.open();
       final key = await store.ingest(bytes, AttachmentType.jpeg);
-      final label =
-          'Foto ${DateTime.now().toIso8601String().substring(0, 10)}';
+      final label = 'Foto ${DateTime.now().toIso8601String().substring(0, 10)}';
       final body = Attachments.append(_body.text, key, label);
       if (!mounted) return;
       setState(() {
@@ -1000,8 +999,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               if (error != null)
                 Text(
                   error!,
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.error),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
             ],
           ),
@@ -1025,8 +1023,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   );
                 } catch (e) {
                   setLocal(() {
-                    error =
-                        e.toString().replaceFirst('FormatException: ', '');
+                    error = e.toString().replaceFirst('FormatException: ', '');
                   });
                 }
               },
@@ -1068,8 +1065,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               if (error != null)
                 Text(
                   error!,
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.error),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
             ],
           ),
@@ -1087,8 +1083,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   );
                 } catch (e) {
                   setLocal(() {
-                    error =
-                        e.toString().replaceFirst('FormatException: ', '');
+                    error = e.toString().replaceFirst('FormatException: ', '');
                   });
                 }
               },
@@ -1278,8 +1273,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       });
       return;
     }
-    final rows =
-        await ref.read(databaseProvider).loadHistory(_id);
+    final rows = await ref.read(databaseProvider).loadHistory(_id);
     if (!mounted) return;
 
     if (rows.isEmpty) {
@@ -1430,363 +1424,354 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-        title: const EditorialAppTitle(
-          'La tua pagina',
-          eyebrow: 'IL TUO TACCUINO',
+          title: const EditorialAppTitle(
+            'La tua pagina',
+            eyebrow: 'IL TUO TACCUINO',
+          ),
+          actions: [
+            IconButton(
+              onPressed: _saving ? null : _saveAsTemplate,
+              tooltip: 'Salva come modello',
+              icon: const Icon(Icons.dashboard_customize),
+            ),
+            IconButton(
+              onPressed: _saving ? null : _history,
+              tooltip: 'Cronologia',
+              icon: const Icon(Icons.history),
+            ),
+            FilledButton(
+              onPressed: _saving || _recording ? null : _save,
+              child: Text(_saving ? 'Salvataggio…' : 'Salva'),
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
-        actions: [
-          IconButton(
-            onPressed: _saving ? null : _saveAsTemplate,
-            tooltip: 'Salva come modello',
-            icon: const Icon(Icons.dashboard_customize),
-          ),
-          IconButton(
-            onPressed: _saving ? null : _history,
-            tooltip: 'Cronologia',
-            icon: const Icon(Icons.history),
-          ),
-          FilledButton(
-            onPressed: _saving || _recording ? null : _save,
-            child: Text(_saving ? 'Salvataggio…' : 'Salva'),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (_saving) const LinearProgressIndicator(),
-            if (!_readOnlyVisual)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _draftStatus,
-                    style: Theme.of(context).textTheme.labelSmall,
+        body: SafeArea(
+          child: Column(
+            children: [
+              if (_saving) const LinearProgressIndicator(),
+              if (!_readOnlyVisual)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _draftStatus,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                   ),
                 ),
-              ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
-                children: [
-                  TextField(
-                    controller: _title,
-                    onChanged: (_) => _changed(),
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(fontFamily: 'serif'),
-                    decoration: const InputDecoration(
-                      hintText: 'Titolo',
-                      border: InputBorder.none,
-                      filled: false,
-                    ),
-                    maxLines: null,
-                  ),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.folder, size: 18),
-                        label: Text(collectionName ?? 'Inbox'),
-                        onPressed: _saving ? null : _chooseCollection,
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.sell, size: 18),
-                        label: Text(
-                          visibleTags.isEmpty
-                              ? 'Aggiungi tag'
-                              : 'Tag (${visibleTags.length})',
-                        ),
-                        onPressed: _saving ? null : _editTags,
-                      ),
-                      ActionChip(
-                        avatar:
-                            const Icon(Icons.calendar_today, size: 18),
-                        label: Text(
-                          _diaryDate == null
-                              ? 'Giorno'
-                              : dateKey(_diaryDate!),
-                        ),
-                        onPressed: _saving ? null : _chooseDiaryDate,
-                      ),
-                      if (_diaryDate != null)
-                        IconButton(
-                          onPressed:
-                              _saving ? null : _removeDiaryDate,
-                          tooltip: 'Rimuovi dal Diario',
-                          icon: const Icon(Icons.event_busy),
-                        ),
-                    ],
-                  ),
-                  if (visibleTags.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      visibleTags.map((tag) => '#$tag').join(' '),
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ],
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed:
-                            _saving || _recording ? null : _attachFiles,
-                        icon: const Icon(Icons.attach_file),
-                        label: const Text('Allega'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed:
-                            _saving || _recording ? null : _takePhoto,
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: const Text('Foto'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: _saving ? null : _toggleRecording,
-                        icon: Icon(
-                          _recording ? Icons.stop_circle : Icons.mic_none,
-                        ),
-                        label: Text(
-                          _recording ? 'Termina' : 'Registra',
-                        ),
-                      ),
-                      FilledButton.tonalIcon(
-                        onPressed:
-                            _saving || _recording ? null : _smartCapture,
-                        icon: const Icon(Icons.document_scanner),
-                        label: const Text('Smart Capture'),
-                      ),
-                      Text(
-                        '${Attachments.refs(_body.text).length}/20 allegati',
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                      if (_recording)
-                        Text(
-                          'Registrazione in corso · massimo 5 minuti',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                        ),
-                    ],
-                  ),
-                  if (Attachments.refs(_body.text).isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    ...Attachments.refs(_body.text).map(
-                      (ref) => ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          ref.type.category == AttachmentCategory.image
-                              ? Icons.image
-                              : ref.type.category == AttachmentCategory.audio
-                                  ? Icons.audio_file
-                                  : Icons.insert_drive_file,
-                        ),
-                        title: Text(ref.name),
-                        subtitle: Text(ref.type.mime),
-                        onTap: _saving ? null : () => _attachmentPanel(ref),
-                        trailing: IconButton(
-                          onPressed:
-                              _saving ? null : () => _attachmentPanel(ref),
-                          icon: const Icon(Icons.more_horiz),
-                          tooltip: 'Apri allegato',
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        selected: _mode == _EditorMode.text,
-                        onSelected: _saving
-                            ? null
-                            : (_) =>
-                                setState(() => _mode = _EditorMode.text),
-                        label: const Text('Testo'),
-                      ),
-                      ChoiceChip(
-                        selected: _mode == _EditorMode.preview,
-                        onSelected: _saving
-                            ? null
-                            : (_) =>
-                                setState(() => _mode = _EditorMode.preview),
-                        label: const Text('Anteprima'),
-                      ),
-                      ChoiceChip(
-                        selected: _mode == _EditorMode.blocks,
-                        onSelected: _saving
-                            ? null
-                            : (_) => _enableBlocks(),
-                        label: const Text('Blocchi'),
-                      ),
-                      ChoiceChip(
-                        selected: _mode == _EditorMode.checklist,
-                        onSelected: _saving
-                            ? null
-                            : (_) => setState(
-                                () => _mode = _EditorMode.checklist,
-                              ),
-                        label: Text('Checklist (${checklist.length})'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (_mode == _EditorMode.text) ...[
-                    _MarkdownToolbar(
-                      enabled: !_saving,
-                      onAction: _applyMarkdown,
-                      onLink: _insertLink,
-                    ),
-                    KnowledgeToolsBar(
-                      text: _body.text,
-                      selection: _body.selection,
-                      notes: widget.allNotes,
-                      currentNoteId: _id,
-                      enabled: !_saving,
-                      onEdit: _applyKnowledgeEdit,
-                      onOpenNote: _openLinkedNote,
-                    ),
-                    const SizedBox(height: 8),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+                  children: [
                     TextField(
-                      controller: _body,
-                      onChanged: (_) {
-                        _changed();
-                        setState(() {});
-                      },
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      controller: _title,
+                      onChanged: (_) => _changed(),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(fontFamily: 'serif'),
                       decoration: const InputDecoration(
-                        hintText: 'Comincia da un pensiero…',
+                        hintText: 'Titolo',
                         border: InputBorder.none,
                         filled: false,
                       ),
-                      minLines: 18,
                       maxLines: null,
-                      keyboardType: TextInputType.multiline,
                     ),
-                  ] else if (_mode == _EditorMode.preview) ...[
-                    Text(
-                      'Anteprima di lettura · le immagini esterne non vengono caricate automaticamente.',
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    if (_body.text.length > 200000)
-                      const Text(
-                        'Questa nota è troppo lunga per l’anteprima. '
-                        'Il testo completo resta disponibile in Testo.',
-                      )
-                    else
-                      MarkdownBody(
-                        data: _body.text,
-                        selectable: true,
-                        onTapLink: (text, href, title) {
-                          if (href == null) return;
-                          final id = Knowledge.targetId(href);
-                          if (id != null) {
-                            _openLinkedNote(id);
-                          }
-                        },
-                      ),
-                  ] else if (_mode == _EditorMode.blocks) ...[
-                    UniversalBlockEditor(
-                      noteId: _id,
-                      blocks: _blocks,
-                      enabled: !_saving,
-                      onChanged: _blocksChanged,
-                      onCreateDrawing: _createDrawing,
-                      onOpenDrawing: _openVisualById,
-                      onCreateWhiteboard: _createWhiteboard,
-                      onOpenWhiteboard: _openVisualById,
-                    ),
-                  ] else ...[
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        FilledButton.tonalIcon(
-                          onPressed: _saving ? null : _addChecklistItem,
-                          icon: const Icon(Icons.add_task),
-                          label: const Text('Aggiungi attività'),
+                        ActionChip(
+                          avatar: const Icon(Icons.folder, size: 18),
+                          label: Text(collectionName ?? 'Inbox'),
+                          onPressed: _saving ? null : _chooseCollection,
                         ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: _saving
-                              ? null
-                              : () => setState(
-                                  () => _mode = _EditorMode.text,
+                        ActionChip(
+                          avatar: const Icon(Icons.sell, size: 18),
+                          label: Text(
+                            visibleTags.isEmpty
+                                ? 'Aggiungi tag'
+                                : 'Tag (${visibleTags.length})',
+                          ),
+                          onPressed: _saving ? null : _editTags,
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(
+                            _diaryDate == null
+                                ? 'Giorno'
+                                : dateKey(_diaryDate!),
+                          ),
+                          onPressed: _saving ? null : _chooseDiaryDate,
+                        ),
+                        if (_diaryDate != null)
+                          IconButton(
+                            onPressed: _saving ? null : _removeDiaryDate,
+                            tooltip: 'Rimuovi dal Diario',
+                            icon: const Icon(Icons.event_busy),
+                          ),
+                      ],
+                    ),
+                    if (visibleTags.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        visibleTags.map((tag) => '#$tag').join(' '),
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed:
+                              _saving || _recording ? null : _attachFiles,
+                          icon: const Icon(Icons.attach_file),
+                          label: const Text('Allega'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _saving || _recording ? null : _takePhoto,
+                          icon: const Icon(Icons.photo_camera_outlined),
+                          label: const Text('Foto'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _saving ? null : _toggleRecording,
+                          icon: Icon(
+                            _recording ? Icons.stop_circle : Icons.mic_none,
+                          ),
+                          label: Text(
+                            _recording ? 'Termina' : 'Registra',
+                          ),
+                        ),
+                        FilledButton.tonalIcon(
+                          onPressed:
+                              _saving || _recording ? null : _smartCapture,
+                          icon: const Icon(Icons.document_scanner),
+                          label: const Text('Smart Capture'),
+                        ),
+                        Text(
+                          '${Attachments.refs(_body.text).length}/20 allegati',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                        if (_recording)
+                          Text(
+                            'Registrazione in corso · massimo 5 minuti',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.error,
                                 ),
-                          child: const Text('Modifica Markdown'),
+                          ),
+                      ],
+                    ),
+                    if (Attachments.refs(_body.text).isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ...Attachments.refs(_body.text).map(
+                        (ref) => ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            ref.type.category == AttachmentCategory.image
+                                ? Icons.image
+                                : ref.type.category == AttachmentCategory.audio
+                                    ? Icons.audio_file
+                                    : Icons.insert_drive_file,
+                          ),
+                          title: Text(ref.name),
+                          subtitle: Text(ref.type.mime),
+                          onTap: _saving ? null : () => _attachmentPanel(ref),
+                          trailing: IconButton(
+                            onPressed:
+                                _saving ? null : () => _attachmentPanel(ref),
+                            icon: const Icon(Icons.more_horiz),
+                            tooltip: 'Apri allegato',
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          selected: _mode == _EditorMode.text,
+                          onSelected: _saving
+                              ? null
+                              : (_) => setState(() => _mode = _EditorMode.text),
+                          label: const Text('Testo'),
+                        ),
+                        ChoiceChip(
+                          selected: _mode == _EditorMode.preview,
+                          onSelected: _saving
+                              ? null
+                              : (_) =>
+                                  setState(() => _mode = _EditorMode.preview),
+                          label: const Text('Anteprima'),
+                        ),
+                        ChoiceChip(
+                          selected: _mode == _EditorMode.blocks,
+                          onSelected: _saving ? null : (_) => _enableBlocks(),
+                          label: const Text('Blocchi'),
+                        ),
+                        ChoiceChip(
+                          selected: _mode == _EditorMode.checklist,
+                          onSelected: _saving
+                              ? null
+                              : (_) => setState(
+                                    () => _mode = _EditorMode.checklist,
+                                  ),
+                          label: Text('Checklist (${checklist.length})'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    if (checklist.isEmpty)
-                      const Text('Aggiungi la prima attività.')
-                    else
-                      ...checklist.map(
-                        (item) => Padding(
-                          padding: EdgeInsets.only(
-                            left: item.depth * 20.0,
-                            bottom: 4,
+                    const SizedBox(height: 10),
+                    if (_mode == _EditorMode.text) ...[
+                      _MarkdownToolbar(
+                        enabled: !_saving,
+                        onAction: _applyMarkdown,
+                        onLink: _insertLink,
+                      ),
+                      KnowledgeToolsBar(
+                        text: _body.text,
+                        selection: _body.selection,
+                        notes: widget.allNotes,
+                        currentNoteId: _id,
+                        enabled: !_saving,
+                        onEdit: _applyKnowledgeEdit,
+                        onOpenNote: _openLinkedNote,
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _body,
+                        onChanged: (_) {
+                          _changed();
+                          setState(() {});
+                        },
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        decoration: const InputDecoration(
+                          hintText: 'Comincia da un pensiero…',
+                          border: InputBorder.none,
+                          filled: false,
+                        ),
+                        minLines: 18,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                      ),
+                    ] else if (_mode == _EditorMode.preview) ...[
+                      Text(
+                        'Anteprima di lettura · le immagini esterne non vengono caricate automaticamente.',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      if (_body.text.length > 200000)
+                        const Text(
+                          'Questa nota è troppo lunga per l’anteprima. '
+                          'Il testo completo resta disponibile in Testo.',
+                        )
+                      else
+                        MarkdownBody(
+                          data: _body.text,
+                          selectable: true,
+                          onTapLink: (text, href, title) {
+                            if (href == null) return;
+                            final id = Knowledge.targetId(href);
+                            if (id != null) {
+                              _openLinkedNote(id);
+                            }
+                          },
+                        ),
+                    ] else if (_mode == _EditorMode.blocks) ...[
+                      UniversalBlockEditor(
+                        noteId: _id,
+                        blocks: _blocks,
+                        enabled: !_saving,
+                        onChanged: _blocksChanged,
+                        onCreateDrawing: _createDrawing,
+                        onOpenDrawing: _openVisualById,
+                        onCreateWhiteboard: _createWhiteboard,
+                        onOpenWhiteboard: _openVisualById,
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          FilledButton.tonalIcon(
+                            onPressed: _saving ? null : _addChecklistItem,
+                            icon: const Icon(Icons.add_task),
+                            label: const Text('Aggiungi attività'),
                           ),
-                          child: CheckboxListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            value: item.completed,
-                            controlAffinity:
-                                ListTileControlAffinity.leading,
-                            title: Text(item.label),
-                            onChanged: _saving
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: _saving
                                 ? null
-                                : (value) {
-                                    try {
-                                      final body =
-                                          Checklist.setCompleted(
-                                        _body.text,
-                                        item.lineIndex,
-                                        value ?? false,
-                                      );
-                                      _body.text = body;
-                                      _changed();
-                                      setState(() => _error = null);
-                                    } catch (error) {
-                                      setState(() {
-                                        _error = error
-                                            .toString()
-                                            .replaceFirst(
-                                              'FormatException: ',
-                                              '',
-                                            );
-                                      });
-                                    }
-                                  },
+                                : () => setState(
+                                      () => _mode = _EditorMode.text,
+                                    ),
+                            child: const Text('Modifica Markdown'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (checklist.isEmpty)
+                        const Text('Aggiungi la prima attività.')
+                      else
+                        ...checklist.map(
+                          (item) => Padding(
+                            padding: EdgeInsets.only(
+                              left: item.depth * 20.0,
+                              bottom: 4,
+                            ),
+                            child: CheckboxListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              value: item.completed,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              title: Text(item.label),
+                              onChanged: _saving
+                                  ? null
+                                  : (value) {
+                                      try {
+                                        final body = Checklist.setCompleted(
+                                          _body.text,
+                                          item.lineIndex,
+                                          value ?? false,
+                                        );
+                                        _body.text = body;
+                                        _changed();
+                                        setState(() => _error = null);
+                                      } catch (error) {
+                                        setState(() {
+                                          _error =
+                                              error.toString().replaceFirst(
+                                                    'FormatException: ',
+                                                    '',
+                                                  );
+                                        });
+                                      }
+                                    },
+                            ),
                           ),
                         ),
-                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

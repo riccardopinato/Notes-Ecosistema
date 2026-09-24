@@ -103,7 +103,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   String? _plannerTaskId;
   String _reminderSignature = '';
 
-  static const labels = ['Home', 'Note', 'Diario', 'Attività', 'Spazi', 'Cerca'];
+  static const labels = [
+    'Home',
+    'Note',
+    'Diario',
+    'Attività',
+    'Spazi',
+    'Cerca'
+  ];
 
   @override
   void initState() {
@@ -141,9 +148,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     final shared = ref.read(sharedSpacesProvider);
     final identity = shared.identity;
     final space = shared.byId(spaceId);
-    if (identity == null ||
-        space == null ||
-        !space.canRead(identity.id)) {
+    if (identity == null || space == null || !space.canRead(identity.id)) {
       return;
     }
 
@@ -215,7 +220,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('GitHub non collegato. Apri Impostazioni → GitHub Sync.'),
+              content: Text(
+                  'GitHub non collegato. Apri Impostazioni → GitHub Sync.'),
             ),
           );
         }
@@ -468,8 +474,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             initialTaskId: note.id,
             onSave: (updated) =>
                 ref.read(workspaceProvider.notifier).save(updated),
-            onTrash: (id) =>
-                ref.read(workspaceProvider.notifier).trash(id),
+            onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
             onOpenNote: _openEditor,
           ),
         ),
@@ -520,9 +525,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       taskJson: TaskDetails.empty().encode(),
     );
     await ref.read(workspaceProvider.notifier).save(note);
-    await ref
-        .read(sharedSpacesProvider.notifier)
-        .linkContent(spaceId, note.id);
+    await ref.read(sharedSpacesProvider.notifier).linkContent(spaceId, note.id);
     final current = await ref.read(databaseProvider).loadNote(note.id);
     if (current != null && mounted) {
       await _openSharedItem(current, false);
@@ -573,8 +576,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       }
 
       final now = DateTime.now();
-      final stamp =
-          '${now.year.toString().padLeft(4, '0')}-'
+      final stamp = '${now.year.toString().padLeft(4, '0')}-'
           '${now.month.toString().padLeft(2, '0')}-'
           '${now.day.toString().padLeft(2, '0')}';
       final baseName = cleanName.isEmpty ? 'notes' : cleanName;
@@ -618,8 +620,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         );
       }
 
-      final preview =
-          SharedSpaceBundle.decode(Uint8List.fromList(bytes));
+      final preview = SharedSpaceBundle.decode(Uint8List.fromList(bytes));
       final shared = ref.read(sharedSpacesProvider);
       final identity = shared.identity;
       if (identity == null) {
@@ -792,8 +793,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         searchMode: _index == 5,
         onQueryChanged: (value) => setState(() => _query = value),
         onOpen: _openEditor,
-        onFavorite: (id) =>
-            ref.read(workspaceProvider.notifier).favorite(id),
+        onFavorite: (id) => ref.read(workspaceProvider.notifier).favorite(id),
         onPin: (id, value) =>
             ref.read(workspaceProvider.notifier).pin(id, value),
         onArchive: (id, value) =>
@@ -852,13 +852,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ],
       ),
       body: body,
-      floatingActionButton: (_index == 5 || _index == 4 || _index == 2 || _index == 3)
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _createMenu(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Crea'),
-            ),
+      floatingActionButton:
+          (_index == 5 || _index == 4 || _index == 2 || _index == 3)
+              ? null
+              : FloatingActionButton.extended(
+                  onPressed: () => _createMenu(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Crea'),
+                ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() {
@@ -869,9 +870,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.description), label: 'Note'),
-          NavigationDestination(icon: Icon(Icons.calendar_month), label: 'Diario'),
-          NavigationDestination(icon: Icon(Icons.check_circle), label: 'Attività'),
-          NavigationDestination(icon: Icon(Icons.group_work_outlined), label: 'Spazi'),
+          NavigationDestination(
+              icon: Icon(Icons.calendar_month), label: 'Diario'),
+          NavigationDestination(
+              icon: Icon(Icons.check_circle), label: 'Attività'),
+          NavigationDestination(
+              icon: Icon(Icons.group_work_outlined), label: 'Spazi'),
           NavigationDestination(icon: Icon(Icons.search), label: 'Cerca'),
         ],
       ),
@@ -1135,8 +1139,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
-  Future<void> _settings(BuildContext context) =>
-      showModalBottomSheet<void>(
+  Future<void> _settings(BuildContext context) => showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
         builder: (context) => SafeArea(
@@ -1166,7 +1169,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                 ListTile(
                   leading: const Icon(Icons.file_download_outlined),
                   title: const Text('Importa backup'),
-                  subtitle: const Text('Importa come copie senza sovrascrivere i dati attuali.'),
+                  subtitle: const Text(
+                      'Importa come copie senza sovrascrivere i dati attuali.'),
                   onTap: () {
                     Navigator.pop(context);
                     _importBackup();
@@ -1265,8 +1269,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   ),
                   onTap: () async {
                     Navigator.pop(context);
-                    final allowed =
-                        await ReminderBridge.requestPermission();
+                    final allowed = await ReminderBridge.requestPermission();
                     if (!mounted) return;
                     ScaffoldMessenger.of(this.context).showSnackBar(
                       SnackBar(

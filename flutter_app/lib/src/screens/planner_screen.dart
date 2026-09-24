@@ -86,7 +86,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
       await action();
     } catch (error) {
       if (mounted) {
-        setState(() => _error = error.toString().replaceFirst('FormatException: ', ''));
+        setState(() =>
+            _error = error.toString().replaceFirst('FormatException: ', ''));
       }
     } finally {
       if (mounted) {
@@ -191,7 +192,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
       children: [
         const EditorialSection(
           'Planner Pro',
-          detail: 'Scadenze e pianificazione restano separate. Costruisci la giornata senza perdere il contesto.',
+          detail:
+              'Scadenze e pianificazione restano separate. Costruisci la giornata senza perdere il contesto.',
         ),
         Wrap(
           spacing: 8,
@@ -199,7 +201,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
           children: PlannerView.values
               .map((view) => ChoiceChip(
                     selected: _view == view,
-                    onSelected: _busy ? null : (_) => setState(() => _view = view),
+                    onSelected:
+                        _busy ? null : (_) => setState(() => _view = view),
                     label: Text(_viewLabel(view)),
                   ))
               .toList(),
@@ -214,7 +217,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
         if (_error != null) ...[
           const SizedBox(height: 8),
-          Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Text(_error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
         if (_busy) ...[
           const SizedBox(height: 8),
@@ -248,7 +252,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
           children: PlannerScope.values
               .map((scope) => FilterChip(
                     selected: _scope == scope,
-                    onSelected: _busy ? null : (_) => setState(() => _scope = scope),
+                    onSelected:
+                        _busy ? null : (_) => setState(() => _scope = scope),
                     label: Text(_scopeLabel(scope)),
                   ))
               .toList(),
@@ -261,7 +266,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
         const SizedBox(height: 12),
         if (tasks.isEmpty)
-          Text(_emptyScope(_scope), style: Theme.of(context).textTheme.bodyLarge)
+          Text(_emptyScope(_scope),
+              style: Theme.of(context).textTheme.bodyLarge)
         else
           ...tasks.map(_taskCard),
       ],
@@ -298,12 +304,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
         Text('Timeline', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (timed.isEmpty)
-          const Text('Nessun blocco orario. Pianifica un’attività per costruire la giornata.')
+          const Text(
+              'Nessun blocco orario. Pianifica un’attività per costruire la giornata.')
         else
           ...timed.map((b) => _blockCard(b, collisionIds.contains(b.note.id))),
         if (index.unplanned.isNotEmpty) ...[
           const Divider(height: 28),
-          Text('Da pianificare', style: Theme.of(context).textTheme.titleMedium),
+          Text('Da pianificare',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           ...index.unplanned.take(12).map((note) => Card(
                 child: ListTile(
@@ -311,7 +319,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   title: Text(note.title.isEmpty ? 'Attività' : note.title),
                   subtitle: TaskDetails.tryDecode(note.taskJson)?.due == null
                       ? null
-                      : Text('Scadenza ${TaskDetails.tryDecode(note.taskJson)!.due}'),
+                      : Text(
+                          'Scadenza ${TaskDetails.tryDecode(note.taskJson)!.due}'),
                   trailing: const Icon(Icons.event),
                 ),
               )),
@@ -339,7 +348,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
               return SizedBox(
                 width: 132,
                 child: Card(
-                  color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
+                  color: selected
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : null,
                   child: InkWell(
                     onTap: _busy ? null : () => setState(() => _selected = day),
                     child: Padding(
@@ -353,11 +364,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
                           Text('${planned.length} pianificate'),
                           if (due.isNotEmpty)
                             Text('${due.length} in scadenza',
-                                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                                style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.error)),
                           const Spacer(),
                           if (planned.isNotEmpty)
                             Text(
-                              planned.take(2).map((n) => n.title.isEmpty ? 'Attività' : n.title).join(' · '),
+                              planned
+                                  .take(2)
+                                  .map((n) =>
+                                      n.title.isEmpty ? 'Attività' : n.title)
+                                  .join(' · '),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.labelSmall,
@@ -431,13 +448,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
                         ),
                       ),
                       if (plannedCount > 0)
-                        Text('$plannedCount pian.', style: Theme.of(context).textTheme.labelSmall),
+                        Text('$plannedCount pian.',
+                            style: Theme.of(context).textTheme.labelSmall),
                       if (dueCount > 0)
                         Text('$dueCount scad.',
                             style: Theme.of(context)
                                 .textTheme
                                 .labelSmall
-                                ?.copyWith(color: Theme.of(context).colorScheme.error)),
+                                ?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.error)),
                     ],
                   ),
                 ),
@@ -446,17 +466,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
           },
         ),
         const Divider(height: 28),
-        Text('Attività per ${DateFormat('EEE d MMM', 'it_IT').format(_selected)}',
+        Text(
+            'Attività per ${DateFormat('EEE d MMM', 'it_IT').format(_selected)}',
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (planned.isEmpty && due.isEmpty)
-          const Text('Nessuna attività pianificata o in scadenza per questo giorno.')
+          const Text(
+              'Nessuna attività pianificata o in scadenza per questo giorno.')
         else ...[
           ...planned.map(_taskCard),
           if (due.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8, bottom: 4),
-              child: Text('In scadenza', style: Theme.of(context).textTheme.labelLarge),
+              child: Text('In scadenza',
+                  style: Theme.of(context).textTheme.labelLarge),
             ),
           ...due.where((n) => !planned.any((p) => p.id == n.id)).map(_taskCard),
         ],
@@ -511,9 +534,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                       subtitle: task.due == null
                                           ? null
                                           : Text('Scadenza ${task.due}'),
-                                      onTap: _busy
-                                          ? null
-                                          : () => _editTask(note),
+                                      onTap:
+                                          _busy ? null : () => _editTask(note),
                                       trailing: PopupMenuButton<TaskStatus>(
                                         enabled: !_busy,
                                         onSelected: (value) =>
@@ -699,20 +721,27 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   children: [
                     Checkbox(
                       value: task.completed,
-                      onChanged: _busy ? null : (value) => _toggle(note, value ?? false),
+                      onChanged: _busy
+                          ? null
+                          : (value) => _toggle(note, value ?? false),
                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(note.title.isEmpty ? 'Attività senza titolo' : note.title,
+                          Text(
+                              note.title.isEmpty
+                                  ? 'Attività senza titolo'
+                                  : note.title,
                               style: Theme.of(context).textTheme.titleMedium),
                           if (task.due != null) Text('Scadenza: ${task.due}'),
                           if (task.plannedDate != null)
                             Text(
                               'Pianificata: ${task.plannedDate}'
                               '${task.plannedTime == null ? '' : ' · ${task.plannedTime} · ${task.plannedMinutes} min'}',
-                              style: TextStyle(color: Theme.of(context).colorScheme.tertiary),
+                              style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.tertiary),
                             ),
                         ],
                       ),
@@ -725,15 +754,18 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 ),
                 Row(
                   children: [
-                    if (task.priority > 0) Chip(label: Text(_priorityLabel(task.priority))),
+                    if (task.priority > 0)
+                      Chip(label: Text(_priorityLabel(task.priority))),
                     if (task.repeat != 'NONE') ...[
                       const SizedBox(width: 6),
                       Chip(label: Text(_repeatLabel(task.repeat))),
                     ],
                     const Spacer(),
                     TextButton(
-                      onPressed: _busy || task.completed ? null : () => _plan(note),
-                      child: Text(task.plannedDate == null ? 'Pianifica' : 'Sposta'),
+                      onPressed:
+                          _busy || task.completed ? null : () => _plan(note),
+                      child: Text(
+                          task.plannedDate == null ? 'Pianifica' : 'Sposta'),
                     ),
                   ],
                 ),
@@ -746,7 +778,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<_TaskDraft?> _taskDialog(Note? note, {String? initialDue}) async {
-    final initial = TaskDetails.tryDecode(note?.taskJson) ?? TaskDetails.empty();
+    final initial =
+        TaskDetails.tryDecode(note?.taskJson) ?? TaskDetails.empty();
     final title = TextEditingController(text: note?.title ?? '');
     final body = TextEditingController(text: note?.body ?? '');
     final due = TextEditingController(text: initial.due ?? initialDue ?? '');
@@ -763,8 +796,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ? ''
           : '${reminderInstant.hour.toString().padLeft(2, '0')}:${reminderInstant.minute.toString().padLeft(2, '0')}',
     );
-    final reminderZone =
-        initial.reminderZone ?? await ReminderBridge.zoneId();
+    final reminderZone = initial.reminderZone ?? await ReminderBridge.zoneId();
     if (!mounted) {
       title.dispose();
       body.dispose();
@@ -791,21 +823,30 @@ class _PlannerScreenState extends State<PlannerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(controller: title, decoration: const InputDecoration(labelText: 'Titolo')),
+                  TextField(
+                      controller: title,
+                      decoration: const InputDecoration(labelText: 'Titolo')),
                   TextField(
                     controller: body,
-                    decoration: const InputDecoration(labelText: 'Note o descrizione'),
+                    decoration:
+                        const InputDecoration(labelText: 'Note o descrizione'),
                     maxLines: 3,
                   ),
                   TextField(
                     controller: due,
-                    decoration: const InputDecoration(labelText: 'Scadenza (AAAA-MM-GG)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Scadenza (AAAA-MM-GG)'),
                   ),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 6,
                     children: [
-                      for (final item in const [(0, 'Nessuna'), (3, 'Alta'), (2, 'Media'), (1, 'Bassa')])
+                      for (final item in const [
+                        (0, 'Nessuna'),
+                        (3, 'Alta'),
+                        (2, 'Media'),
+                        (1, 'Bassa')
+                      ])
                         ChoiceChip(
                           selected: priority == item.$1,
                           onSelected: (_) => setLocal(() => priority = item.$1),
@@ -837,11 +878,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   ),
                   TextField(
                     controller: plannedDate,
-                    decoration: const InputDecoration(labelText: 'Giorno pianificato (AAAA-MM-GG)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Giorno pianificato (AAAA-MM-GG)'),
                   ),
                   TextField(
                     controller: plannedTime,
-                    decoration: const InputDecoration(labelText: 'Ora opzionale (HH:MM)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Ora opzionale (HH:MM)'),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -849,7 +892,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     children: [15, 25, 30, 45, 60, 90]
                         .map((value) => ChoiceChip(
                               selected: plannedMinutes == value,
-                              onSelected: (_) => setLocal(() => plannedMinutes = value),
+                              onSelected: (_) =>
+                                  setLocal(() => plannedMinutes = value),
                               label: Text('${value}m'),
                             ))
                         .toList(),
@@ -885,7 +929,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   if (error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      child: Text(error!,
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error)),
                     ),
                 ],
               ),
@@ -898,9 +944,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   Navigator.pop(context);
                   await _run(() => widget.onTrash(note.id));
                 },
-                child: Text('Elimina', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                child: Text('Elimina',
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annulla')),
             FilledButton(
               onPressed: () {
                 try {
@@ -927,8 +977,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     );
                   } else {
                     final reminderDay = parseDate(reminderDayText);
-                    final reminderMinutes =
-                        parseTimeMinutes(reminderClockText);
+                    final reminderMinutes = parseTimeMinutes(reminderClockText);
                     if (reminderDay == null || reminderMinutes == null) {
                       throw const FormatException(
                         'Promemoria: inserisci data e ora valide.',
@@ -959,7 +1008,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     _TaskDraft(title.text.trim(), body.text, details),
                   );
                 } catch (e) {
-                  setLocal(() => error = e.toString().replaceFirst('FormatException: ', ''));
+                  setLocal(() => error =
+                      e.toString().replaceFirst('FormatException: ', ''));
                 }
               },
               child: const Text('Salva'),
@@ -979,7 +1029,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<TaskDetails?> _planDialog(Note note, TaskDetails task) {
-    final date = TextEditingController(text: task.plannedDate ?? dateKey(_selected));
+    final date =
+        TextEditingController(text: task.plannedDate ?? dateKey(_selected));
     final time = TextEditingController(text: task.plannedTime ?? '');
     var minutes = task.plannedMinutes;
     String? error;
@@ -992,8 +1043,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(note.title.isEmpty ? 'Attività' : note.title),
-              TextField(controller: date, decoration: const InputDecoration(labelText: 'Giorno (AAAA-MM-GG)')),
-              TextField(controller: time, decoration: const InputDecoration(labelText: 'Ora opzionale (HH:MM)')),
+              TextField(
+                  controller: date,
+                  decoration:
+                      const InputDecoration(labelText: 'Giorno (AAAA-MM-GG)')),
+              TextField(
+                  controller: time,
+                  decoration: const InputDecoration(
+                      labelText: 'Ora opzionale (HH:MM)')),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
@@ -1006,7 +1063,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     .toList(),
               ),
               if (error != null)
-                Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                Text(error!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
           ),
           actions: [
@@ -1015,7 +1074,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 onPressed: () => Navigator.pop(context, task.unschedule()),
                 child: const Text('Rimuovi piano'),
               ),
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annulla')),
             FilledButton(
               onPressed: () {
                 try {
@@ -1028,7 +1089,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     task.schedule(date: day, time: time.text, minutes: minutes),
                   );
                 } catch (e) {
-                  setLocal(() => error = e.toString().replaceFirst('FormatException: ', ''));
+                  setLocal(() => error =
+                      e.toString().replaceFirst('FormatException: ', ''));
                 }
               },
               child: const Text('Pianifica'),
@@ -1088,11 +1150,14 @@ class _DateNavigator extends StatelessWidget {
         Expanded(
           child: Column(
             children: [
-              Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium),
               TextButton(
-                onPressed: enabled && dateKey(selected) != dateKey(DateTime.now())
-                    ? () => onChanged(dateOnly(DateTime.now()))
-                    : null,
+                onPressed:
+                    enabled && dateKey(selected) != dateKey(DateTime.now())
+                        ? () => onChanged(dateOnly(DateTime.now()))
+                        : null,
                 child: const Text('Oggi'),
               ),
             ],
@@ -1179,9 +1244,13 @@ class _FocusDialogState extends State<_FocusDialog> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Chiudi')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Chiudi')),
           FilledButton(
-            onPressed: _elapsed == 0 ? null : () => Navigator.pop(context, _elapsed.clamp(1, 7200).toInt()),
+            onPressed: _elapsed == 0
+                ? null
+                : () => Navigator.pop(context, _elapsed.clamp(1, 7200).toInt()),
             child: Text('Salva ${_elapsed ~/ 60}m'),
           ),
         ],
@@ -1212,10 +1281,13 @@ String _scopeLabel(PlannerScope scope) => switch (scope) {
     };
 
 String _emptyScope(PlannerScope scope) => switch (scope) {
-      PlannerScope.today => 'Nessuna attività prevista per oggi. Un momento per te.',
-      PlannerScope.upcoming => 'Nessuna attività programmata per i prossimi giorni.',
+      PlannerScope.today =>
+        'Nessuna attività prevista per oggi. Un momento per te.',
+      PlannerScope.upcoming =>
+        'Nessuna attività programmata per i prossimi giorni.',
       PlannerScope.completed => 'Nessuna attività completata.',
-      PlannerScope.all => 'Nessuna attività creata. Tocca Nuova attività per iniziare.',
+      PlannerScope.all =>
+        'Nessuna attività creata. Tocca Nuova attività per iniziare.',
     };
 
 String _priorityLabel(int priority) => switch (priority) {
@@ -1231,7 +1303,6 @@ String _repeatLabel(String repeat) => switch (repeat) {
       'MONTHLY' => 'Ogni mese',
       _ => repeat,
     };
-
 
 extension _PlannerFirstOrNull<T> on Iterable<T> {
   T? get firstOrNull {

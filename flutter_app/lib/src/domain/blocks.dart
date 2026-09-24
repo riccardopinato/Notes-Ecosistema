@@ -115,8 +115,7 @@ class ContentBlock {
         position: position ?? this.position,
         type: type ?? this.type,
         text: text ?? this.text,
-        checked:
-            identical(checked, _unset) ? this.checked : checked as bool?,
+        checked: identical(checked, _unset) ? this.checked : checked as bool?,
         metadataJson: metadataJson ?? this.metadataJson,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -175,9 +174,7 @@ abstract final class ContentBlocks {
       for (var index = 0; index < blocks.length; index++)
         () {
           final source = blocks[index];
-          final id = source.id.trim().isEmpty
-              ? const Uuid().v4()
-              : source.id;
+          final id = source.id.trim().isEmpty ? const Uuid().v4() : source.id;
           if (!ids.add(id)) {
             throw FormatException('ID blocco duplicato: $id');
           }
@@ -186,8 +183,7 @@ abstract final class ContentBlocks {
             ownerId: ownerId,
             ownerType: ownerType,
             position: index,
-            createdAt:
-                source.createdAt > 0 ? source.createdAt : timestamp,
+            createdAt: source.createdAt > 0 ? source.createdAt : timestamp,
             updatedAt: timestamp,
           );
           validate(normalized);
@@ -198,11 +194,9 @@ abstract final class ContentBlocks {
 }
 
 abstract final class BlockEditorCodec {
-  static final _checklist =
-      RegExp(r'^\s*- \[([ xX])\]\s*(.*)$');
+  static final _checklist = RegExp(r'^\s*- \[([ xX])\]\s*(.*)$');
   static final _heading = RegExp(r'^(#{1,3})\s+(.*)$');
-  static final _divider =
-      RegExp(r'^\s*(---|\*\*\*|___)\s*$');
+  static final _divider = RegExp(r'^\s*(---|\*\*\*|___)\s*$');
   static final _attachmentOnly = RegExp(
     r'^\s*\[[^\]]+\]\(notes-asset://[^)]+\)\s*$',
   );
@@ -224,8 +218,7 @@ abstract final class BlockEditorCodec {
     if (markdown.isEmpty) return const [];
 
     final timestamp = now ?? DateTime.now().millisecondsSinceEpoch;
-    final normalized =
-        markdown.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final normalized = markdown.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     final lines = normalized.split('\n');
     final result = <ContentBlock>[];
     final paragraph = <String>[];
@@ -270,14 +263,12 @@ abstract final class BlockEditorCodec {
 
       if (line.startsWith(grave * 3)) {
         flushParagraph();
-        final fenceLength =
-            line.codeUnits.takeWhile((c) => c == 0x60).length;
+        final fenceLength = line.codeUnits.takeWhile((c) => c == 0x60).length;
         final fence = List<String>.filled(fenceLength, grave).join();
         final language = line.substring(fenceLength).trim();
         index++;
         final code = <String>[];
-        while (index < lines.length &&
-            !lines[index].startsWith(fence)) {
+        while (index < lines.length && !lines[index].startsWith(fence)) {
           code.add(lines[index]);
           index++;
         }
@@ -336,9 +327,7 @@ abstract final class BlockEditorCodec {
         while (index < lines.length &&
             (lines[index].startsWith('> ') || lines[index] == '>')) {
           quote.add(
-            lines[index].startsWith('> ')
-                ? lines[index].substring(2)
-                : '',
+            lines[index].startsWith('> ') ? lines[index].substring(2) : '',
           );
           index++;
         }
@@ -399,7 +388,8 @@ abstract final class BlockEditorCodec {
   }
 
   static String toMarkdown(List<ContentBlock> blocks) {
-    final sorted = [...blocks]..sort((a, b) => a.position.compareTo(b.position));
+    final sorted = [...blocks]
+      ..sort((a, b) => a.position.compareTo(b.position));
     final parts = <String>[];
     final grave = String.fromCharCode(0x60);
 
@@ -418,18 +408,13 @@ abstract final class BlockEditorCodec {
           break;
         case ContentBlockType.checklist:
         case ContentBlockType.task:
-          value =
-              '- [${block.checked == true ? 'x' : ' '}] ${block.text}';
+          value = '- [${block.checked == true ? 'x' : ' '}] ${block.text}';
           break;
         case ContentBlockType.quote:
-          value = block.text
-              .split('\n')
-              .map((line) => '> $line')
-              .join('\n');
+          value = block.text.split('\n').map((line) => '> $line').join('\n');
           break;
         case ContentBlockType.code:
-          final language =
-              metadataValue(block.metadataJson, 'language') ?? '';
+          final language = metadataValue(block.metadataJson, 'language') ?? '';
           var longest = 0;
           for (final match in RegExp(r'\x60+').allMatches(block.text)) {
             longest = longest < match.group(0)!.length
@@ -453,17 +438,13 @@ abstract final class BlockEditorCodec {
         case ContentBlockType.drawing:
           final id = sketchId(block);
           value = id == null
-              ? (block.text.contains('notes-sketch://')
-                  ? block.text
-                  : '')
+              ? (block.text.contains('notes-sketch://') ? block.text : '')
               : '[Sketch: ${block.text.trim().isEmpty ? 'Disegno' : block.text}](notes-sketch://$id)';
           break;
         case ContentBlockType.whiteboard:
           final id = whiteboardId(block);
           value = id == null
-              ? (block.text.contains('notes-board://')
-                  ? block.text
-                  : '')
+              ? (block.text.contains('notes-board://') ? block.text : '')
               : '[Whiteboard: ${block.text.trim().isEmpty ? 'Lavagna' : block.text}](notes-board://$id)';
           break;
         case ContentBlockType.image:
@@ -500,10 +481,10 @@ abstract final class BlockEditorCodec {
       position: position,
       type: type,
       text: text,
-      checked: type == ContentBlockType.checklist ||
-              type == ContentBlockType.task
-          ? false
-          : null,
+      checked:
+          type == ContentBlockType.checklist || type == ContentBlockType.task
+              ? false
+              : null,
       metadataJson:
           type == ContentBlockType.heading ? _metadata('level', '2') : '{}',
       createdAt: timestamp,
@@ -525,10 +506,10 @@ abstract final class BlockEditorCodec {
     }
     return block.copyWith(
       type: type,
-      checked: type == ContentBlockType.checklist ||
-              type == ContentBlockType.task
-          ? block.checked ?? false
-          : null,
+      checked:
+          type == ContentBlockType.checklist || type == ContentBlockType.task
+              ? block.checked ?? false
+              : null,
       metadataJson: metadata,
     );
   }
@@ -540,8 +521,7 @@ abstract final class BlockEditorCodec {
       block.copyWith(
         type: ContentBlockType.heading,
         checked: null,
-        metadataJson:
-            _metadata('level', level.clamp(1, 3).toString()),
+        metadataJson: _metadata('level', level.clamp(1, 3).toString()),
       );
 
   static int headingLevel(ContentBlock block) =>
@@ -575,8 +555,7 @@ abstract final class BlockEditorCodec {
       RegExp(r'(^|\n)\s*\d+\.\s+').hasMatch(text) ||
       RegExp(r'\[[^]]+\]\([^)]+\)').hasMatch(text);
 
-  static String _metadata(String key, String value) =>
-      jsonEncode({key: value});
+  static String _metadata(String key, String value) => jsonEncode({key: value});
 
   static String? metadataValue(String raw, String key) {
     try {

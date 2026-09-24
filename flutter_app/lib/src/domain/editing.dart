@@ -77,8 +77,7 @@ abstract final class MarkdownEditing {
         final fenceLength = (longest + 1).clamp(3, 1000).toInt();
         final fence =
             String.fromCharCodes(List<int>.filled(fenceLength, _grave));
-        final before =
-            a > 0 && text.codeUnitAt(a - 1) != 10 ? newline : '';
+        final before = a > 0 && text.codeUnitAt(a - 1) != 10 ? newline : '';
         final after = b < text.length &&
                 text.codeUnitAt(b) != 10 &&
                 text.codeUnitAt(b) != 13
@@ -129,9 +128,7 @@ abstract final class MarkdownEditing {
         uri.userInfo.isNotEmpty) {
       throw const FormatException('Inserisci un link http o https valido.');
     }
-    if (label.trim().isEmpty ||
-        label.contains('\n') ||
-        label.contains('\r')) {
+    if (label.trim().isEmpty || label.contains('\n') || label.contains('\r')) {
       throw const FormatException(
         'Inserisci un testo del link su una sola riga.',
       );
@@ -180,8 +177,7 @@ abstract final class Checklist {
   );
 
   static bool hasMarker(String body, {int maxChars = 12000}) {
-    final source =
-        body.length <= maxChars ? body : body.substring(0, maxChars);
+    final source = body.length <= maxChars ? body : body.substring(0, maxChars);
     for (final line in source.split(RegExp(r'\r?\n'))) {
       final value = line.trimLeft().toLowerCase();
       if (value.startsWith('- [ ] ') ||
@@ -233,10 +229,9 @@ abstract final class Checklist {
       );
     }
     final newline = body.contains('\r\n') ? '\r\n' : '\n';
-    final separator =
-        body.isEmpty || body.endsWith('\n') || body.endsWith('\r')
-            ? ''
-            : newline;
+    final separator = body.isEmpty || body.endsWith('\n') || body.endsWith('\r')
+        ? ''
+        : newline;
     return '$body$separator- [ ] $clean';
   }
 
@@ -249,8 +244,7 @@ abstract final class Checklist {
 
     for (var lineIndex = 0; lineIndex < rawLines.length; lineIndex++) {
       final raw = rawLines[lineIndex];
-      final text =
-          raw.endsWith('\r') ? raw.substring(0, raw.length - 1) : raw;
+      final text = raw.endsWith('\r') ? raw.substring(0, raw.length - 1) : raw;
       final indent = text.length - text.trimLeft().length;
       final trimmed = text.substring(indent);
       final char = trimmed.isEmpty ? null : trimmed[0];

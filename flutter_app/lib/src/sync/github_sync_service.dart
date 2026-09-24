@@ -97,10 +97,8 @@ class GitHubApi {
   String get _root =>
       '/repos/${Uri.encodeComponent(config.owner)}/${Uri.encodeComponent(config.repo)}';
 
-  String _path(String value) => value
-      .split('/')
-      .map(Uri.encodeComponent)
-      .join('/');
+  String _path(String value) =>
+      value.split('/').map(Uri.encodeComponent).join('/');
 
   Future<String> _request(
     String method,
@@ -124,8 +122,7 @@ class GitHubApi {
       request.write(jsonEncode(body));
     }
 
-    final response =
-        await request.close().timeout(const Duration(seconds: 20));
+    final response = await request.close().timeout(const Duration(seconds: 20));
     final bytes = <int>[];
     await for (final chunk in response) {
       if (bytes.length + chunk.length > limit) {
@@ -137,10 +134,10 @@ class GitHubApi {
     if (response.statusCode < 200 || response.statusCode > 299) {
       final message = switch (response.statusCode) {
         401 => 'Accesso GitHub scaduto o token non valido.',
-        403 => 'GitHub ha rifiutato l’accesso o il limite richieste è stato raggiunto.',
+        403 =>
+          'GitHub ha rifiutato l’accesso o il limite richieste è stato raggiunto.',
         404 => 'Repository, ramo o file non accessibile.',
-        409 || 422 =>
-          'GitHub è cambiato o il ramo rifiuta la scrittura.',
+        409 || 422 => 'GitHub è cambiato o il ramo rifiuta la scrittura.',
         429 => 'Limite GitHub raggiunto.',
         _ => 'GitHub non disponibile (HTTP ${response.statusCode}).',
       };
@@ -165,10 +162,7 @@ class GitHubApi {
   }
 
   Future<String> head() async {
-    final branch = config.branch
-        .split('/')
-        .map(Uri.encodeComponent)
-        .join('/');
+    final branch = config.branch.split('/').map(Uri.encodeComponent).join('/');
     final value = jsonDecode(
       await _request('GET', '$_root/git/ref/heads/$branch'),
     );
@@ -243,7 +237,8 @@ class GitHubApi {
     if (bytes.length > SyncCodec.maxBytes) {
       throw const FormatException('Nota GitHub oltre 256 KB.');
     }
-    final document = SyncCodec.decode(utf8.decode(bytes, allowMalformed: false));
+    final document =
+        SyncCodec.decode(utf8.decode(bytes, allowMalformed: false));
     if (SyncCodec.filename(document.id) != file.name) {
       throw const FormatException(
         'ID e nome file GitHub non corrispondono.',
@@ -396,8 +391,7 @@ class GitHubApi {
     }
     final bytes = Uint8List.fromList(
       base64Decode(
-        (decoded['content']?.toString() ?? '')
-            .replaceAll(RegExp(r'\s'), ''),
+        (decoded['content']?.toString() ?? '').replaceAll(RegExp(r'\s'), ''),
       ),
     );
     if (bytes.length != info.size) {
@@ -808,9 +802,7 @@ class GitHubSyncService {
     AttachmentStore store,
   ) async {
     if (document.sketchJson != null) return;
-    final refs = Attachments.refs(document.body)
-        .map((ref) => ref.key)
-        .toSet();
+    final refs = Attachments.refs(document.body).map((ref) => ref.key).toSet();
     var bytesThisPass = 0;
     for (final key in refs) {
       final bytes = await store.read(key);
@@ -831,9 +823,7 @@ class GitHubSyncService {
     String head,
   ) async {
     if (document.sketchJson != null) return;
-    final keys = Attachments.refs(document.body)
-        .map((ref) => ref.key)
-        .toSet();
+    final keys = Attachments.refs(document.body).map((ref) => ref.key).toSet();
     for (final key in keys) {
       if (await store.contains(key)) continue;
       final bytes = await api.downloadAsset(key, head);
@@ -888,8 +878,7 @@ class GitHubSyncService {
     final text = jsonEncode({
       'version': 1,
       'records': {
-        for (final entry in records.entries)
-          entry.key: entry.value.toJson(),
+        for (final entry in records.entries) entry.key: entry.value.toJson(),
       },
     });
     await temp.writeAsString(text, encoding: utf8, flush: true);

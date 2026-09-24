@@ -9,7 +9,8 @@ enum PlannerView { agenda, day, week, month, kanban, focus }
 enum PlannerScope { today, upcoming, all, completed }
 
 class TaskDetails {
-  TaskDetails._(Map<String, dynamic> data) : _data = Map<String, dynamic>.from(data);
+  TaskDetails._(Map<String, dynamic> data)
+      : _data = Map<String, dynamic>.from(data);
 
   final Map<String, dynamic> _data;
 
@@ -188,7 +189,8 @@ class TaskDetails {
       throw const FormatException('La ricorrenza richiede una scadenza.');
     }
     if (normalizedPlannedTime != null && normalizedPlannedDate == null) {
-      throw const FormatException('Un orario pianificato richiede anche il giorno.');
+      throw const FormatException(
+          'Un orario pianificato richiede anche il giorno.');
     }
     if (plannedMinutes < 5 || plannedMinutes > 720) {
       throw const FormatException('Durata del blocco non valida.');
@@ -279,7 +281,8 @@ class TaskDetails {
     }
     if (focusReceipts.contains(sessionId)) return this;
     if (focusReceipts.length >= 200) {
-      throw const FormatException('Limite di 200 sessioni per attività raggiunto.');
+      throw const FormatException(
+          'Limite di 200 sessioni per attività raggiunto.');
     }
 
     final receipts = [...focusReceipts, sessionId];
@@ -303,7 +306,8 @@ class TaskDetails {
     if (plannedDate != null) _validateDate(plannedDate!, 2000, 2200);
     if (plannedTime != null) _validateTime(plannedTime!);
     if (plannedTime != null && plannedDate == null) {
-      throw const FormatException('Un orario pianificato richiede anche il giorno.');
+      throw const FormatException(
+          'Un orario pianificato richiede anche il giorno.');
     }
     if (plannedMinutes < 5 || plannedMinutes > 720) {
       throw const FormatException('Durata del blocco non valida.');
@@ -400,7 +404,8 @@ abstract final class PlannerPro {
     int comparePlanned(Note a, Note b) {
       final ta = details[a.id]!;
       final tb = details[b.id]!;
-      final time = (ta.plannedTime ?? '99:99').compareTo(tb.plannedTime ?? '99:99');
+      final time =
+          (ta.plannedTime ?? '99:99').compareTo(tb.plannedTime ?? '99:99');
       if (time != 0) return time;
       final priority = tb.priority.compareTo(ta.priority);
       if (priority != 0) return priority;
@@ -422,7 +427,8 @@ abstract final class PlannerPro {
     unplanned.sort((a, b) {
       final ta = details[a.id]!;
       final tb = details[b.id]!;
-      final dueCompare = (ta.due ?? '9999-12-31').compareTo(tb.due ?? '9999-12-31');
+      final dueCompare =
+          (ta.due ?? '9999-12-31').compareTo(tb.due ?? '9999-12-31');
       if (dueCompare != 0) return dueCompare;
       final priority = tb.priority.compareTo(ta.priority);
       if (priority != 0) return priority;
@@ -464,7 +470,8 @@ abstract final class PlannerPro {
       final db = tb.plannedDate ?? tb.due ?? '9999-12-31';
       final date = da.compareTo(db);
       if (date != 0) return date;
-      final time = (ta.plannedTime ?? '99:99').compareTo(tb.plannedTime ?? '99:99');
+      final time =
+          (ta.plannedTime ?? '99:99').compareTo(tb.plannedTime ?? '99:99');
       if (time != 0) return time;
       return tb.priority.compareTo(ta.priority);
     });
@@ -478,17 +485,15 @@ abstract final class PlannerPro {
       index.due[dateKey(date)] ?? const [];
 
   static List<TimeBlock> timeBlocks(PlannerIndex index, DateTime date) =>
-      dayNotes(index, date)
-          .map((note) {
-            final task = TaskDetails.tryDecode(note.taskJson)!;
-            return TimeBlock(
-              note: note,
-              date: dateOnly(date),
-              startMinutes: parseTimeMinutes(task.plannedTime),
-              minutes: task.plannedMinutes,
-            );
-          })
-          .toList(growable: false);
+      dayNotes(index, date).map((note) {
+        final task = TaskDetails.tryDecode(note.taskJson)!;
+        return TimeBlock(
+          note: note,
+          date: dateOnly(date),
+          startMinutes: parseTimeMinutes(task.plannedTime),
+          minutes: task.plannedMinutes,
+        );
+      }).toList(growable: false);
 
   static List<PlannerCollision> collisions(List<TimeBlock> blocks) {
     final timed = blocks.where((b) => b.startMinutes != null).toList();
@@ -518,14 +523,14 @@ abstract final class PlannerPro {
   }
 }
 
-DateTime dateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+DateTime dateOnly(DateTime value) =>
+    DateTime(value.year, value.month, value.day);
 
 String dateKey(DateTime value) =>
     '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
 DateTime? parseDate(String? value) {
-  if (value == null ||
-      !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
+  if (value == null || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
     return null;
   }
   final parts = value.split('-').map(int.parse).toList();

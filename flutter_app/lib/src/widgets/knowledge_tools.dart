@@ -72,8 +72,7 @@ class KnowledgeToolsBar extends StatelessWidget {
           final found = _textNotes
               .where(
                 (note) =>
-                    query.isEmpty ||
-                    note.title.toLowerCase().contains(query),
+                    query.isEmpty || note.title.toLowerCase().contains(query),
               )
               .take(50)
               .toList();
@@ -96,14 +95,17 @@ class KnowledgeToolsBar extends StatelessWidget {
                   const SizedBox(height: 8),
                   Expanded(
                     child: found.isEmpty
-                        ? const Center(child: Text('Nessuna nota corrispondente.'))
+                        ? const Center(
+                            child: Text('Nessuna nota corrispondente.'))
                         : ListView.builder(
                             itemCount: found.length,
                             itemBuilder: (_, index) {
                               final note = found[index];
                               return ListTile(
                                 title: Text(
-                                  note.title.isEmpty ? 'Senza titolo' : note.title,
+                                  note.title.isEmpty
+                                      ? 'Senza titolo'
+                                      : note.title,
                                 ),
                                 onTap: () {
                                   selected = note;
@@ -247,8 +249,7 @@ class KnowledgeToolsBar extends StatelessWidget {
                 onPressed: ranges.isEmpty
                     ? null
                     : () {
-                        final cursor =
-                            selection.isValid ? selection.end : 0;
+                        final cursor = selection.isValid ? selection.end : 0;
                         final target = ranges.firstWhere(
                           (range) => range.start >= cursor,
                           orElse: () => ranges.first,
@@ -355,7 +356,8 @@ class KnowledgeToolsBar extends StatelessWidget {
               else
                 ...incoming.map(
                   (note) => ListTile(
-                    title: Text(note.title.isEmpty ? 'Senza titolo' : note.title),
+                    title:
+                        Text(note.title.isEmpty ? 'Senza titolo' : note.title),
                     onTap: () {
                       Navigator.pop(context);
                       onOpenNote(note.id);

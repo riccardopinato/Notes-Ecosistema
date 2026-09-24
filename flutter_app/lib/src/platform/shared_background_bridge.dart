@@ -23,8 +23,7 @@ class SharedBackgroundStatus {
         enabledAt: (map['enabledAt'] as num?)?.toInt() ?? 0,
         lastCheckAt: (map['lastCheckAt'] as num?)?.toInt() ?? 0,
         lastSuccessAt: (map['lastSuccessAt'] as num?)?.toInt() ?? 0,
-        intervalMinutes:
-            (map['intervalMinutes'] as num?)?.toInt() ?? 15,
+        intervalMinutes: (map['intervalMinutes'] as num?)?.toInt() ?? 15,
         lastError: map['lastError']?.toString(),
       );
 }
@@ -47,8 +46,7 @@ class SharedBackgroundBridge {
       }
     });
 
-    final initial =
-        await _channel.invokeMethod<String>('getInitialSpace');
+    final initial = await _channel.invokeMethod<String>('getInitialSpace');
     if (initial != null && initial.trim().isNotEmpty) {
       await onOpenSpace(initial.trim());
     }

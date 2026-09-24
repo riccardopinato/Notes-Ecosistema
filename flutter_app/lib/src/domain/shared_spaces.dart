@@ -68,9 +68,8 @@ class SharedIdentity {
       githubUserId: map['githubUserId'] == null
           ? null
           : _githubUserId(map['githubUserId']),
-      githubLogin: map['githubLogin'] == null
-          ? null
-          : _githubLogin(map['githubLogin']),
+      githubLogin:
+          map['githubLogin'] == null ? null : _githubLogin(map['githubLogin']),
       legacyIds: legacyRaw == null
           ? const []
           : (legacyRaw as List)
@@ -231,8 +230,7 @@ class SharedSpace {
         ownerId: ownerId ?? this.ownerId,
         createdAt: createdAt,
         nameUpdatedAt: nameUpdatedAt ?? this.nameUpdatedAt,
-        descriptionUpdatedAt:
-            descriptionUpdatedAt ?? this.descriptionUpdatedAt,
+        descriptionUpdatedAt: descriptionUpdatedAt ?? this.descriptionUpdatedAt,
         members: members ?? this.members,
         contentAddedAt: contentAddedAt ?? this.contentAddedAt,
         contentRemovedAt: contentRemovedAt ?? this.contentRemovedAt,
@@ -264,8 +262,7 @@ class SharedSpace {
       description: _description(map['description']),
       ownerId: _requiredId(map['ownerId'], 'proprietario'),
       createdAt: _timestamp(map['createdAt'], 'creazione spazio'),
-      nameUpdatedAt:
-          _timestamp(map['nameUpdatedAt'], 'nome spazio'),
+      nameUpdatedAt: _timestamp(map['nameUpdatedAt'], 'nome spazio'),
       descriptionUpdatedAt:
           _timestamp(map['descriptionUpdatedAt'], 'descrizione spazio'),
       members: membersRaw
@@ -362,8 +359,7 @@ class SharedSpaceInvite {
       spaceId: _requiredId(map['spaceId'], 'spazio'),
       spaceName: _spaceName(map['spaceName']),
       owner: SharedMember.fromJson(_stringMap(map['owner'], 'proprietario')),
-      spaceCreatedAt:
-          _timestamp(map['spaceCreatedAt'], 'creazione spazio'),
+      spaceCreatedAt: _timestamp(map['spaceCreatedAt'], 'creazione spazio'),
       role: role.first,
       issuedAt: _timestamp(map['issuedAt'], 'invito'),
       expiresAt: _timestamp(map['expiresAt'], 'scadenza invito'),
@@ -374,8 +370,7 @@ class SharedSpaceInvite {
       throw const FormatException('Proprietario invito non valido.');
     }
     final clock = now ?? DateTime.now().millisecondsSinceEpoch;
-    if (invite.expiresAt <= invite.issuedAt ||
-        invite.expiresAt < clock) {
+    if (invite.expiresAt <= invite.issuedAt || invite.expiresAt < clock) {
       throw const FormatException('Questo invito è scaduto.');
     }
     if (invite.expiresAt - invite.issuedAt >
@@ -778,8 +773,7 @@ abstract final class SharedSpaces {
           useRemoteDescription ? remote.description : local.description,
       ownerId: local.ownerId,
       createdAt: local.createdAt,
-      nameUpdatedAt:
-          useRemoteName ? remote.nameUpdatedAt : local.nameUpdatedAt,
+      nameUpdatedAt: useRemoteName ? remote.nameUpdatedAt : local.nameUpdatedAt,
       descriptionUpdatedAt: useRemoteDescription
           ? remote.descriptionUpdatedAt
           : local.descriptionUpdatedAt,
@@ -832,8 +826,7 @@ abstract final class SharedSpaces {
       validateSpace(result);
       return result;
     }
-    if (existing.id != invite.spaceId ||
-        existing.ownerId != invite.owner.id) {
+    if (existing.id != invite.spaceId || existing.ownerId != invite.owner.id) {
       throw const FormatException(
         'L’invito non corrisponde allo spazio locale.',
       );
@@ -844,8 +837,7 @@ abstract final class SharedSpaces {
     if (ownerIndex < 0) {
       members.add(invite.owner);
     }
-    final selfIndex =
-        members.indexWhere((member) => member.id == identity.id);
+    final selfIndex = members.indexWhere((member) => member.id == identity.id);
     if (selfIndex < 0) {
       members.add(recipient);
     } else if (!members[selfIndex].active) {
@@ -1062,18 +1054,14 @@ String _spaceName(Object? value) {
 
 String _description(Object? value) {
   if (value == null) return '';
-  if (value is! String ||
-      value.length > 1000 ||
-      value.contains('\u0000')) {
+  if (value is! String || value.length > 1000 || value.contains('\u0000')) {
     throw const FormatException('Descrizione spazio non valida.');
   }
   return value.trim();
 }
 
 int _timestamp(Object? value, String field) {
-  if (value is! num ||
-      value.toInt() != value ||
-      value.toInt() < 0) {
+  if (value is! num || value.toInt() != value || value.toInt() < 0) {
     throw FormatException('Data $field non valida.');
   }
   return value.toInt();

@@ -107,18 +107,22 @@ abstract final class Attachments {
 
   static List<AttachmentRef> refs(String body) {
     if (!body.contains('notes-asset://')) return const [];
-    return _link.allMatches(body).map((match) {
-      final rawLabel = match.group(1) ?? 'Allegato';
-      return AttachmentRef(
-        key: match.group(2)!,
-        name: rawLabel.replaceAllMapped(
-          RegExp(r'\\(.)'),
-          (m) => m.group(1) ?? '',
-        ),
-        start: match.start,
-        end: match.end,
-      );
-    }).where((ref) => validKey(ref.key)).toList(growable: false);
+    return _link
+        .allMatches(body)
+        .map((match) {
+          final rawLabel = match.group(1) ?? 'Allegato';
+          return AttachmentRef(
+            key: match.group(2)!,
+            name: rawLabel.replaceAllMapped(
+              RegExp(r'\\(.)'),
+              (m) => m.group(1) ?? '',
+            ),
+            start: match.start,
+            end: match.end,
+          );
+        })
+        .where((ref) => validKey(ref.key))
+        .toList(growable: false);
   }
 
   static String append(String body, String key, String name) {
@@ -149,7 +153,8 @@ abstract final class Attachments {
 
   static String remove(String body, String key) {
     var result = body;
-    for (final ref in refs(body).where((ref) => ref.key == key).toList().reversed) {
+    for (final ref
+        in refs(body).where((ref) => ref.key == key).toList().reversed) {
       result = result.replaceRange(ref.start, ref.end, '');
     }
     return result;

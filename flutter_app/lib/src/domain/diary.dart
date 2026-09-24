@@ -70,7 +70,9 @@ abstract final class Diary {
     final size = ((offset + days + 6) ~/ 7) * 7;
     return List.generate(size, (index) {
       final day = index - offset + 1;
-      return day >= 1 && day <= days ? DateTime(month.year, month.month, day) : null;
+      return day >= 1 && day <= days
+          ? DateTime(month.year, month.month, day)
+          : null;
     });
   }
 

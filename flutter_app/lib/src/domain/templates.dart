@@ -20,14 +20,18 @@ abstract final class PersonalTemplates {
   static final _variable = RegExp(r'\{\{(data|ora|giorno)\}\}');
 
   static bool eligible(Note note) =>
-      !note.isDeleted && !note.isTask && !note.isVisual && note.tags.contains(tag);
+      !note.isDeleted &&
+      !note.isTask &&
+      !note.isVisual &&
+      note.tags.contains(tag);
 
   static List<Note> catalog(List<Note> notes, [String query = '']) {
     final needle = query.trim().toLowerCase();
-    final result = notes.where((note) =>
-      eligible(note) &&
-      (needle.isEmpty || note.title.toLowerCase().contains(needle))
-    ).toList();
+    final result = notes
+        .where((note) =>
+            eligible(note) &&
+            (needle.isEmpty || note.title.toLowerCase().contains(needle)))
+        .toList();
     result.sort((a, b) {
       final title = a.title.toLowerCase().compareTo(b.title.toLowerCase());
       return title != 0 ? title : a.id.compareTo(b.id);
@@ -38,7 +42,13 @@ abstract final class PersonalTemplates {
   static String expand(String text, DateTime now) {
     String two(int value) => value.toString().padLeft(2, '0');
     const weekdays = [
-      'lunedì','martedì','mercoledì','giovedì','venerdì','sabato','domenica',
+      'lunedì',
+      'martedì',
+      'mercoledì',
+      'giovedì',
+      'venerdì',
+      'sabato',
+      'domenica',
     ];
     return text.replaceAllMapped(_variable, (match) {
       switch (match.group(1)) {
@@ -122,21 +132,23 @@ abstract final class PersonalTemplates {
 
 abstract final class PageTemplates {
   static const all = [
-    PageTemplate('meeting','Riunione','Riunione',
-      '# Obiettivo\\n\\n## Appunti\\n\\n## Decisioni\\n\\n## Prossime azioni\\n- [ ] '),
-    PageTemplate('project','Progetto','Nuovo progetto',
-      '# Risultato desiderato\\n\\n## Materiali e collegamenti\\n\\n## Prossimi passi\\n- [ ] \\n\\n## Decisioni\\n'),
-    PageTemplate('study','Studio','Sessione di studio',
-      '# Argomento\\n\\n## Concetti chiave\\n\\n## Domande\\n\\n## Riepilogo\\n'),
-    PageTemplate('review','Revisione settimanale','Revisione settimanale',
-      '# Cosa ho completato\\n\\n## Cosa ho imparato\\n\\n## Da riprendere\\n- [ ] \\n\\n## Priorità della prossima settimana\\n'),
+    PageTemplate('meeting', 'Riunione', 'Riunione',
+        '# Obiettivo\\n\\n## Appunti\\n\\n## Decisioni\\n\\n## Prossime azioni\\n- [ ] '),
+    PageTemplate('project', 'Progetto', 'Nuovo progetto',
+        '# Risultato desiderato\\n\\n## Materiali e collegamenti\\n\\n## Prossimi passi\\n- [ ] \\n\\n## Decisioni\\n'),
+    PageTemplate('study', 'Studio', 'Sessione di studio',
+        '# Argomento\\n\\n## Concetti chiave\\n\\n## Domande\\n\\n## Riepilogo\\n'),
+    PageTemplate('review', 'Revisione settimanale', 'Revisione settimanale',
+        '# Cosa ho completato\\n\\n## Cosa ho imparato\\n\\n## Da riprendere\\n- [ ] \\n\\n## Priorità della prossima settimana\\n'),
   ];
 
   static PageTemplate daily(DateTime date) {
     final key =
         '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     return PageTemplate(
-      'daily','Diario di oggi','Diario · $key',
+      'daily',
+      'Diario di oggi',
+      'Diario · $key',
       '# $key\\n\\n## Oggi conta\\n- [ ] \\n\\n## Appunti della giornata\\n\\n## Una cosa da ricordare\\n',
     );
   }

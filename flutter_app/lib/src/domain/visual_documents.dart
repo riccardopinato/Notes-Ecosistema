@@ -391,7 +391,8 @@ abstract final class SketchCodec {
       SketchDocument(
         pages: pages,
         activePage: ((root['activePage'] as num?)?.toInt() ?? 0)
-            .clamp(0, pages.length - 1).toInt(),
+            .clamp(0, pages.length - 1)
+            .toInt(),
       ),
     );
   }
@@ -613,8 +614,7 @@ abstract final class WhiteboardOps {
         nodes: source.nodes.where((node) => node.id != id).toList(),
         edges: source.edges
             .where(
-              (edge) =>
-                  edge.fromNodeId != id && edge.toNodeId != id,
+              (edge) => edge.fromNodeId != id && edge.toNodeId != id,
             )
             .toList(),
       );
@@ -627,8 +627,7 @@ abstract final class WhiteboardOps {
   }) {
     if (from == to ||
         source.edges.any(
-          (edge) =>
-              edge.fromNodeId == from && edge.toNodeId == to,
+          (edge) => edge.fromNodeId == from && edge.toNodeId == to,
         )) {
       return source;
     }
@@ -645,8 +644,7 @@ abstract final class WhiteboardOps {
     String parentId, {
     String text = 'Nuova idea',
   }) {
-    final parent =
-        source.nodes.firstWhere((node) => node.id == parentId);
+    final parent = source.nodes.firstWhere((node) => node.id == parentId);
     final count =
         source.edges.where((edge) => edge.fromNodeId == parentId).length;
     final child = BoardNode(
@@ -668,8 +666,7 @@ abstract final class WhiteboardOps {
   static WhiteboardDocument autoLayoutMindMap(
     WhiteboardDocument source,
   ) {
-    if (source.mode != WhiteboardMode.mindMap ||
-        source.nodes.isEmpty) {
+    if (source.mode != WhiteboardMode.mindMap || source.nodes.isEmpty) {
       return source;
     }
     final incoming = <String, List<BoardEdge>>{};
@@ -694,8 +691,7 @@ abstract final class WhiteboardOps {
         }
       }
     }
-    final maxDepth =
-        depth.values.fold<int>(0, (a, b) => a > b ? a : b);
+    final maxDepth = depth.values.fold<int>(0, (a, b) => a > b ? a : b);
     for (final node in source.nodes) {
       depth.putIfAbsent(node.id, () => maxDepth + 1);
     }
@@ -724,9 +720,7 @@ abstract final class WhiteboardCodec {
     final raw = jsonEncode({
       'format': 'notes-whiteboard',
       'version': 1,
-      'mode': document.mode == WhiteboardMode.mindMap
-          ? 'MIND_MAP'
-          : 'FREEFORM',
+      'mode': document.mode == WhiteboardMode.mindMap ? 'MIND_MAP' : 'FREEFORM',
       'camera': {
         'x': document.camera.x,
         'y': document.camera.y,
@@ -759,9 +753,7 @@ abstract final class WhiteboardCodec {
               'id': edge.id,
               'from': edge.fromNodeId,
               'to': edge.toNodeId,
-              'kind': edge.kind == BoardEdgeKind.arrow
-                  ? 'ARROW'
-                  : 'LINE',
+              'kind': edge.kind == BoardEdgeKind.arrow ? 'ARROW' : 'LINE',
               'color': edge.color,
               'width': edge.width,
               'label': edge.label,

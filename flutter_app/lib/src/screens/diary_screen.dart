@@ -60,7 +60,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
       await action();
     } catch (error) {
       if (mounted) {
-        setState(() => _error = error.toString().replaceFirst('Exception: ', ''));
+        setState(
+            () => _error = error.toString().replaceFirst('Exception: ', ''));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -79,7 +80,9 @@ class _DiaryScreenState extends State<DiaryScreen> {
           decoration: const InputDecoration(labelText: 'Nome del book'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla')),
           FilledButton(
             onPressed: () {
               final value = controller.text.trim();
@@ -110,17 +113,22 @@ class _DiaryScreenState extends State<DiaryScreen> {
           children: [
             ChoiceChip(
               selected: _mode == _DiaryMode.calendar,
-              onSelected: _busy ? null : (_) => setState(() => _mode = _DiaryMode.calendar),
+              onSelected: _busy
+                  ? null
+                  : (_) => setState(() => _mode = _DiaryMode.calendar),
               label: const Text('Calendario'),
             ),
             ChoiceChip(
               selected: _mode == _DiaryMode.gallery,
-              onSelected: _busy ? null : (_) => setState(() => _mode = _DiaryMode.gallery),
+              onSelected: _busy
+                  ? null
+                  : (_) => setState(() => _mode = _DiaryMode.gallery),
               label: const Text('Galleria'),
             ),
             ChoiceChip(
               selected: _mode == _DiaryMode.book,
-              onSelected: _busy ? null : (_) => setState(() => _mode = _DiaryMode.book),
+              onSelected:
+                  _busy ? null : (_) => setState(() => _mode = _DiaryMode.book),
               label: const Text('Book'),
             ),
           ],
@@ -132,7 +140,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
             children: [
               FilterChip(
                 selected: _selectedCollection == null,
-                onSelected: _busy ? null : (_) => setState(() => _collectionId = null),
+                onSelected:
+                    _busy ? null : (_) => setState(() => _collectionId = null),
                 label: const Text('Tutti i ricordi'),
               ),
               const SizedBox(width: 8),
@@ -140,7 +149,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
                       selected: _selectedCollection?.id == collection.id,
-                      onSelected: _busy ? null : (_) => setState(() => _collectionId = collection.id),
+                      onSelected: _busy
+                          ? null
+                          : (_) =>
+                              setState(() => _collectionId = collection.id),
                       label: Text(collection.name),
                     ),
                   )),
@@ -153,7 +165,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
         ],
         if (_error != null) ...[
           const SizedBox(height: 8),
-          Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Text(_error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
         const SizedBox(height: 12),
         if (_mode == _DiaryMode.calendar)
@@ -228,7 +241,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
         FilledButton.icon(
           onPressed: _busy
               ? null
-              : () => _run(() => widget.onCreate(_selected, _selectedCollection?.id)),
+              : () => _run(
+                  () => widget.onCreate(_selected, _selectedCollection?.id)),
           icon: const Icon(Icons.edit),
           label: const Text('Scrivi un pensiero'),
         ),
@@ -246,7 +260,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
               child: ListTile(
                 onTap: () => widget.onOpenTask(task),
                 title: Text(task.title.isEmpty ? 'Attività' : task.title),
-                subtitle: Text(details?.completed == true ? 'Completato' : 'Da fare'),
+                subtitle:
+                    Text(details?.completed == true ? 'Completato' : 'Da fare'),
                 trailing: const Icon(Icons.chevron_right),
               ),
             );
@@ -271,10 +286,12 @@ class _DiaryScreenState extends State<DiaryScreen> {
         ),
         const SizedBox(height: 12),
         if (widget.collections.isEmpty)
-          const Text('Vacanze, noi due, un anno da ricordare: scegli il nome del primo book.')
+          const Text(
+              'Vacanze, noi due, un anno da ricordare: scegli il nome del primo book.')
         else
           ...widget.collections.map((collection) {
-            final entries = Diary.index(widget.notes, collectionId: collection.id).entries;
+            final entries =
+                Diary.index(widget.notes, collectionId: collection.id).entries;
             return Card(
               child: ListTile(
                 onTap: () => setState(() => _collectionId = collection.id),
@@ -306,13 +323,16 @@ class _DiaryScreenState extends State<DiaryScreen> {
         ),
         if (_mode == _DiaryMode.book)
           OutlinedButton.icon(
-            onPressed: _busy ? null : () => setState(() => _mode = _DiaryMode.calendar),
+            onPressed: _busy
+                ? null
+                : () => setState(() => _mode = _DiaryMode.calendar),
             icon: const Icon(Icons.calendar_month),
             label: const Text('Aggiungi una pagina: scegli il giorno'),
           ),
         const SizedBox(height: 8),
         if (entries.isEmpty)
-          const Text('Nessun ricordo qui. Apri il calendario per aggiungerne uno.')
+          const Text(
+              'Nessun ricordo qui. Apri il calendario per aggiungerne uno.')
         else
           ...entries.map(_entryCard),
       ],
@@ -367,7 +387,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
     final maxDay = DateTime(next.year, next.month + 1, 0).day;
     setState(() {
       _month = next;
-      _selected = DateTime(next.year, next.month, _selected.day.clamp(1, maxDay).toInt());
+      _selected = DateTime(
+          next.year, next.month, _selected.day.clamp(1, maxDay).toInt());
     });
   }
 
@@ -440,7 +461,8 @@ class _MonthGrid extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => onSelect(date),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
                   child: Column(
                     children: [
                       Text('${date.day}'),
@@ -449,10 +471,15 @@ class _MonthGrid extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (entries.isNotEmpty)
-                            Icon(Icons.circle, size: 7, color: Theme.of(context).colorScheme.primary),
-                          if (entries.isNotEmpty && tasks.isNotEmpty) const SizedBox(width: 3),
+                            Icon(Icons.circle,
+                                size: 7,
+                                color: Theme.of(context).colorScheme.primary),
+                          if (entries.isNotEmpty && tasks.isNotEmpty)
+                            const SizedBox(width: 3),
                           if (tasks.isNotEmpty)
-                            Icon(Icons.circle, size: 7, color: Theme.of(context).colorScheme.tertiary),
+                            Icon(Icons.circle,
+                                size: 7,
+                                color: Theme.of(context).colorScheme.tertiary),
                         ],
                       ),
                     ],

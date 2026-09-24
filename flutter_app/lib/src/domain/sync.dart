@@ -37,8 +37,7 @@ class SyncDocument {
   final String? taskJson;
   final String? sketchJson;
 
-  factory SyncDocument.fromNote(Note note, String? collection) =>
-      SyncDocument(
+  factory SyncDocument.fromNote(Note note, String? collection) => SyncDocument(
         id: note.id,
         title: note.title,
         body: note.body,
@@ -227,8 +226,7 @@ abstract final class SyncCodec {
     if (decoded is! Map) {
       throw const FormatException('Metadati sync non validi.');
     }
-    final meta =
-        decoded.map((key, value) => MapEntry(key.toString(), value));
+    final meta = decoded.map((key, value) => MapEntry(key.toString(), value));
     if (meta['format'] != 'notes-ecosystem-sync') {
       throw const FormatException('Formato sync non riconosciuto.');
     }
@@ -262,11 +260,8 @@ abstract final class SyncCodec {
           ? null
           : _integer(meta['deletedAt'], 'deletedAt'),
       pinned: version >= 2 ? _boolean(meta['pinned'], 'pinned') : false,
-      archived:
-          version >= 2 ? _boolean(meta['archived'], 'archived') : false,
-      tags: version >= 3
-          ? _strings(meta['tags'], 'tags')
-          : const [],
+      archived: version >= 2 ? _boolean(meta['archived'], 'archived') : false,
+      tags: version >= 3 ? _strings(meta['tags'], 'tags') : const [],
       taskJson: taskJson,
       sketchJson: sketchJson,
     );

@@ -6,7 +6,9 @@ import 'editing.dart';
 import 'note.dart';
 
 enum NoteScope { all, inbox, favorites, trash, archive }
+
 enum TaskPresence { any, hasTasks, openTasks, noTasks }
+
 enum NoteOrder { recent, created, oldest, title }
 
 class SearchOptions {
@@ -86,8 +88,7 @@ List<Note> searchNotes(
       if (!matches) return false;
     }
 
-    final needsChecklist =
-        options.tasks != TaskPresence.any ||
+    final needsChecklist = options.tasks != TaskPresence.any ||
         kind == 'Testo' ||
         kind == 'Checklist';
     final checklist =
@@ -148,10 +149,12 @@ Comparator<Note> _comparator(NoteOrder order) {
         if (created != 0) return created;
         break;
       case NoteOrder.title:
-        final titleA =
-            a.title.trim().isEmpty ? 'senza titolo' : a.title.trim().toLowerCase();
-        final titleB =
-            b.title.trim().isEmpty ? 'senza titolo' : b.title.trim().toLowerCase();
+        final titleA = a.title.trim().isEmpty
+            ? 'senza titolo'
+            : a.title.trim().toLowerCase();
+        final titleB = b.title.trim().isEmpty
+            ? 'senza titolo'
+            : b.title.trim().toLowerCase();
         final title = titleA.compareTo(titleB);
         if (title != 0) return title;
         break;

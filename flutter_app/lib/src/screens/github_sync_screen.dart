@@ -216,14 +216,12 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
           TextField(
             controller: _owner,
             enabled: !_busy,
-            decoration:
-                const InputDecoration(labelText: 'Proprietario GitHub'),
+            decoration: const InputDecoration(labelText: 'Proprietario GitHub'),
           ),
           TextField(
             controller: _repo,
             enabled: !_busy,
-            decoration:
-                const InputDecoration(labelText: 'Nome repository'),
+            decoration: const InputDecoration(labelText: 'Nome repository'),
           ),
           TextField(
             controller: _branch,
@@ -233,8 +231,7 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
           TextField(
             controller: _folder,
             enabled: !_busy,
-            decoration:
-                const InputDecoration(labelText: 'Cartella delle note'),
+            decoration: const InputDecoration(labelText: 'Cartella delle note'),
           ),
           TextField(
             controller: _token,
@@ -247,8 +244,9 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: _consent,
-            onChanged:
-                _busy ? null : (value) => setState(() => _consent = value ?? false),
+            onChanged: _busy
+                ? null
+                : (value) => setState(() => _consent = value ?? false),
             title: const Text(
               'Autorizzo lo scambio delle note con questo repository.',
             ),
@@ -258,8 +256,7 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
             value: _allowPublic,
             onChanged: _busy
                 ? null
-                : (value) =>
-                    setState(() => _allowPublic = value ?? false),
+                : (value) => setState(() => _allowPublic = value ?? false),
             title: const Text(
               'Consento anche un repository pubblico.',
             ),
@@ -268,10 +265,9 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
             ),
           ),
           FilledButton(
-            onPressed:
-                !_busy && _consent && _token.text.trim().isNotEmpty
-                    ? _connect
-                    : null,
+            onPressed: !_busy && _consent && _token.text.trim().isNotEmpty
+                ? _connect
+                : null,
             child: const Text('Collega e sincronizza'),
           ),
         ],
@@ -326,18 +322,15 @@ class _ConflictCard extends StatelessWidget {
               spacing: 6,
               children: [
                 OutlinedButton(
-                  onPressed:
-                      enabled ? () => onResolve('both') : null,
+                  onPressed: enabled ? () => onResolve('both') : null,
                   child: const Text('Conserva entrambe'),
                 ),
                 TextButton(
-                  onPressed:
-                      enabled ? () => onResolve('local') : null,
+                  onPressed: enabled ? () => onResolve('local') : null,
                   child: const Text('Usa telefono'),
                 ),
                 TextButton(
-                  onPressed:
-                      enabled ? () => onResolve('remote') : null,
+                  onPressed: enabled ? () => onResolve('remote') : null,
                   child: const Text('Usa GitHub'),
                 ),
               ],
@@ -351,8 +344,7 @@ class _ConflictCard extends StatelessWidget {
   String _summary(dynamic document) {
     if (document == null) return 'assente';
     final body = document.body.toString().replaceAll('\n', ' ').trim();
-    final preview =
-        body.length > 160 ? '${body.substring(0, 160)}…' : body;
+    final preview = body.length > 160 ? '${body.substring(0, 160)}…' : body;
     return '${document.deletedAt != null ? 'Cestino · ' : ''}'
         '${document.updatedAt} · $preview';
   }

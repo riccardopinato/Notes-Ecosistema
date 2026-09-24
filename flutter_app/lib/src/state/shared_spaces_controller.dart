@@ -335,8 +335,7 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
 
   Future<void> forgetSpace(String spaceId) async {
     _space(spaceId);
-    final spaces =
-        state.spaces.where((space) => space.id != spaceId).toList();
+    final spaces = state.spaces.where((space) => space.id != spaceId).toList();
     state = state.copyWith(spaces: spaces, clearError: true);
     await _persist();
   }

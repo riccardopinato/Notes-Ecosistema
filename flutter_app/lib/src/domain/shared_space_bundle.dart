@@ -153,8 +153,7 @@ abstract final class SharedSpaceBundle {
         );
       }
       final name = entry.name;
-      final isDocument = RegExp(r'^documents/[a-f0-9]{64}\.md$')
-          .hasMatch(name);
+      final isDocument = RegExp(r'^documents/[a-f0-9]{64}\.md$').hasMatch(name);
       final isAsset = name.startsWith('assets/') &&
           Attachments.validKey(name.substring('assets/'.length));
       if (name != 'space.json' &&
@@ -291,9 +290,7 @@ abstract final class SharedSpaceBundle {
   }
 
   static int _integer(Object? value) {
-    if (value is! num ||
-        value.toInt() != value ||
-        value.toInt() < 0) {
+    if (value is! num || value.toInt() != value || value.toInt() < 0) {
       throw const FormatException('Data Shared Space non valida.');
     }
     return value.toInt();

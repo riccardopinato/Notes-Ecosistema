@@ -97,8 +97,8 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
       if (mounted) setState(() => _clock = next);
     } catch (e) {
       if (mounted) {
-        setState(() => _error =
-            e.toString().replaceFirst('FormatException: ', ''));
+        setState(
+            () => _error = e.toString().replaceFirst('FormatException: ', ''));
       }
     }
   }
@@ -174,8 +174,8 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
       if (mounted) setState(() => _clock = next);
     } catch (e) {
       if (mounted) {
-        setState(() => _error =
-            e.toString().replaceFirst('FormatException: ', ''));
+        setState(
+            () => _error = e.toString().replaceFirst('FormatException: ', ''));
       }
     }
   }
@@ -223,10 +223,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                   clock.phase == FocusPhase.work
                       ? 'FOCUS · BLOCCO ${clock.completedBlocks + 1}'
                       : 'PAUSA · ${clock.completedBlocks} BLOCCHI REGISTRATI',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: Theme.of(context).colorScheme.onPrimary,
                       ),
                 ),
@@ -234,10 +231,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                 Text(
                   widget.note.title.isEmpty ? 'Attività' : widget.note.title,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onPrimary,
                       ),
                 ),
@@ -263,8 +257,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                             .textTheme
                             .displayMedium
                             ?.copyWith(
-                              color:
-                                  Theme.of(context).colorScheme.onPrimary,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                       ),
                     ],
@@ -288,7 +281,9 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                   FilledButton.tonal(
                     onPressed: _busy ? null : _pauseResume,
                     child: Text(
-                      clock.pausedMillis == null ? 'Metti in pausa' : 'Riprendi',
+                      clock.pausedMillis == null
+                          ? 'Metti in pausa'
+                          : 'Riprendi',
                     ),
                   ),
                 if (clock.finished(now))
@@ -302,8 +297,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                   ),
                 if (clock.phase == FocusPhase.work)
                   FilledButton.tonal(
-                    onPressed: _busy ||
-                            currentElapsed(clock, now) <= 0
+                    onPressed: _busy || currentElapsed(clock, now) <= 0
                         ? null
                         : () => _recordCurrent(nextInterval: false),
                     child: const Text('Termina e registra'),
@@ -311,8 +305,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                 TextButton(
                   onPressed: _busy ? null : _discard,
                   style: TextButton.styleFrom(
-                    foregroundColor:
-                        Theme.of(context).colorScheme.onPrimary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   child: Text(
                     clock.phase == FocusPhase.work

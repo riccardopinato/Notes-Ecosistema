@@ -32,8 +32,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final personal =
-        PersonalTemplates.catalog(widget.notes, _query.text);
+    final personal = PersonalTemplates.catalog(widget.notes, _query.text);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Modelli')),

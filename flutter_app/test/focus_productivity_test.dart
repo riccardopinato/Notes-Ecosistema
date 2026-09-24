@@ -43,11 +43,13 @@ void main() {
     clock = clock.copyWith(deadline: 0).next(0, 'w2');
     expect(clock.phase, FocusPhase.work);
 
-    clock = clock.copyWith(
-      deadline: 0,
-      phase: FocusPhase.work,
-      completedBlocks: 3,
-    ).next(0, 'b4');
+    clock = clock
+        .copyWith(
+          deadline: 0,
+          phase: FocusPhase.work,
+          completedBlocks: 3,
+        )
+        .next(0, 'b4');
     expect(clock.phase, FocusPhase.breakTime);
     expect(clock.durationSeconds, 15 * 60);
     expect(clock.completedBlocks, 4);

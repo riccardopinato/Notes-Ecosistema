@@ -46,9 +46,7 @@ SharedLiveConnectionStatus sharedLiveConnectionForError(Object error) {
     return SharedLiveConnectionStatus.offline;
   }
   if (error is GitHubHttpFailure) {
-    if (error.status == 408 ||
-        error.status == 429 ||
-        error.status >= 500) {
+    if (error.status == 408 || error.status == 429 || error.status >= 500) {
       return SharedLiveConnectionStatus.offline;
     }
   }
@@ -133,8 +131,7 @@ class SharedLiveSyncState {
         message: message ?? this.message,
         connection: connection ?? this.connection,
         lastSyncAt: lastSyncAt ?? this.lastSyncAt,
-        nextRetryAt:
-            clearNextRetry ? null : nextRetryAt ?? this.nextRetryAt,
+        nextRetryAt: clearNextRetry ? null : nextRetryAt ?? this.nextRetryAt,
         failureStreak: failureStreak ?? this.failureStreak,
         conflicts: conflicts ?? this.conflicts,
         spaceSummaries: spaceSummaries ?? this.spaceSummaries,
@@ -154,8 +151,7 @@ class SharedLiveSyncState {
 }
 
 class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
-  SharedLiveSyncController(this.ref)
-      : super(const SharedLiveSyncState()) {
+  SharedLiveSyncController(this.ref) : super(const SharedLiveSyncState()) {
     _load();
   }
 
@@ -206,9 +202,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       connection: SharedLiveConnectionStatus.idle,
       activitiesBySpace: activities,
       lastReadAt: reads,
-      message: enabled
-          ? 'Live Sync pronto.'
-          : 'Live Sync disattivato.',
+      message: enabled ? 'Live Sync pronto.' : 'Live Sync disattivato.',
       clearError: true,
       clearNextRetry: true,
     );
@@ -229,8 +223,8 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
             background.lastSuccessAt > 0 ? background.lastSuccessAt : null,
         backgroundIntervalMinutes: background.intervalMinutes,
         backgroundError: background.lastError,
-        clearBackgroundError:
-            background.lastError == null || background.lastError!.trim().isEmpty,
+        clearBackgroundError: background.lastError == null ||
+            background.lastError!.trim().isEmpty,
       );
     } catch (_) {
       // Native background diagnostics are optional outside Android.
@@ -272,9 +266,8 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   Future<void> markSpaceRead(String spaceId) async {
     final events = state.activitiesBySpace[spaceId] ?? const [];
     if (events.isEmpty) return;
-    final latest = events
-        .map((event) => event.at)
-        .reduce((a, b) => a > b ? a : b);
+    final latest =
+        events.map((event) => event.at).reduce((a, b) => a > b ? a : b);
     if ((state.lastReadAt[spaceId] ?? 0) >= latest) return;
     state = state.copyWith(
       lastReadAt: {
@@ -289,9 +282,8 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     final next = <String, int>{...state.lastReadAt};
     for (final entry in state.activitiesBySpace.entries) {
       if (entry.value.isEmpty) continue;
-      next[entry.key] = entry.value
-          .map((event) => event.at)
-          .reduce((a, b) => a > b ? a : b);
+      next[entry.key] =
+          entry.value.map((event) => event.at).reduce((a, b) => a > b ? a : b);
     }
     state = state.copyWith(lastReadAt: next);
     await _persistActivity();
@@ -315,9 +307,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       enabled: enabled,
       connection: SharedLiveConnectionStatus.idle,
       failureStreak: 0,
-      message: enabled
-          ? 'Live Sync attivo.'
-          : 'Live Sync disattivato.',
+      message: enabled ? 'Live Sync attivo.' : 'Live Sync disattivato.',
       clearError: true,
       clearNextRetry: true,
     );
@@ -448,9 +438,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         }
       }
 
-      await ref
-          .read(sharedSpacesProvider.notifier)
-          .applyLiveSync(merged);
+      await ref.read(sharedSpacesProvider.notifier).applyLiveSync(merged);
       await ref.read(workspaceProvider.notifier).refresh();
 
       final accessibleIds = merged.map((space) => space.id).toSet();

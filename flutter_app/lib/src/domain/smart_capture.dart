@@ -103,8 +103,7 @@ abstract final class SmartCaptureRules {
   }) {
     final clean = content.trim();
     if (clean.isEmpty) return body;
-    final heading =
-        title.trim().isEmpty ? 'Contenuto acquisito' : title.trim();
+    final heading = title.trim().isEmpty ? 'Contenuto acquisito' : title.trim();
     final addition =
         '${body.trim().isEmpty ? '' : '\n\n'}## $heading\n\n$clean\n';
     if (body.length + addition.length > maxTotalChars) {
@@ -208,8 +207,7 @@ class WebCapture {
 
         final bytes = <int>[];
         await for (final chunk in response) {
-          if (bytes.length + chunk.length >
-              SmartCaptureRules.maxWebHtmlBytes) {
+          if (bytes.length + chunk.length > SmartCaptureRules.maxWebHtmlBytes) {
             throw const FormatException(
               'Pagina web troppo grande per l’acquisizione rapida.',
             );
@@ -254,8 +252,7 @@ class WebCapture {
           ' ',
         )
         .replaceAll(
-          RegExp(r'<svg\b[^>]*>.*?</svg>',
-              caseSensitive: false, dotAll: true),
+          RegExp(r'<svg\b[^>]*>.*?</svg>', caseSensitive: false, dotAll: true),
           ' ',
         );
 
@@ -343,8 +340,7 @@ class WebCapture {
       );
     }
     final addresses = await InternetAddress.lookup(host);
-    if (addresses.isEmpty ||
-        addresses.any(_isPrivateOrLocalAddress)) {
+    if (addresses.isEmpty || addresses.any(_isPrivateOrLocalAddress)) {
       throw const FormatException(
         'Per sicurezza non vengono acquisiti indirizzi di rete locale.',
       );
@@ -352,9 +348,7 @@ class WebCapture {
   }
 
   bool _isPrivateOrLocalAddress(InternetAddress address) {
-    if (address.isLoopback ||
-        address.isLinkLocal ||
-        address.isMulticast) {
+    if (address.isLoopback || address.isLinkLocal || address.isMulticast) {
       return true;
     }
     final bytes = address.rawAddress;

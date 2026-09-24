@@ -30,10 +30,9 @@ class FocusClock {
   final int longBreakMinutes;
   final int completedBlocks;
 
-  int remainingMillis(int now) =>
-      (pausedMillis ?? (deadline - now))
-          .clamp(0, durationSeconds * 1000)
-          .toInt();
+  int remainingMillis(int now) => (pausedMillis ?? (deadline - now))
+      .clamp(0, durationSeconds * 1000)
+      .toInt();
 
   int remaining(int now) => (remainingMillis(now) + 999) ~/ 1000;
   bool finished(int now) => remainingMillis(now) == 0;
@@ -72,8 +71,7 @@ class FocusClock {
       taskId: taskId,
       durationSeconds: minutes * 60,
       deadline: now + minutes * 60000,
-      phase:
-          phase == FocusPhase.work ? FocusPhase.breakTime : FocusPhase.work,
+      phase: phase == FocusPhase.work ? FocusPhase.breakTime : FocusPhase.work,
       workMinutes: workMinutes,
       shortBreakMinutes: shortBreakMinutes,
       longBreakMinutes: longBreakMinutes,
@@ -117,8 +115,7 @@ class FocusClock {
         durationSeconds > 7200 ||
         deadline < 0 ||
         (pausedMillis != null &&
-            (pausedMillis! < 0 ||
-                pausedMillis! > durationSeconds * 1000)) ||
+            (pausedMillis! < 0 || pausedMillis! > durationSeconds * 1000)) ||
         workMinutes < 1 ||
         workMinutes > 120 ||
         shortBreakMinutes < 1 ||
@@ -164,10 +161,8 @@ class FocusClock {
           ? FocusPhase.breakTime
           : FocusPhase.work,
       workMinutes: (map['workMinutes'] as num?)?.toInt() ?? 25,
-      shortBreakMinutes:
-          (map['shortBreakMinutes'] as num?)?.toInt() ?? 5,
-      longBreakMinutes:
-          (map['longBreakMinutes'] as num?)?.toInt() ?? 15,
+      shortBreakMinutes: (map['shortBreakMinutes'] as num?)?.toInt() ?? 5,
+      longBreakMinutes: (map['longBreakMinutes'] as num?)?.toInt() ?? 15,
       completedBlocks: (map['completedBlocks'] as num?)?.toInt() ?? 0,
     ).validate();
   }

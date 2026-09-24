@@ -94,8 +94,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   Future<Uint8List> _renderPng() async {
-    final boundary = _exportKey.currentContext?.findRenderObject()
-        as RenderRepaintBoundary?;
+    final boundary =
+        _exportKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) {
       throw const FormatException('Lavagna non ancora pronta per export.');
     }
@@ -114,9 +114,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   Future<void> _exportPng() async {
     try {
       final bytes = await _renderPng();
-      final fallback = _document.mode == WhiteboardMode.mindMap
-          ? 'mind-map'
-          : 'lavagna';
+      final fallback =
+          _document.mode == WhiteboardMode.mindMap ? 'mind-map' : 'lavagna';
       final raw = _title.text.trim();
       final cleaned = raw
           .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '-')
@@ -151,9 +150,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       final fallback = _document.mode == WhiteboardMode.mindMap
           ? 'Mind map Notes'
           : 'Lavagna Notes';
-      final title = _title.text.trim().isEmpty
-          ? fallback
-          : _title.text.trim();
+      final title = _title.text.trim().isEmpty ? fallback : _title.text.trim();
       await VisualShareBridge.sharePng(bytes, title: title);
     } catch (error) {
       if (!mounted) return;
@@ -359,58 +356,57 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
             ),
           if (!widget.readOnly)
             SizedBox(
-            height: 62,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: SegmentedButton<WhiteboardMode>(
-                    segments: const [
-                      ButtonSegment(
-                        value: WhiteboardMode.freeform,
-                        icon: Icon(Icons.dashboard),
-                        label: Text('Lavagna'),
-                      ),
-                      ButtonSegment(
-                        value: WhiteboardMode.mindMap,
-                        icon: Icon(Icons.account_tree),
-                        label: Text('Mind Map'),
-                      ),
-                    ],
-                    selected: {_document.mode},
-                    onSelectionChanged: (value) => _setMode(value.first),
+              height: 62,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: SegmentedButton<WhiteboardMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: WhiteboardMode.freeform,
+                          icon: Icon(Icons.dashboard),
+                          label: Text('Lavagna'),
+                        ),
+                        ButtonSegment(
+                          value: WhiteboardMode.mindMap,
+                          icon: Icon(Icons.account_tree),
+                          label: Text('Mind Map'),
+                        ),
+                      ],
+                      selected: {_document.mode},
+                      onSelectionChanged: (value) => _setMode(value.first),
+                    ),
                   ),
-                ),
-                IconButton.filledTonal(
-                  onPressed: _document.mode == WhiteboardMode.mindMap
-                      ? () => _addNode(kind: BoardNodeKind.mindNode)
-                      : () => _addNode(),
-                  tooltip: 'Aggiungi elemento',
-                  icon: const Icon(Icons.add),
-                ),
-                IconButton.filledTonal(
-                  onPressed: () => setState(() {
-                    _connectMode = !_connectMode;
-                    _connectFrom = null;
-                  }),
-                  isSelected: _connectMode,
-                  tooltip: 'Collega due elementi',
-                  icon: const Icon(Icons.timeline),
-                ),
-                if (_document.mode == WhiteboardMode.mindMap)
+                  IconButton.filledTonal(
+                    onPressed: _document.mode == WhiteboardMode.mindMap
+                        ? () => _addNode(kind: BoardNodeKind.mindNode)
+                        : () => _addNode(),
+                    tooltip: 'Aggiungi elemento',
+                    icon: const Icon(Icons.add),
+                  ),
                   IconButton.filledTonal(
                     onPressed: () => setState(() {
-                      _document =
-                          WhiteboardOps.autoLayoutMindMap(_document);
+                      _connectMode = !_connectMode;
+                      _connectFrom = null;
                     }),
-                    tooltip: 'Layout automatico',
-                    icon: const Icon(Icons.auto_awesome_mosaic),
+                    isSelected: _connectMode,
+                    tooltip: 'Collega due elementi',
+                    icon: const Icon(Icons.timeline),
                   ),
-              ],
+                  if (_document.mode == WhiteboardMode.mindMap)
+                    IconButton.filledTonal(
+                      onPressed: () => setState(() {
+                        _document = WhiteboardOps.autoLayoutMindMap(_document);
+                      }),
+                      tooltip: 'Layout automatico',
+                      icon: const Icon(Icons.auto_awesome_mosaic),
+                    ),
+                ],
+              ),
             ),
-          ),
           if (_connectMode)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -465,13 +461,15 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         onPanUpdate:
             widget.readOnly ? null : (details) => _moveNode(node, details),
         onTap: widget.readOnly ? null : () => _nodeTap(node),
-        onLongPress: widget.readOnly ? null : () {
-          if (_document.mode == WhiteboardMode.mindMap) {
-            _addNode(kind: BoardNodeKind.mindNode, parent: node);
-          } else {
-            _editNode(node);
-          }
-        },
+        onLongPress: widget.readOnly
+            ? null
+            : () {
+                if (_document.mode == WhiteboardMode.mindMap) {
+                  _addNode(kind: BoardNodeKind.mindNode, parent: node);
+                } else {
+                  _editNode(node);
+                }
+              },
         child: Card(
           color: Color(node.color),
           shape: RoundedRectangleBorder(

@@ -33,8 +33,10 @@ class _NotesPreviewShellState extends State<_NotesPreviewShell> {
   int _index = 0;
   final _search = TextEditingController();
   final _notes = <_PreviewNote>[
-    const _PreviewNote('Casa di Anna', 'Lista cose da sistemare e idee per il weekend', 'Oggi'),
-    const _PreviewNote('TrailPath', 'Audit, web preview e release Android', 'Ieri'),
+    const _PreviewNote('Casa di Anna',
+        'Lista cose da sistemare e idee per il weekend', 'Oggi'),
+    const _PreviewNote(
+        'TrailPath', 'Audit, web preview e release Android', 'Ieri'),
     const _PreviewNote('Tesi', 'Capitoli, fonti e checklist finale', 'Lun'),
     const _PreviewNote('Spesa', 'Verdure, pasta, caffè e crocchette', 'Dom'),
   ];
@@ -48,10 +50,22 @@ class _NotesPreviewShellState extends State<_NotesPreviewShell> {
   @override
   Widget build(BuildContext context) {
     final destinations = const [
-      NavigationDestination(icon: Icon(Icons.note_alt_outlined), selectedIcon: Icon(Icons.note_alt_rounded), label: 'Note'),
-      NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: 'Planner'),
-      NavigationDestination(icon: Icon(Icons.timer_outlined), selectedIcon: Icon(Icons.timer_rounded), label: 'Focus'),
-      NavigationDestination(icon: Icon(Icons.draw_outlined), selectedIcon: Icon(Icons.draw_rounded), label: 'Sketch'),
+      NavigationDestination(
+          icon: Icon(Icons.note_alt_outlined),
+          selectedIcon: Icon(Icons.note_alt_rounded),
+          label: 'Note'),
+      NavigationDestination(
+          icon: Icon(Icons.calendar_month_outlined),
+          selectedIcon: Icon(Icons.calendar_month_rounded),
+          label: 'Planner'),
+      NavigationDestination(
+          icon: Icon(Icons.timer_outlined),
+          selectedIcon: Icon(Icons.timer_rounded),
+          label: 'Focus'),
+      NavigationDestination(
+          icon: Icon(Icons.draw_outlined),
+          selectedIcon: Icon(Icons.draw_rounded),
+          label: 'Sketch'),
     ];
 
     return Scaffold(
@@ -68,9 +82,21 @@ class _NotesPreviewShellState extends State<_NotesPreviewShell> {
         index: _index,
         children: [
           _notesPage(context),
-          const _PreviewInfo(icon: Icons.calendar_view_week_rounded, title: 'Planner Pro', subtitle: 'Anteprima web di Agenda, Giorno, Settimana e Mese. Le funzioni native di reminder restano da verificare sull’APK.'),
-          const _PreviewInfo(icon: Icons.self_improvement_rounded, title: 'Focus / Pomodoro', subtitle: 'UI e flussi possono essere verificati online; notifiche e servizi in background restano Android-only.'),
-          const _PreviewInfo(icon: Icons.brush_rounded, title: 'Sketchbook', subtitle: 'Anteprima del modulo visuale. Condivisione file e integrazioni native richiedono il test Android.'),
+          const _PreviewInfo(
+              icon: Icons.calendar_view_week_rounded,
+              title: 'Planner Pro',
+              subtitle:
+                  'Anteprima web di Agenda, Giorno, Settimana e Mese. Le funzioni native di reminder restano da verificare sull’APK.'),
+          const _PreviewInfo(
+              icon: Icons.self_improvement_rounded,
+              title: 'Focus / Pomodoro',
+              subtitle:
+                  'UI e flussi possono essere verificati online; notifiche e servizi in background restano Android-only.'),
+          const _PreviewInfo(
+              icon: Icons.brush_rounded,
+              title: 'Sketchbook',
+              subtitle:
+                  'Anteprima del modulo visuale. Condivisione file e integrazioni native richiedono il test Android.'),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -84,7 +110,8 @@ class _NotesPreviewShellState extends State<_NotesPreviewShell> {
                 setState(() {
                   _notes.insert(
                     0,
-                    _PreviewNote('Nuova nota ${_notes.length + 1}', 'Creata nella preview web', 'Adesso'),
+                    _PreviewNote('Nuova nota ${_notes.length + 1}',
+                        'Creata nella preview web', 'Adesso'),
                   );
                 });
               },
@@ -112,11 +139,13 @@ class _NotesPreviewShellState extends State<_NotesPreviewShell> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
               children: [
-                Text('Le tue note', style: Theme.of(context).textTheme.headlineMedium),
+                Text('Le tue note',
+                    style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 6),
                 Text(
                   'Ricerca dinamica e UI principale direttamente nel browser.',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 18),
                 TextField(
@@ -132,17 +161,22 @@ class _NotesPreviewShellState extends State<_NotesPreviewShell> {
                   const _PreviewInfo(
                     icon: Icons.search_off_rounded,
                     title: 'Nessun risultato',
-                    subtitle: 'Continua a modificare la ricerca per filtrare in tempo reale.',
+                    subtitle:
+                        'Continua a modificare la ricerca per filtrare in tempo reale.',
                   )
                 else
                   for (final note in visible) ...[
                     Card(
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                        title: Text(note.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+                        title: Text(note.title,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Text(note.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          child: Text(note.body,
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
                         ),
                         trailing: Text(note.when),
                       ),

@@ -139,11 +139,8 @@ abstract final class BackupCodec {
         updatedAt: _int(map['updatedAt'], 'updatedAt'),
         deletedAt: _nullableInt(map['deletedAt']),
         pinned: version >= 2 ? _bool(map['pinned'], 'pinned') : false,
-        archived:
-            version >= 2 ? _bool(map['archived'], 'archived') : false,
-        tags: version >= 3
-            ? _stringList(map['tags'], 'tags')
-            : const [],
+        archived: version >= 2 ? _bool(map['archived'], 'archived') : false,
+        tags: version >= 3 ? _stringList(map['tags'], 'tags') : const [],
         taskJson: taskJson,
         sketchJson: sketchJson,
       );
@@ -165,9 +162,7 @@ abstract final class BackupCodec {
         body: _string(map['body'], 'body'),
         collectionId: _nullableString(map['collectionId']),
         updatedAt: _int(map['updatedAt'], 'updatedAt'),
-        tags: version >= 3
-            ? _stringList(map['tags'], 'tags')
-            : const [],
+        tags: version >= 3 ? _stringList(map['tags'], 'tags') : const [],
       );
     }).toList(growable: false);
 
@@ -281,8 +276,11 @@ abstract final class BackupCodec {
     return value;
   }
 
-  static String? _nullableString(Object? value) =>
-      value == null ? null : value is String ? value : throw const FormatException('Testo non valido.');
+  static String? _nullableString(Object? value) => value == null
+      ? null
+      : value is String
+          ? value
+          : throw const FormatException('Testo non valido.');
 
   static int _int(Object? value, String name) {
     if (value is! num || value.toInt() != value) {
@@ -352,10 +350,8 @@ abstract final class BackupImport {
       );
     }
 
-    final importedNoteIds = data.notes
-        .where((note) => !note.isTask)
-        .map((note) => note.id)
-        .toSet();
+    final importedNoteIds =
+        data.notes.where((note) => !note.isTask).map((note) => note.id).toSet();
     final importedTextIds = data.notes
         .where((note) => !note.isTask && !note.isVisual)
         .map((note) => note.id)
@@ -380,10 +376,9 @@ abstract final class BackupImport {
         final info = VisualInfo.decode(sketchJson);
         final linked = info.linkedNoteId;
         sketchJson = VisualInfo(
-          linkedNoteId:
-              linked != null && importedTextIds.contains(linked)
-                  ? noteMap[linked]
-                  : null,
+          linkedNoteId: linked != null && importedTextIds.contains(linked)
+              ? noteMap[linked]
+              : null,
           kind: info.kind,
         ).encode();
       }

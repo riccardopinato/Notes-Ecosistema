@@ -17,7 +17,8 @@ class EditorialEyebrow extends StatelessWidget {
 }
 
 class EditorialAppTitle extends StatelessWidget {
-  const EditorialAppTitle(this.title, {this.eyebrow = 'NOTES / ECOSISTEMA', super.key});
+  const EditorialAppTitle(this.title,
+      {this.eyebrow = 'NOTES / ECOSISTEMA', super.key});
   final String title;
   final String eyebrow;
 
@@ -26,9 +27,15 @@ class EditorialAppTitle extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (MediaQuery.textScalerOf(context).scale(1) <= 1.3) EditorialEyebrow(eyebrow),
-          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontFamily: 'serif')),
+          if (MediaQuery.textScalerOf(context).scale(1) <= 1.3)
+            EditorialEyebrow(eyebrow),
+          Text(title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontFamily: 'serif')),
         ],
       );
 }
@@ -46,10 +53,13 @@ class EditorialSection extends StatelessWidget {
           children: [
             Text(title, style: Theme.of(context).textTheme.headlineSmall),
             if (detail != null)
-              Text(detail!, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(detail!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
       );
 }
 
-String editorialDate(int millis) => DateFormat('d MMM yyyy', 'it_IT').format(DateTime.fromMillisecondsSinceEpoch(millis));
+String editorialDate(int millis) => DateFormat('d MMM yyyy', 'it_IT')
+    .format(DateTime.fromMillisecondsSinceEpoch(millis));

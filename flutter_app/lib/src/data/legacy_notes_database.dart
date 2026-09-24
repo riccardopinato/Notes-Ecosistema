@@ -30,8 +30,10 @@ class LegacyNotesDatabase {
   }
 
   Future<void> _createV8(Database db, int version) async {
-    await db.execute('CREATE TABLE IF NOT EXISTS collections (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL)');
-    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS index_collections_name ON collections(name)');
+    await db.execute(
+        'CREATE TABLE IF NOT EXISTS collections (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL)');
+    await db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS index_collections_name ON collections(name)');
     await db.execute('''
       CREATE TABLE IF NOT EXISTS notes (
         id TEXT NOT NULL PRIMARY KEY,
@@ -50,12 +52,18 @@ class LegacyNotesDatabase {
         FOREIGN KEY(collectionId) REFERENCES collections(id) ON UPDATE NO ACTION ON DELETE SET NULL
       )
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS index_notes_collectionId ON notes(collectionId)');
-    await db.execute('CREATE INDEX IF NOT EXISTS index_notes_deletedAt ON notes(deletedAt)');
-    await db.execute('CREATE INDEX IF NOT EXISTS index_notes_updatedAt ON notes(updatedAt)');
-    await db.execute("CREATE TABLE IF NOT EXISTS drafts (id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, collectionId TEXT, updatedAt INTEGER NOT NULL, tagsJson TEXT NOT NULL DEFAULT '[]')");
-    await db.execute("CREATE TABLE IF NOT EXISTS note_revisions (revisionId TEXT NOT NULL PRIMARY KEY, noteId TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, collectionId TEXT, savedAt INTEGER NOT NULL, tagsJson TEXT NOT NULL DEFAULT '[]')");
-    await db.execute('CREATE INDEX IF NOT EXISTS index_note_revisions_noteId ON note_revisions(noteId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_notes_collectionId ON notes(collectionId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_notes_deletedAt ON notes(deletedAt)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_notes_updatedAt ON notes(updatedAt)');
+    await db.execute(
+        "CREATE TABLE IF NOT EXISTS drafts (id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, collectionId TEXT, updatedAt INTEGER NOT NULL, tagsJson TEXT NOT NULL DEFAULT '[]')");
+    await db.execute(
+        "CREATE TABLE IF NOT EXISTS note_revisions (revisionId TEXT NOT NULL PRIMARY KEY, noteId TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, collectionId TEXT, savedAt INTEGER NOT NULL, tagsJson TEXT NOT NULL DEFAULT '[]')");
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_note_revisions_noteId ON note_revisions(noteId)');
     await db.execute('''
       CREATE TABLE IF NOT EXISTS content_blocks (
         id TEXT NOT NULL PRIMARY KEY,
@@ -71,10 +79,14 @@ class LegacyNotesDatabase {
         updatedAt INTEGER NOT NULL
       )
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS index_content_blocks_ownerType_ownerId_position ON content_blocks(ownerType, ownerId, position)');
-    await db.execute('CREATE INDEX IF NOT EXISTS index_content_blocks_ownerType_ownerId ON content_blocks(ownerType, ownerId)');
-    await db.execute('CREATE INDEX IF NOT EXISTS index_content_blocks_parentBlockId ON content_blocks(parentBlockId)');
-    await db.execute('CREATE INDEX IF NOT EXISTS index_content_blocks_type ON content_blocks(type)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_content_blocks_ownerType_ownerId_position ON content_blocks(ownerType, ownerId, position)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_content_blocks_ownerType_ownerId ON content_blocks(ownerType, ownerId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_content_blocks_parentBlockId ON content_blocks(parentBlockId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS index_content_blocks_type ON content_blocks(type)');
 
     // Keep databases created by Flutter valid for the canonical Kotlin Room v8 client.
     await db.execute(
@@ -87,7 +99,8 @@ class LegacyNotesDatabase {
 
   Future<List<Note>> loadNotes() async {
     final db = await database;
-    final rows = await db.query('notes', orderBy: 'favorite DESC, pinned DESC, updatedAt DESC, id ASC');
+    final rows = await db.query('notes',
+        orderBy: 'favorite DESC, pinned DESC, updatedAt DESC, id ASC');
     return rows.map(Note.fromMap).toList(growable: false);
   }
 
@@ -99,7 +112,8 @@ class LegacyNotesDatabase {
 
   Future<Note?> loadNote(String id) async {
     final db = await database;
-    final rows = await db.query('notes', where: 'id = ?', whereArgs: [id], limit: 1);
+    final rows =
+        await db.query('notes', where: 'id = ?', whereArgs: [id], limit: 1);
     return rows.isEmpty ? null : Note.fromMap(rows.first);
   }
 
@@ -737,8 +751,14 @@ class LegacyNotesDatabase {
 
   Future<void> setPinned(String id, bool pinned) async {
     final db = await database;
-    await db.update('notes', {'pinned': pinned ? 1 : 0, 'updatedAt': DateTime.now().millisecondsSinceEpoch},
-        where: 'id = ? AND deletedAt IS NULL', whereArgs: [id]);
+    await db.update(
+        'notes',
+        {
+          'pinned': pinned ? 1 : 0,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch
+        },
+        where: 'id = ? AND deletedAt IS NULL',
+        whereArgs: [id]);
   }
 
   Future<void> trash(String id) async {

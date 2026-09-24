@@ -117,8 +117,7 @@ int sharedUnreadCount({
 }) {
   return events
       .where(
-        (event) =>
-            event.actorId != identityId && event.at > lastReadAt,
+        (event) => event.actorId != identityId && event.at > lastReadAt,
       )
       .length;
 }

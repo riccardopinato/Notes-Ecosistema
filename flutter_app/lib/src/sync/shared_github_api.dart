@@ -64,8 +64,7 @@ class SharedGitHubApi {
       request.write(jsonEncode(body));
     }
 
-    final response =
-        await request.close().timeout(const Duration(seconds: 20));
+    final response = await request.close().timeout(const Duration(seconds: 20));
     final bytes = <int>[];
     await for (final chunk in response) {
       if (bytes.length + chunk.length > limit) {
@@ -120,9 +119,9 @@ class SharedGitHubApi {
     await head();
     return decoded['private'] == true;
   }
+
   Future<String> head() async {
-    final branch =
-        config.branch.split('/').map(Uri.encodeComponent).join('/');
+    final branch = config.branch.split('/').map(Uri.encodeComponent).join('/');
     final decoded = jsonDecode(
       await _request('GET', '$_root/git/ref/heads/$branch'),
     );
@@ -497,8 +496,7 @@ class SharedGitHubApi {
     }
     final bytes = Uint8List.fromList(
       base64Decode(
-        (decoded['content']?.toString() ?? '')
-            .replaceAll(RegExp(r'\s'), ''),
+        (decoded['content']?.toString() ?? '').replaceAll(RegExp(r'\s'), ''),
       ),
     );
     if (bytes.length != info.size) {

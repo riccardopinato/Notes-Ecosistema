@@ -80,7 +80,8 @@ void main() {
 
     expect(index.planned['2026-09-23']?.single.id, 'p');
     expect(index.unplanned.single.id, 'u');
-    expect(PlannerPro.timeBlocks(index, DateTime(2026, 9, 23)).single.minutes, 60);
+    expect(
+        PlannerPro.timeBlocks(index, DateTime(2026, 9, 23)).single.minutes, 60);
   });
 
   test('Planner detects overlapping time blocks', () {

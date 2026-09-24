@@ -91,8 +91,8 @@ class _NotesScreenState extends State<NotesScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _error =
-            e.toString().replaceFirst('FormatException: ', ''));
+        setState(
+            () => _error = e.toString().replaceFirst('FormatException: ', ''));
       }
     }
   }
@@ -131,8 +131,8 @@ class _NotesScreenState extends State<NotesScreen> {
       await action();
     } catch (e) {
       if (mounted) {
-        setState(() => _error =
-            e.toString().replaceFirst('FormatException: ', ''));
+        setState(
+            () => _error = e.toString().replaceFirst('FormatException: ', ''));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -197,7 +197,9 @@ class _NotesScreenState extends State<NotesScreen> {
                     'Checklist',
                     'Disegni',
                     'Lavagne'
-                  ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                  ]
+                      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                      .toList(),
                   onChanged: (v) => local(() => kind = v ?? 'Tutte'),
                 ),
                 const SizedBox(height: 10),
@@ -301,8 +303,8 @@ class _NotesScreenState extends State<NotesScreen> {
         _options = result.options;
       });
     } catch (e) {
-      setState(() => _error =
-          e.toString().replaceFirst('FormatException: ', ''));
+      setState(
+          () => _error = e.toString().replaceFirst('FormatException: ', ''));
     }
   }
 
@@ -333,9 +335,7 @@ class _NotesScreenState extends State<NotesScreen> {
                   onSelected: (value) {
                     Navigator.pop(
                       context,
-                      value == 'rename'
-                          ? _RenameSearch(s)
-                          : _DeleteSearch(s),
+                      value == 'rename' ? _RenameSearch(s) : _DeleteSearch(s),
                     );
                   },
                   itemBuilder: (context) => const [
@@ -464,8 +464,7 @@ class _NotesScreenState extends State<NotesScreen> {
     } else if (choice is _DeleteSearch) {
       await _run(() async {
         setState(() {
-          _saved =
-              _saved.where((s) => s.id != choice.value.id).toList();
+          _saved = _saved.where((s) => s.id != choice.value.id).toList();
         });
         await _persistSaved();
       });
@@ -473,9 +472,8 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _bulk() async {
-    final rows = widget.notes
-        .where((note) => _selected.contains(note.id))
-        .toList();
+    final rows =
+        widget.notes.where((note) => _selected.contains(note.id)).toList();
     if (rows.isEmpty) return;
 
     final action = await showModalBottomSheet<BulkAction>(
@@ -847,13 +845,10 @@ class _NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final preview = note.isVisual
-        ? ''
-        : note.body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final preview =
+        note.isVisual ? '' : note.body.replaceAll(RegExp(r'\s+'), ' ').trim();
     return Card(
-      color: selected
-          ? Theme.of(context).colorScheme.primaryContainer
-          : null,
+      color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
       child: InkWell(
         onTap: selecting ? onSelect : onOpen,
         onLongPress: onSelect,
@@ -897,17 +892,13 @@ class _NoteCard extends StatelessWidget {
                         PopupMenuItem(
                           value: 'pin',
                           child: Text(
-                            note.pinned
-                                ? 'Non fissare più'
-                                : 'Fissa in alto',
+                            note.pinned ? 'Non fissare più' : 'Fissa in alto',
                           ),
                         ),
                         PopupMenuItem(
                           value: 'archive',
                           child: Text(
-                            note.archived
-                                ? 'Riporta nelle note'
-                                : 'Archivia',
+                            note.archived ? 'Riporta nelle note' : 'Archivia',
                           ),
                         ),
                         if (!note.isDeleted)

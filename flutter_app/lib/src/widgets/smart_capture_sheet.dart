@@ -342,8 +342,9 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
                         maxLength: SmartCaptureRules.maxUrlLength,
                       ),
                       FilledButton.icon(
-                        onPressed:
-                            _busy || _url.text.trim().isEmpty ? null : _captureWeb,
+                        onPressed: _busy || _url.text.trim().isEmpty
+                            ? null
+                            : _captureWeb,
                         icon: const Icon(Icons.download),
                         label: const Text('Salva contenuto'),
                       ),

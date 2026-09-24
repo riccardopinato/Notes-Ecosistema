@@ -14,7 +14,11 @@ final databaseProvider = Provider<LegacyNotesDatabase>((ref) {
 });
 
 class WorkspaceState {
-  const WorkspaceState({this.notes = const [], this.collections = const [], this.loading = true, this.error});
+  const WorkspaceState(
+      {this.notes = const [],
+      this.collections = const [],
+      this.loading = true,
+      this.error});
 
   final List<Note> notes;
   final List<NoteCollection> collections;
@@ -197,6 +201,7 @@ int _compareNotes(Note a, Note b) {
   return a.id.compareTo(b.id);
 }
 
-final workspaceProvider = StateNotifierProvider<WorkspaceController, WorkspaceState>((ref) {
+final workspaceProvider =
+    StateNotifierProvider<WorkspaceController, WorkspaceState>((ref) {
   return WorkspaceController(ref.watch(databaseProvider));
 });

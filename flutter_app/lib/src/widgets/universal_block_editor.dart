@@ -378,8 +378,7 @@ class _BlockCardState extends State<_BlockCard> {
                     enabled: widget.enabled,
                     onChanged: _textChanged,
                     style: Theme.of(context).textTheme.headlineSmall,
-                    decoration:
-                        const InputDecoration(hintText: 'Titolo…'),
+                    decoration: const InputDecoration(hintText: 'Titolo…'),
                     maxLines: null,
                   ),
                 ],
@@ -392,8 +391,7 @@ class _BlockCardState extends State<_BlockCard> {
                 minLines: 3,
                 maxLines: null,
                 style: const TextStyle(fontFamily: 'monospace'),
-                decoration:
-                    const InputDecoration(hintText: 'Codice…'),
+                decoration: const InputDecoration(hintText: 'Codice…'),
               )
             else if (block.type == ContentBlockType.quote ||
                 block.type == ContentBlockType.callout)
@@ -423,9 +421,7 @@ class _BlockCardState extends State<_BlockCard> {
             else if (block.type == ContentBlockType.drawing)
               _VisualBlock(
                 icon: Icons.draw,
-                title: block.text.trim().isEmpty
-                    ? 'Disegno'
-                    : block.text,
+                title: block.text.trim().isEmpty ? 'Disegno' : block.text,
                 linked: BlockEditorCodec.sketchId(block) != null,
                 linkedLabel: 'Sketchbook',
                 createLabel: 'Crea disegno',
@@ -439,9 +435,7 @@ class _BlockCardState extends State<_BlockCard> {
             else if (block.type == ContentBlockType.whiteboard)
               _VisualBlock(
                 icon: Icons.dashboard,
-                title: block.text.trim().isEmpty
-                    ? 'Lavagna'
-                    : block.text,
+                title: block.text.trim().isEmpty ? 'Lavagna' : block.text,
                 linked: BlockEditorCodec.whiteboardId(block) != null,
                 linkedLabel: 'Whiteboard',
                 createLabel: 'Crea lavagna',
@@ -478,8 +472,7 @@ class _BlockCardState extends State<_BlockCard> {
                     controller: _controller,
                     enabled: widget.enabled,
                     onChanged: _textChanged,
-                    minLines:
-                        block.type == ContentBlockType.markdown ? 2 : 1,
+                    minLines: block.type == ContentBlockType.markdown ? 2 : 1,
                     maxLines: null,
                     style: block.type == ContentBlockType.markdown
                         ? const TextStyle(fontFamily: 'monospace')
@@ -605,8 +598,7 @@ class _VisualBlock extends StatelessWidget {
               controller: controller,
               enabled: enabled,
               onChanged: onText,
-              decoration:
-                  const InputDecoration(labelText: 'Titolo'),
+              decoration: const InputDecoration(labelText: 'Titolo'),
             ),
             const SizedBox(height: 8),
             Align(

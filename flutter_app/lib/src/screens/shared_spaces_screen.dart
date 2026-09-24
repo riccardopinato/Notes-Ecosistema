@@ -32,12 +32,10 @@ class SharedSpacesScreen extends ConsumerStatefulWidget {
   final Future<void> Function() onImportBundle;
 
   @override
-  ConsumerState<SharedSpacesScreen> createState() =>
-      _SharedSpacesScreenState();
+  ConsumerState<SharedSpacesScreen> createState() => _SharedSpacesScreenState();
 }
 
-class _SharedSpacesScreenState
-    extends ConsumerState<SharedSpacesScreen> {
+class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
   String? _error;
 
   Future<void> _run(Future<void> Function() action) async {
@@ -89,9 +87,7 @@ class _SharedSpacesScreenState
     controller.dispose();
     if (value == null) return;
     await _run(
-      () => ref
-          .read(sharedSpacesProvider.notifier)
-          .setIdentityName(value),
+      () => ref.read(sharedSpacesProvider.notifier).setIdentityName(value),
     );
   }
 
@@ -190,8 +186,7 @@ class _SharedSpacesScreenState
     controller.dispose();
     if (code == null) return;
     await _run(() async {
-      final id =
-          await ref.read(sharedSpacesProvider.notifier).joinInvite(code);
+      final id = await ref.read(sharedSpacesProvider.notifier).joinInvite(code);
       if (!mounted) return;
       await _openSpace(id);
     });
@@ -240,13 +235,11 @@ class _SharedSpacesScreenState
           onEdit: _editIdentity,
         ),
         const SizedBox(height: 14),
-        if (_error != null)
-          _InlineError(message: _error!),
+        if (_error != null) _InlineError(message: _error!),
         if (shared.error != null)
           _InlineError(
-            message: shared.error
-                .toString()
-                .replaceFirst('FormatException: ', ''),
+            message:
+                shared.error.toString().replaceFirst('FormatException: ', ''),
           ),
         _PrivacyCard(
           onJoin: _joinSpace,
@@ -256,14 +249,10 @@ class _SharedSpacesScreenState
         _LiveSyncCard(
           state: live,
           onToggle: (value) => _run(
-            () => ref
-                .read(sharedLiveSyncProvider.notifier)
-                .setEnabled(value),
+            () => ref.read(sharedLiveSyncProvider.notifier).setEnabled(value),
           ),
           onSync: () => _run(
-            () => ref
-                .read(sharedLiveSyncProvider.notifier)
-                .syncNow(),
+            () => ref.read(sharedLiveSyncProvider.notifier).syncNow(),
           ),
           onNotifications: () async {
             final allowed = await ReminderBridge.requestPermission();
@@ -290,9 +279,8 @@ class _SharedSpacesScreenState
             ),
             if (totalUnread > 0)
               TextButton.icon(
-                onPressed: () => ref
-                    .read(sharedLiveSyncProvider.notifier)
-                    .markAllRead(),
+                onPressed: () =>
+                    ref.read(sharedLiveSyncProvider.notifier).markAllRead(),
                 icon: const Icon(Icons.done_all),
                 label: Text('Letti · $totalUnread'),
               ),
@@ -464,8 +452,7 @@ class _SharedSpaceDetailScreenState
                       : Icons.radio_button_unchecked,
                 ),
                 title: const Text('Può modificare'),
-                onTap: () =>
-                    setDialogState(() => role = SharedRole.editor),
+                onTap: () => setDialogState(() => role = SharedRole.editor),
               ),
               ListTile(
                 leading: Icon(
@@ -474,8 +461,7 @@ class _SharedSpaceDetailScreenState
                       : Icons.radio_button_unchecked,
                 ),
                 title: const Text('Solo lettura'),
-                onTap: () =>
-                    setDialogState(() => role = SharedRole.viewer),
+                onTap: () => setDialogState(() => role = SharedRole.viewer),
               ),
             ],
           ),
@@ -591,9 +577,7 @@ class _SharedSpaceDetailScreenState
     );
     if (confirmed != true) return;
     await _run(
-      () => ref
-          .read(sharedSpacesProvider.notifier)
-          .forgetSpace(space.id),
+      () => ref.read(sharedSpacesProvider.notifier).forgetSpace(space.id),
     );
     if (mounted) Navigator.pop(context);
   }
@@ -640,9 +624,7 @@ class _SharedSpaceDetailScreenState
     if (unread > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          ref
-              .read(sharedLiveSyncProvider.notifier)
-              .markSpaceRead(space.id);
+          ref.read(sharedLiveSyncProvider.notifier).markSpaceRead(space.id);
         }
       });
     }
@@ -702,9 +684,7 @@ class _SharedSpaceDetailScreenState
             summary: live.spaceSummaries[space.id],
             lastSyncAt: live.lastSyncAt,
             onSync: () => _run(
-              () => ref
-                  .read(sharedLiveSyncProvider.notifier)
-                  .syncNow(),
+              () => ref.read(sharedLiveSyncProvider.notifier).syncNow(),
             ),
           ),
           if (activity.isNotEmpty) ...[
@@ -1047,9 +1027,7 @@ class _LiveSyncCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    state.busy
-                        ? 'Sincronizzazione in corso…'
-                        : state.message,
+                    state.busy ? 'Sincronizzazione in corso…' : state.message,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -1158,8 +1136,7 @@ class _LiveSyncCard extends StatelessWidget {
   }
 }
 
-IconData _connectionIcon(SharedLiveConnectionStatus status) =>
-    switch (status) {
+IconData _connectionIcon(SharedLiveConnectionStatus status) => switch (status) {
       SharedLiveConnectionStatus.idle => Icons.cloud_off_outlined,
       SharedLiveConnectionStatus.online => Icons.cloud_done_outlined,
       SharedLiveConnectionStatus.offline => Icons.cloud_off_outlined,
@@ -1344,9 +1321,8 @@ class _ActivityFeedCard extends StatelessWidget {
                       : null,
                 ),
                 subtitle: Text(_formatActivityTime(event.at)),
-                trailing: isUnread
-                    ? const Icon(Icons.fiber_new, size: 18)
-                    : null,
+                trailing:
+                    isUnread ? const Icon(Icons.fiber_new, size: 18) : null,
               );
             }),
           ],

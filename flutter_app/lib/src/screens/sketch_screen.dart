@@ -92,9 +92,8 @@ class _SketchScreenState extends State<SketchScreen> {
           ? null
           : VisualInfo.decode(widget.note.sketchJson!);
       final next = widget.note.copyWith(
-        title: _title.text.trim().isEmpty
-            ? 'Nuovo disegno'
-            : _title.text.trim(),
+        title:
+            _title.text.trim().isEmpty ? 'Nuovo disegno' : _title.text.trim(),
         body: SketchCodec.encode(_document),
         sketchJson: VisualInfo(
           linkedNoteId: oldInfo?.linkedNoteId,
@@ -115,8 +114,8 @@ class _SketchScreenState extends State<SketchScreen> {
   }
 
   Future<Uint8List> _renderPng() async {
-    final boundary = _exportKey.currentContext?.findRenderObject()
-        as RenderRepaintBoundary?;
+    final boundary =
+        _exportKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) {
       throw const FormatException('Disegno non ancora pronto per export.');
     }
@@ -166,9 +165,8 @@ class _SketchScreenState extends State<SketchScreen> {
   Future<void> _sharePng() async {
     try {
       final bytes = await _renderPng();
-      final title = _title.text.trim().isEmpty
-          ? 'Disegno Notes'
-          : _title.text.trim();
+      final title =
+          _title.text.trim().isEmpty ? 'Disegno Notes' : _title.text.trim();
       await VisualShareBridge.sharePng(bytes, title: title);
     } catch (error) {
       if (!mounted) return;
@@ -270,8 +268,7 @@ class _SketchScreenState extends State<SketchScreen> {
 
   void _panStart(DragStartDetails details) {
     final point = _point(details.localPosition);
-    if (_tool == _SketchTool.pen ||
-        _tool == _SketchTool.highlighter) {
+    if (_tool == _SketchTool.pen || _tool == _SketchTool.highlighter) {
       _workingPoints
         ..clear()
         ..add(point);
@@ -286,8 +283,7 @@ class _SketchScreenState extends State<SketchScreen> {
 
   void _panUpdate(DragUpdateDetails details) {
     final point = _point(details.localPosition);
-    if (_tool == _SketchTool.pen ||
-        _tool == _SketchTool.highlighter) {
+    if (_tool == _SketchTool.pen || _tool == _SketchTool.highlighter) {
       _workingPoints.add(point);
       setState(() {});
     } else if (_tool == _SketchTool.eraser) {
@@ -299,13 +295,10 @@ class _SketchScreenState extends State<SketchScreen> {
   }
 
   void _panEnd(DragEndDetails details) {
-    if ((_tool == _SketchTool.pen ||
-            _tool == _SketchTool.highlighter) &&
+    if ((_tool == _SketchTool.pen || _tool == _SketchTool.highlighter) &&
         _workingPoints.isNotEmpty) {
       final stroke = InkStroke(
-        color: _tool == _SketchTool.highlighter
-            ? 0x88FFD54F
-            : 0xFF111111,
+        color: _tool == _SketchTool.highlighter ? 0x88FFD54F : 0xFF111111,
         width: _tool == _SketchTool.highlighter ? 24 : 6,
         marker: _tool == _SketchTool.highlighter,
         points: [..._workingPoints],
@@ -419,8 +412,7 @@ class _SketchScreenState extends State<SketchScreen> {
     }).toList();
 
     final texts = _page.texts.where((text) {
-      return !((point.x - text.x).abs() < 220 &&
-          (point.y - text.y).abs() < 70);
+      return !((point.x - text.x).abs() < 220 && (point.y - text.y).abs() < 70);
     }).toList();
 
     _replacePage(
@@ -493,59 +485,59 @@ class _SketchScreenState extends State<SketchScreen> {
             ),
           if (!widget.readOnly)
             SizedBox(
-            height: 56,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              children: [
-                _toolButton(Icons.edit, 'Penna', _SketchTool.pen),
-                _toolButton(
-                  Icons.border_color,
-                  'Evidenziatore',
-                  _SketchTool.highlighter,
-                ),
-                _toolButton(
-                  Icons.auto_fix_normal,
-                  'Gomma',
-                  _SketchTool.eraser,
-                ),
-                _toolButton(Icons.show_chart, 'Linea', _SketchTool.line),
-                _toolButton(
-                  Icons.rectangle_outlined,
-                  'Rettangolo',
-                  _SketchTool.rectangle,
-                ),
-                _toolButton(
-                  Icons.circle_outlined,
-                  'Ellisse',
-                  _SketchTool.ellipse,
-                ),
-                _toolButton(
-                  Icons.arrow_forward,
-                  'Freccia',
-                  _SketchTool.arrow,
-                ),
-                _toolButton(Icons.text_fields, 'Testo', _SketchTool.text),
-                const VerticalDivider(),
-                PopupMenuButton<SketchPaper>(
-                  tooltip: 'Tipo carta',
-                  onSelected: _setPaper,
-                  itemBuilder: (_) => SketchPaper.values
-                      .map(
-                        (paper) => PopupMenuItem(
-                          value: paper,
-                          child: Text(_paperLabel(paper)),
-                        ),
-                      )
-                      .toList(),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Center(child: Icon(Icons.grid_on)),
+              height: 56,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                children: [
+                  _toolButton(Icons.edit, 'Penna', _SketchTool.pen),
+                  _toolButton(
+                    Icons.border_color,
+                    'Evidenziatore',
+                    _SketchTool.highlighter,
                   ),
-                ),
-              ],
+                  _toolButton(
+                    Icons.auto_fix_normal,
+                    'Gomma',
+                    _SketchTool.eraser,
+                  ),
+                  _toolButton(Icons.show_chart, 'Linea', _SketchTool.line),
+                  _toolButton(
+                    Icons.rectangle_outlined,
+                    'Rettangolo',
+                    _SketchTool.rectangle,
+                  ),
+                  _toolButton(
+                    Icons.circle_outlined,
+                    'Ellisse',
+                    _SketchTool.ellipse,
+                  ),
+                  _toolButton(
+                    Icons.arrow_forward,
+                    'Freccia',
+                    _SketchTool.arrow,
+                  ),
+                  _toolButton(Icons.text_fields, 'Testo', _SketchTool.text),
+                  const VerticalDivider(),
+                  PopupMenuButton<SketchPaper>(
+                    tooltip: 'Tipo carta',
+                    onSelected: _setPaper,
+                    itemBuilder: (_) => SketchPaper.values
+                        .map(
+                          (paper) => PopupMenuItem(
+                            value: paper,
+                            child: Text(_paperLabel(paper)),
+                          ),
+                        )
+                        .toList(),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Center(child: Icon(Icons.grid_on)),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           Expanded(
             child: ColoredBox(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -634,8 +626,7 @@ class _SketchScreenState extends State<SketchScreen> {
     _SketchTool tool,
   ) =>
       IconButton.filledTonal(
-        onPressed:
-            widget.readOnly ? null : () => setState(() => _tool = tool),
+        onPressed: widget.readOnly ? null : () => setState(() => _tool = tool),
         tooltip: tooltip,
         isSelected: _tool == tool,
         icon: Icon(icon),
@@ -699,8 +690,7 @@ class _SketchPainter extends CustomPainter {
     final linePaint = Paint()
       ..color = const Color(0x1A455A64)
       ..strokeWidth = 1;
-    if (page.paper == SketchPaper.ruled ||
-        page.paper == SketchPaper.cornell) {
+    if (page.paper == SketchPaper.ruled || page.paper == SketchPaper.cornell) {
       for (double y = 70; y < size.height; y += 70) {
         canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
       }

@@ -79,7 +79,9 @@ class Note {
     final tagsRaw = row['tagsJson']?.toString();
     if (tagsRaw != null && tagsRaw.isNotEmpty) {
       try {
-        tags = (jsonDecode(tagsRaw) as List).map((e) => e.toString()).toList(growable: false);
+        tags = (jsonDecode(tagsRaw) as List)
+            .map((e) => e.toString())
+            .toList(growable: false);
       } catch (_) {}
     }
     return Note(
@@ -158,6 +160,6 @@ class NoteCollection {
   final String id;
   final String name;
 
-  factory NoteCollection.fromMap(Map<String, Object?> row) =>
-      NoteCollection(id: row['id']! as String, name: row['name']?.toString() ?? '');
+  factory NoteCollection.fromMap(Map<String, Object?> row) => NoteCollection(
+      id: row['id']! as String, name: row['name']?.toString() ?? '');
 }

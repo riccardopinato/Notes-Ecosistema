@@ -54,7 +54,6 @@ SharedLiveDecision decideSharedLiveDocument({
   return SharedLiveDecision.conflict;
 }
 
-
 SharedActivityEvent sharedActivityEvent({
   required SharedIdentity actor,
   required String spaceId,
@@ -98,8 +97,7 @@ List<SharedActivityEvent> buildSharedStateActivity({
 
   final events = <SharedActivityEvent>[];
   final metadataAt = [
-    if (current.nameUpdatedAt > previous.nameUpdatedAt)
-      current.nameUpdatedAt,
+    if (current.nameUpdatedAt > previous.nameUpdatedAt) current.nameUpdatedAt,
     if (current.descriptionUpdatedAt > previous.descriptionUpdatedAt)
       current.descriptionUpdatedAt,
   ];
@@ -208,8 +206,7 @@ class SharedSpaceSyncSummary {
   final int purged;
   final int waiting;
 
-  bool get hasActivity =>
-      uploaded > 0 || downloaded > 0 || purged > 0;
+  bool get hasActivity => uploaded > 0 || downloaded > 0 || purged > 0;
 
   bool get hasAttention => conflicts > 0 || waiting > 0;
 
@@ -414,7 +411,6 @@ class SharedSpacesLiveSyncService {
       conflicts += result.conflicts;
       purged += result.purged;
       waiting += result.waiting;
-
     }
 
     return SharedLiveSyncResult(
@@ -480,8 +476,7 @@ class SharedSpacesLiveSyncService {
     try {
       final head = await api.head();
       final remoteState = await _readRemoteState(api, head);
-      if (remoteState == null &&
-          !canonicalLocalSpace.canEdit(identity.id)) {
+      if (remoteState == null && !canonicalLocalSpace.canEdit(identity.id)) {
         return _SpaceRun(
           space: canonicalLocalSpace,
           activity: const [],
@@ -547,9 +542,8 @@ class SharedSpacesLiveSyncService {
       for (final id in activeIds) {
         final filename = SyncCodec.filename(id);
         final remoteFile = byName[filename];
-        final remote = remoteFile == null
-            ? null
-            : await api.readNote(remoteFile, head);
+        final remote =
+            remoteFile == null ? null : await api.readNote(remoteFile, head);
         final local = await database.syncDocument(id);
 
         if (remote != null && remote.id != id) {

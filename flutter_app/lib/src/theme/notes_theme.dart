@@ -67,13 +67,19 @@ abstract final class NotesTheme {
       primaryContainer: primaryContainer,
       onPrimaryContainer: onPrimaryContainer,
       secondary: secondary,
-      onSecondary: brightness == Brightness.light ? Colors.white : const Color(0xFF3A2C23),
+      onSecondary: brightness == Brightness.light
+          ? Colors.white
+          : const Color(0xFF3A2C23),
       secondaryContainer: secondaryContainer,
       onSecondaryContainer: onSecondaryContainer,
       tertiary: primary,
       onTertiary: onPrimary,
-      error: brightness == Brightness.light ? const Color(0xFFBA1A1A) : const Color(0xFFFFB4AB),
-      onError: brightness == Brightness.light ? Colors.white : const Color(0xFF690005),
+      error: brightness == Brightness.light
+          ? const Color(0xFFBA1A1A)
+          : const Color(0xFFFFB4AB),
+      onError: brightness == Brightness.light
+          ? Colors.white
+          : const Color(0xFF690005),
       surface: surface,
       onSurface: onSurface,
       surfaceContainer: surfaceContainer,
@@ -98,19 +104,39 @@ abstract final class NotesTheme {
       cardColor: surface,
       dividerColor: outlineVariant,
       textTheme: base.textTheme.copyWith(
-        displayMedium: const TextStyle(fontFamily: 'serif', fontWeight: FontWeight.w500, fontSize: 48, height: 56 / 48),
-        headlineLarge: const TextStyle(fontFamily: 'serif', fontWeight: FontWeight.w500, fontSize: 36, height: 42 / 36),
-        headlineMedium: const TextStyle(fontFamily: 'serif', fontWeight: FontWeight.w500, fontSize: 30, height: 36 / 30),
-        headlineSmall: const TextStyle(fontFamily: 'serif', fontWeight: FontWeight.w500, fontSize: 25, height: 32 / 25),
-        titleLarge: const TextStyle(fontWeight: FontWeight.w600, fontSize: 22, height: 28 / 22),
-        titleMedium: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18, height: 25 / 18),
+        displayMedium: const TextStyle(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.w500,
+            fontSize: 48,
+            height: 56 / 48),
+        headlineLarge: const TextStyle(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.w500,
+            fontSize: 36,
+            height: 42 / 36),
+        headlineMedium: const TextStyle(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.w500,
+            fontSize: 30,
+            height: 36 / 30),
+        headlineSmall: const TextStyle(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.w500,
+            fontSize: 25,
+            height: 32 / 25),
+        titleLarge: const TextStyle(
+            fontWeight: FontWeight.w600, fontSize: 22, height: 28 / 22),
+        titleMedium: const TextStyle(
+            fontWeight: FontWeight.w600, fontSize: 18, height: 25 / 18),
         bodyLarge: const TextStyle(fontSize: 17, height: 27 / 17),
         bodyMedium: const TextStyle(fontSize: 15, height: 23 / 15),
       ),
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: outlineVariant)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: outlineVariant)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
@@ -118,12 +144,18 @@ abstract final class NotesTheme {
         indicatorColor: primaryContainer,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
-            color: states.contains(WidgetState.selected) ? primary : onSurfaceVariant,
+            color: states.contains(WidgetState.selected)
+                ? primary
+                : onSurfaceVariant,
             fontSize: 12,
           ),
         ),
       ),
-      appBarTheme: AppBarTheme(backgroundColor: scaffold, foregroundColor: onSurface, elevation: 0, surfaceTintColor: Colors.transparent),
+      appBarTheme: AppBarTheme(
+          backgroundColor: scaffold,
+          foregroundColor: onSurface,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primary,
         foregroundColor: onPrimary,
@@ -133,7 +165,9 @@ abstract final class NotesTheme {
         filled: true,
         fillColor: surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: outlineVariant)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(color: outlineVariant)),
       ),
     );
   }

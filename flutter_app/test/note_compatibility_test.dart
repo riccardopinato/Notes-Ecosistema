@@ -43,7 +43,11 @@ void main() {
       'taskJson': null,
     };
 
-    expect(Note.fromMap({...base, 'sketchJson': '{"kind":"WHITEBOARD"}'}).visualKind, VisualDocumentKind.whiteboard);
-    expect(Note.fromMap({...base, 'sketchJson': '{"version":2}'}).visualKind, VisualDocumentKind.sketch);
+    expect(
+        Note.fromMap({...base, 'sketchJson': '{"kind":"WHITEBOARD"}'})
+            .visualKind,
+        VisualDocumentKind.whiteboard);
+    expect(Note.fromMap({...base, 'sketchJson': '{"version":2}'}).visualKind,
+        VisualDocumentKind.sketch);
   });
 }

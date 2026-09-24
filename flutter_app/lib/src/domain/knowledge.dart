@@ -68,9 +68,7 @@ abstract final class Knowledge {
 
   static List<NoteLink> links(String text) {
     final regex = RegExp(
-      r'(?<!!)\[((?:\\.|[^\]\r\n])*)\]\(notes://note/(' +
-          _uuid +
-          r')\)',
+      r'(?<!!)\[((?:\\.|[^\]\r\n])*)\]\(notes://note/(' + _uuid + r')\)',
     );
     final visible = _visible(text);
     return regex
@@ -145,8 +143,9 @@ abstract final class Knowledge {
     for (final raw in text.split('\n')) {
       final line = raw.replaceFirst(RegExp(r'\r'), '');
       final match = fence.firstMatch(line);
-      var hidden =
-          fenceChar.isNotEmpty || line.startsWith('    ') || line.startsWith('\t');
+      var hidden = fenceChar.isNotEmpty ||
+          line.startsWith('    ') ||
+          line.startsWith('\t');
 
       if (match != null) {
         final token = match.group(1)!;

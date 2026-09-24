@@ -144,9 +144,8 @@ void main() {
           pinned: false,
           archived: false,
           tags: const [],
-          taskJson: TaskDetails.empty()
-              .copyWith(linkedNoteId: sourceNote)
-              .encode(),
+          taskJson:
+              TaskDetails.empty().copyWith(linkedNoteId: sourceNote).encode(),
         ),
       ],
       collections: const [
