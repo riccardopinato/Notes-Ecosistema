@@ -6,7 +6,7 @@ import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../widgets/editorial.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({
     required this.notes,
     required this.collections,
@@ -29,12 +29,25 @@ class HomeScreen extends StatelessWidget {
   final ValueChanged<String> onCollection;
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late final Future<FocusClock?> _focus;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus = _activeFocus();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final active = notes.where((n) => !n.isDeleted && !n.archived && !n.isTask).length;
-    final pending = notes.where((n) => !n.isDeleted && n.isTask && !n.taskCompleted).length;
+    final active = widget.notes.where((n) => !n.isDeleted && !n.archived && !n.isTask).length;
+    final pending = widget.notes.where((n) => !n.isDeleted && n.isTask && !n.taskCompleted).length;
     final todayKey = DateFormat('yyyy-MM-dd').format(now);
-    final agenda = notes.where((n) {
+    final agenda = widget.notes.where((n) {
       if (n.isDeleted || !n.isTask || n.taskCompleted) return false;
       final due = n.taskDue;
       return due != null && due.compareTo(todayKey) <= 0;
@@ -47,35 +60,35 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text('Oggi, nel tuo spazio.', style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 16),
-        _AgendaCard(agenda: agenda, onOpen: onAgenda),
+        _AgendaCard(agenda: agenda, onOpen: widget.onAgenda),
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _Metric(count: active, label: 'Pagine salvate', onTap: onNotes)),
+            Expanded(child: _Metric(count: active, label: 'Pagine salvate', onTap: widget.onNotes)),
             const SizedBox(width: 12),
-            Expanded(child: _Metric(count: pending, label: 'Attività da fare', onTap: onTasks)),
+            Expanded(child: _Metric(count: pending, label: 'Attività da fare', onTap: widget.onTasks)),
           ],
         ),
         const SizedBox(height: 16),
-        _NotebookCard(onCreate: onCreate, onSketch: onSketch),
+        _NotebookCard(onCreate: widget.onCreate, onSketch: widget.onSketch),
         const SizedBox(height: 16),
         FutureBuilder<FocusClock?>(
-          future: _activeFocus(),
+          future: _focus,
           builder: (context, snapshot) => _FocusCard(
-            onTap: onTasks,
+            onTap: widget.onTasks,
             active: snapshot.data != null,
           ),
         ),
-        if (collections.isNotEmpty) ...[
+        if (widget.collections.isNotEmpty) ...[
           const SizedBox(height: 8),
           const EditorialSection('Le tue raccolte'),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: collections.map((c) => ActionChip(
+            children: widget.collections.map((c) => ActionChip(
               avatar: const Icon(Icons.folder, size: 18),
               label: Text(c.name),
-              onPressed: () => onCollection(c.id),
+              onPressed: () => widget.onCollection(c.id),
             )).toList(),
           ),
         ],
