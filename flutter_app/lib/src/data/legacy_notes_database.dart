@@ -510,21 +510,27 @@ class LegacyNotesDatabase {
     final planned = planBulkEdit(expected, change, now);
     final db = await database;
     return db.transaction((txn) async {
-      for (var index = 0; index < expected.length; index++) {
-        final before = expected[index];
-        final current = await txn.query(
-          'notes',
-          where: 'id = ?',
-          whereArgs: [before.id],
-          limit: 1,
+      final ids = expected.map((note) => note.id).toList(growable: false);
+      final placeholders = List.filled(ids.length, '?').join(',');
+      final currentRows = await txn.query(
+        'notes',
+        where: 'id IN ($placeholders)',
+        whereArgs: ids,
+      );
+      final currentById = <String, Note>{
+        for (final row in currentRows)
+          if (row['id'] != null) row['id'].toString(): Note.fromMap(row),
+      };
+      if (currentById.length != expected.length) {
+        throw const FormatException(
+          'Una nota non è più disponibile. Aggiorna la selezione.',
         );
-        if (current.isEmpty) {
-          throw const FormatException(
-            'Una nota non è più disponibile. Aggiorna la selezione.',
-          );
-        }
-        final actual = Note.fromMap(current.first);
-        if (actual.updatedAt != before.updatedAt ||
+      }
+
+      for (final before in expected) {
+        final actual = currentById[before.id];
+        if (actual == null ||
+            actual.updatedAt != before.updatedAt ||
             actual.deletedAt != before.deletedAt ||
             actual.collectionId != before.collectionId ||
             actual.tags.toString() != before.tags.toString()) {
@@ -532,14 +538,19 @@ class LegacyNotesDatabase {
             'Una nota è cambiata. Aggiorna la selezione e riprova.',
           );
         }
-        await txn.update(
+      }
+
+      final batch = txn.batch();
+      for (var index = 0; index < expected.length; index++) {
+        batch.update(
           'notes',
           planned[index].toMap(),
           where: 'id = ?',
-          whereArgs: [before.id],
+          whereArgs: [expected[index].id],
           conflictAlgorithm: ConflictAlgorithm.abort,
         );
       }
+      await batch.commit(noResult: true);
       return planned.length;
     });
   }
