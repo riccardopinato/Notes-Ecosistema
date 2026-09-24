@@ -129,6 +129,9 @@ abstract final class SharedActivityCodec {
   static const maxBytes = 1024 * 1024;
 
   static String encode(Map<String, List<SharedActivityEvent>> bySpace) {
+    if (bySpace.length > 30) {
+      throw const FormatException('Troppi spazi nella cache attività Shared.');
+    }
     final normalized = <String, Object?>{};
     for (final entry in bySpace.entries) {
       final spaceId = _requiredActivityId(entry.key, 'spazio');
@@ -165,22 +168,30 @@ abstract final class SharedActivityCodec {
         decoded['spaces'] is! Map) {
       throw const FormatException('Cache attività Shared non valida.');
     }
+    final spaces = decoded['spaces'] as Map;
+    if (spaces.length > 30) {
+      throw const FormatException('Troppi spazi nella cache attività Shared.');
+    }
     final result = <String, List<SharedActivityEvent>>{};
-    for (final entry in (decoded['spaces'] as Map).entries) {
+    for (final entry in spaces.entries) {
       final spaceId = _requiredActivityId(entry.key, 'spazio');
       final rows = entry.value;
       if (rows is! List || rows.length > sharedActivityLimit) {
         throw const FormatException('Cronologia Shared non valida.');
       }
-      final events = rows
-          .map(
-            (value) => SharedActivityEvent.fromJson(
-              (value as Map).map(
-                (key, value) => MapEntry(key.toString(), value),
-              ),
+      final events = <SharedActivityEvent>[];
+      for (final value in rows) {
+        if (value is! Map) {
+          throw const FormatException('Evento Shared non valido.');
+        }
+        events.add(
+          SharedActivityEvent.fromJson(
+            value.map(
+              (key, value) => MapEntry(key.toString(), value),
             ),
-          )
-          .toList(growable: false);
+          ),
+        );
+      }
       result[spaceId] = mergeSharedActivity(const [], events);
     }
     return result;
