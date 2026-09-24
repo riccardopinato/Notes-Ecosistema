@@ -77,6 +77,26 @@ void main() {
     );
   });
 
+  test('activity cache rejects malformed event rows', () {
+    expect(
+      () => SharedActivityCodec.decode(
+        '{"format":"notes-shared-activity-cache","version":1,'
+        '"spaces":{"space-1":["bad"]}}',
+      ),
+      throwsFormatException,
+    );
+  });
+
+  test('activity cache caps the number of spaces', () {
+    final values = <String, List<SharedActivityEvent>>{
+      for (var i = 0; i < 31; i++) 'space-$i': const [],
+    };
+    expect(
+      () => SharedActivityCodec.encode(values),
+      throwsFormatException,
+    );
+  });
+
   test('state activity detects metadata, sharing and members', () {
     final base = SharedSpaces.create(
       owner: actor,
