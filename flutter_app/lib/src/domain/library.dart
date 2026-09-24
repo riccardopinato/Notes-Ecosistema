@@ -86,7 +86,12 @@ List<Note> searchNotes(
       if (!matches) return false;
     }
 
-    final checklist = Checklist.parse(note.body);
+    final needsChecklist =
+        options.tasks != TaskPresence.any ||
+        kind == 'Testo' ||
+        kind == 'Checklist';
+    final checklist =
+        needsChecklist ? Checklist.parse(note.body) : const <ChecklistItem>[];
     switch (options.tasks) {
       case TaskPresence.any:
         break;
