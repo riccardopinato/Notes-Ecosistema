@@ -83,6 +83,67 @@ void main() {
     expect(decideSync(base, local, remote), SyncDecision.conflict);
   });
 
+  test('concurrent local edits are preserved before remote overwrite', () {
+    const expected = SyncDocument(
+      id: 'n',
+      title: 'Prima',
+      body: 'A',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 2,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const current = SyncDocument(
+      id: 'n',
+      title: 'Modifica durante sync',
+      body: 'B',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 4,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const remote = SyncDocument(
+      id: 'n',
+      title: 'Remota',
+      body: 'C',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 3,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+
+    expect(
+      shouldPreserveConcurrentLocal(
+        expectedLocal: expected,
+        currentLocal: current,
+        remote: remote,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldPreserveConcurrentLocal(
+        expectedLocal: expected,
+        currentLocal: expected,
+        remote: remote,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldPreserveConcurrentLocal(
+        expectedLocal: expected,
+        currentLocal: remote,
+        remote: remote,
+      ),
+      isFalse,
+    );
+  });
+
   test('SyncDocument can be built from legacy Note', () {
     const note = Note(
       id: 'n',
