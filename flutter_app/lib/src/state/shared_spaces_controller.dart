@@ -333,11 +333,31 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     }
     final ordered = [...spaces]
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final identity = _identity;
+    final currentRaw = SharedSpacesCodec.encode(
+      SharedSpacesSnapshot(
+        identity: identity,
+        spaces: state.spaces,
+      ),
+    );
+    final nextRaw = SharedSpacesCodec.encode(
+      SharedSpacesSnapshot(
+        identity: identity,
+        spaces: ordered,
+      ),
+    );
+    if (currentRaw == nextRaw) {
+      if (state.error != null) {
+        state = state.copyWith(clearError: true);
+      }
+      return;
+    }
     state = state.copyWith(
       spaces: ordered,
       clearError: true,
     );
-    await _persist();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, nextRaw);
   }
 
   Future<void> forgetSpace(String spaceId) async {
