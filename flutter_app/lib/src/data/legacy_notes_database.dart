@@ -371,6 +371,15 @@ class LegacyNotesDatabase {
     );
   }
 
+  Future<Set<String>> syncDocumentIds() async {
+    final db = await database;
+    final rows = await db.query('notes', columns: ['id']);
+    return rows
+        .map((row) => row['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
   Future<Map<String, SyncDocument>> syncDocuments() async {
     final notes = await loadNotes();
     final collections = await loadCollections();
