@@ -94,7 +94,8 @@ class WorkspaceShell extends ConsumerStatefulWidget {
   ConsumerState<WorkspaceShell> createState() => _WorkspaceShellState();
 }
 
-class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
+class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
+    with WidgetsBindingObserver {
   int _index = 0;
   String _query = '';
   String? _libraryCollectionId;
@@ -106,12 +107,27 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       QuickCaptureBridge.initialize(_handleIncomingCapture);
       QuickSyncBridge.initialize(_handleQuickSync);
       SharedBackgroundBridge.initialize(_handleSharedBackgroundSpace);
       ReminderActionBridge.initialize(_handleReminderAction);
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    unawaited(
+      ref.read(sharedLiveSyncProvider.notifier).syncOnForeground(),
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _handleSharedBackgroundSpace(String spaceId) async {
