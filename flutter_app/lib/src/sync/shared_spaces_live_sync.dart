@@ -321,8 +321,9 @@ class SharedSpacesLiveSyncService {
   static const _remoteStateLimit = 1024 * 1024;
 
   Future<SharedLiveSyncResult> run(
-    SharedSpacesSnapshot snapshot,
-  ) async {
+    SharedSpacesSnapshot snapshot, {
+    bool discoverRemote = true,
+  }) async {
     SharedSpaces.validateIdentity(snapshot.identity);
     if (snapshot.spaces.length > SharedSpaces.maxSpaces) {
       throw const FormatException('Troppi Shared Spaces.');
@@ -338,7 +339,7 @@ class SharedSpacesLiveSyncService {
     final rootApi = SharedGitHubApi(root);
     final discoveredRemoteSpaces = <SharedSpace>[];
     try {
-      final private = await rootApi.verifyPrivateWritable();
+      final private = await rootApi.verifyPrivateWritable(checkHead: false);
       if (!private) {
         throw const FormatException(
           'Shared Spaces Live Sync richiede un repository GitHub privato.',
@@ -346,24 +347,26 @@ class SharedSpacesLiveSyncService {
       }
 
       final head = await rootApi.head();
-      final folders = await rootApi.listSharedSpaceFolders(head);
-      for (final folder in folders) {
-        final discoveredConfig = GitHubConfig(
-          owner: root.owner,
-          repo: root.repo,
-          branch: root.branch,
-          folder: folder,
-          token: root.token,
-          allowPublic: false,
-        );
-        final discoveredApi = SharedGitHubApi(discoveredConfig);
-        try {
-          final state = await _readRemoteState(discoveredApi, head);
-          if (state != null) {
-            discoveredRemoteSpaces.add(state.space);
+      if (discoverRemote) {
+        final folders = await rootApi.listSharedSpaceFolders(head);
+        for (final folder in folders) {
+          final discoveredConfig = GitHubConfig(
+            owner: root.owner,
+            repo: root.repo,
+            branch: root.branch,
+            folder: folder,
+            token: root.token,
+            allowPublic: false,
+          );
+          final discoveredApi = SharedGitHubApi(discoveredConfig);
+          try {
+            final state = await _readRemoteState(discoveredApi, head);
+            if (state != null) {
+              discoveredRemoteSpaces.add(state.space);
+            }
+          } finally {
+            discoveredApi.close();
           }
-        } finally {
-          discoveredApi.close();
         }
       }
     } finally {
