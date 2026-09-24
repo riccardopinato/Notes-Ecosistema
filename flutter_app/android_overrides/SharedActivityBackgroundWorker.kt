@@ -251,11 +251,19 @@ class SharedActivityBackgroundWorker(
                             .ifBlank { "Shared Space" },
                         events = events,
                     )
-                    native.edit().putLong(seenKey, latestAt).apply()
                 }
+                native.edit().putLong(seenKey, latestAt).apply()
             }
 
             markSuccess(native)
+            Result.success()
+        } catch (error: PermanentBackgroundFailure) {
+            native.edit()
+                .putString(
+                    "last_error",
+                    error.message?.take(500) ?: "Configurazione background non valida.",
+                )
+                .apply()
             Result.success()
         } catch (error: Exception) {
             native.edit()
@@ -463,8 +471,17 @@ class SharedActivityBackgroundWorker(
             val status = connection.responseCode
             if (allowNotFound && status == 404) return null
             if (status !in 200..299) {
-                if (status == 401 || status == 403) {
-                    error("Accesso GitHub non valido o non autorizzato.")
+                if (status in 400..499 &&
+                    status != 408 &&
+                    status != 429
+                ) {
+                    throw PermanentBackgroundFailure(
+                        if (status == 401 || status == 403) {
+                            "Accesso GitHub non valido o non autorizzato."
+                        } else {
+                            "GitHub background sync HTTP $status."
+                        },
+                    )
                 }
                 error("GitHub background sync HTTP $status.")
             }
@@ -520,3 +537,8 @@ class SharedActivityBackgroundWorker(
         ).toString(Charsets.UTF_8)
     }
 }
+
+
+private class PermanentBackgroundFailure(
+    message: String,
+) : Exception(message)
