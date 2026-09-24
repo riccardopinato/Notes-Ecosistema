@@ -1119,9 +1119,13 @@ class _LiveSyncCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.notifications_active_outlined, size: 18),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Android controlla gli aggiornamenti in background circa ogni 15 minuti.',
+                      state.backgroundLastCheckAt == null
+                          ? 'Background Android pianificato ogni '
+                              '${state.backgroundIntervalMinutes} minuti.'
+                          : 'Background: ultimo controllo '
+                              '${_formatCompactSyncTime(state.backgroundLastCheckAt!)}.',
                     ),
                   ),
                   TextButton(
@@ -1130,6 +1134,22 @@ class _LiveSyncCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (state.backgroundLastSuccessAt != null)
+                Text(
+                  'Ultimo controllo riuscito: '
+                  '${_formatCompactSyncTime(state.backgroundLastSuccessAt!)}',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              if (state.backgroundError != null &&
+                  state.backgroundError!.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Background: ${state.backgroundError}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
             ],
           ],
         ),
