@@ -95,59 +95,71 @@ def main():
         raise RuntimeError(f"APK not found: {apk}")
 
     adb("wait-for-device")
-    adb("install", "-r", str(apk))
-    adb("shell", "pm", "clear", PACKAGE)
-    adb("logcat", "-c")
+    try:
+        adb("install", "-r", str(apk))
+        adb("shell", "pm", "clear", PACKAGE)
+        adb("logcat", "-c")
 
-    launch = adb(
-        "shell",
-        "am",
-        "start",
-        "-W",
-        "-n",
-        f"{PACKAGE}/{ACTIVITY}",
-    )
-    (out / "launch.txt").write_text(launch, encoding="utf-8")
-    time.sleep(4)
+        launch = adb(
+            "shell",
+            "am",
+            "start",
+            "-W",
+            "-n",
+            f"{PACKAGE}/{ACTIVITY}",
+        )
+        (out / "launch.txt").write_text(launch, encoding="utf-8")
+        time.sleep(4)
 
-    pid = adb("shell", "pidof", PACKAGE).strip()
-    if not pid:
-        raise RuntimeError("Notes process is not running after launch.")
+        pid = adb("shell", "pidof", PACKAGE).strip()
+        if not pid:
+            raise RuntimeError("Notes process is not running after launch.")
 
-    # Home boot + primary navigation.
-    assert_text("Oggi, nel tuo spazio.")
-    assert_text("Crea")
-    tap_text("Spazi")
-    assert_text("I tuoi spazi")
-    tap_text("Home")
-    assert_text("Oggi, nel tuo spazio.")
+        # Home boot + primary navigation.
+        assert_text("Oggi, nel tuo spazio.")
+        assert_text("Crea")
+        tap_text("Spazi")
+        assert_text("I tuoi spazi")
+        tap_text("Home")
+        assert_text("Oggi, nel tuo spazio.")
 
-    # Real functional persistence path: create and save one note.
-    tap_text("Crea")
-    tap_text("Nuova nota")
-    assert_text("La tua pagina")
-    tap_text("Titolo")
-    adb("shell", "input", "text", "SmokeTest032")
-    tap_text("Comincia da un pensiero…")
-    adb("shell", "input", "text", "ReleaseSmokeBody")
-    tap_text("Salva")
-    assert_text("Oggi, nel tuo spazio.")
+        # Real functional persistence path: create and save one note.
+        tap_text("Crea")
+        tap_text("Nuova nota")
+        assert_text("La tua pagina")
+        tap_text("Titolo")
+        adb("shell", "input", "text", "SmokeTest032")
+        tap_text("Comincia da un pensiero…")
+        adb("shell", "input", "text", "ReleaseSmokeBody")
+        tap_text("Salva")
+        assert_text("Oggi, nel tuo spazio.")
 
-    tap_text("Note")
-    assert_text("SmokeTest032")
-    screenshot(out / "notes-smoke.png")
+        tap_text("Note")
+        assert_text("SmokeTest032")
 
-    ui = adb("shell", "cat", "/sdcard/window.xml", check=False)
-    (out / "last-window.xml").write_text(ui, encoding="utf-8")
+        if not adb("shell", "pidof", PACKAGE).strip():
+            raise RuntimeError("Notes process died during smoke test.")
+    finally:
+        try:
+            screenshot(out / "notes-smoke.png")
+        except Exception as error:
+            (out / "screenshot-error.txt").write_text(str(error), encoding="utf-8")
+        try:
+            adb("shell", "uiautomator", "dump", "/sdcard/window.xml", check=False)
+            ui = adb("shell", "cat", "/sdcard/window.xml", check=False)
+            (out / "last-window.xml").write_text(ui, encoding="utf-8")
+        except Exception as error:
+            (out / "ui-error.txt").write_text(str(error), encoding="utf-8")
+        try:
+            logcat = adb("logcat", "-d", "-v", "threadtime", check=False)
+            (out / "logcat.txt").write_text(logcat, encoding="utf-8")
+        except Exception as error:
+            logcat = ""
+            (out / "logcat-error.txt").write_text(str(error), encoding="utf-8")
 
-    logcat = adb("logcat", "-d", "-v", "threadtime")
-    (out / "logcat.txt").write_text(logcat, encoding="utf-8")
     for pattern in CRASH_PATTERNS:
         if re.search(pattern, logcat, flags=re.IGNORECASE):
             raise RuntimeError(f"Crash/ANR signature found in logcat: {pattern}")
-
-    if not adb("shell", "pidof", PACKAGE).strip():
-        raise RuntimeError("Notes process died during smoke test.")
 
     print("Android release smoke test passed.")
 
