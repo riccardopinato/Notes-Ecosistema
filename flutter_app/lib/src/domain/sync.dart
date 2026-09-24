@@ -118,6 +118,13 @@ SyncDecision decideSync(
   return SyncDecision.conflict;
 }
 
+bool shouldPreserveConcurrentLocal({
+  required SyncDocument? expectedLocal,
+  required SyncDocument? currentLocal,
+  required SyncDocument? remote,
+}) =>
+    currentLocal != expectedLocal && currentLocal != remote;
+
 abstract final class SyncCodec {
   static const maxBytes = 256 * 1024;
 
