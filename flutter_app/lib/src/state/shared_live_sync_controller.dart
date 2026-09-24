@@ -161,10 +161,14 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   static const _normalInterval = Duration(seconds: 90);
   static const _busyRetry = Duration(seconds: 10);
   static const _foregroundMinInterval = Duration(seconds: 30);
+  static const _identityVerificationInterval = Duration(minutes: 10);
+  static const _remoteDiscoveryInterval = Duration(minutes: 5);
 
   final Ref ref;
   Timer? _timer;
   int _failureStreak = 0;
+  int? _lastIdentityVerificationAt;
+  int? _lastRemoteDiscoveryAt;
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -231,12 +235,16 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     }
   }
 
-  Future<void> _persistActivity() async {
+  Future<void> _persistActivityCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       _activityKey,
       SharedActivityCodec.encode(state.activitiesBySpace),
     );
+  }
+
+  Future<void> _persistReadState() async {
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_readKey, jsonEncode(state.lastReadAt));
   }
 
@@ -275,7 +283,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         spaceId: latest,
       },
     );
-    await _persistActivity();
+    await _persistReadState();
   }
 
   Future<void> markAllRead() async {
@@ -286,7 +294,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
           entry.value.map((event) => event.at).reduce((a, b) => a > b ? a : b);
     }
     state = state.copyWith(lastReadAt: next);
-    await _persistActivity();
+    await _persistReadState();
   }
 
   Future<void> setEnabled(bool enabled) async {
@@ -344,13 +352,26 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     await syncNow(silent: true);
   }
 
-  Future<SharedIdentity> _ensureGitHubIdentity() async {
+  Future<SharedIdentity> _ensureGitHubIdentity({
+    required bool force,
+  }) async {
     final shared = ref.read(sharedSpacesProvider);
-    if (shared.loading || shared.identity == null) {
+    final current = shared.identity;
+    if (shared.loading || current == null) {
       throw const FormatException(
         'Profilo collaborazione non ancora disponibile.',
       );
     }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final lastVerified = _lastIdentityVerificationAt;
+    if (!force &&
+        current.githubBound &&
+        lastVerified != null &&
+        now - lastVerified < _identityVerificationInterval.inMilliseconds) {
+      return current;
+    }
+
     final database = ref.read(databaseProvider);
     final config = await GitHubSyncService(database).config();
     if (config == null) {
@@ -366,6 +387,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
             userId: account.id,
             login: account.login,
           );
+      _lastIdentityVerificationAt = now;
     } finally {
       api.close();
     }
@@ -398,7 +420,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     );
 
     try {
-      final identity = await _ensureGitHubIdentity();
+      final identity = await _ensureGitHubIdentity(force: !silent);
       final shared = ref.read(sharedSpacesProvider);
 
       state = state.copyWith(
@@ -409,12 +431,21 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
 
       final database = ref.read(databaseProvider);
       final service = SharedSpacesLiveSyncService(database);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final lastDiscovery = _lastRemoteDiscoveryAt;
+      final discoverRemote = !silent ||
+          lastDiscovery == null ||
+          now - lastDiscovery >= _remoteDiscoveryInterval.inMilliseconds;
       final result = await service.run(
         SharedSpacesSnapshot(
           identity: identity,
           spaces: shared.spaces,
         ),
+        discoverRemote: discoverRemote,
       );
+      if (discoverRemote) {
+        _lastRemoteDiscoveryAt = DateTime.now().millisecondsSinceEpoch;
+      }
 
       final current = ref.read(sharedSpacesProvider).spaces;
       final currentById = {
@@ -442,15 +473,19 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       await ref.read(workspaceProvider.notifier).refresh();
 
       final accessibleIds = merged.map((space) => space.id).toSet();
+      var activityChanged = state.activitiesBySpace.keys
+          .any((spaceId) => !accessibleIds.contains(spaceId));
       final activity = <String, List<SharedActivityEvent>>{
         for (final entry in state.activitiesBySpace.entries)
           if (accessibleIds.contains(entry.key)) entry.key: entry.value,
       };
       for (final entry in result.activitiesBySpace.entries) {
-        activity[entry.key] = mergeSharedActivity(
-          activity[entry.key] ?? const [],
-          entry.value,
-        );
+        final previous = activity[entry.key] ?? const [];
+        final next = mergeSharedActivity(previous, entry.value);
+        if (!_sameActivity(previous, next)) {
+          activityChanged = true;
+        }
+        activity[entry.key] = next;
       }
 
       if (!mounted) return;
@@ -470,7 +505,9 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         clearNextRetry: true,
         clearError: true,
       );
-      await _persistActivity();
+      if (activityChanged) {
+        await _persistActivityCache();
+      }
       if (state.enabled) _schedule(_normalInterval);
     } catch (error) {
       if (!mounted) return;
@@ -508,6 +545,17 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       return;
     }
     await syncNow(silent: true);
+  }
+
+  bool _sameActivity(
+    List<SharedActivityEvent> left,
+    List<SharedActivityEvent> right,
+  ) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      if (left[index].id != right[index].id) return false;
+    }
+    return true;
   }
 
   Future<void> syncSoon() async {
