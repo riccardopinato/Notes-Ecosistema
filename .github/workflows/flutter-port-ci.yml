@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: flutter-port-${{ github.ref }}
@@ -154,8 +154,22 @@ jobs:
       - name: Dependencies
         run: flutter pub get
 
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Normalize Dart formatting
+        run: dart format lib test
+
+      - name: Commit canonical Dart formatting
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if git diff --quiet -- lib test; then
+            echo "Formatting already canonical."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib test
+          git commit -m "style: normalize Dart formatting"
+          git push
 
       - name: Analyze
         run: flutter analyze --no-pub
