@@ -839,13 +839,17 @@ class SharedSpacesLiveSyncService {
         if (item is! Map) {
           throw const FormatException('Cronologia Shared remota non valida.');
         }
-        activity.add(
-          SharedActivityEvent.fromJson(
-            item.map(
-              (key, value) => MapEntry(key.toString(), value),
-            ),
+        final event = SharedActivityEvent.fromJson(
+          item.map(
+            (key, value) => MapEntry(key.toString(), value),
           ),
         );
+        if (event.spaceId != space.id) {
+          throw const FormatException(
+            'Evento Shared associato allo spazio remoto errato.',
+          );
+        }
+        activity.add(event);
       }
     }
     return _SpaceRemoteState(
