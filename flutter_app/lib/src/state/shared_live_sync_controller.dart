@@ -470,7 +470,9 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       }
 
       await ref.read(sharedSpacesProvider.notifier).applyLiveSync(merged);
-      await ref.read(workspaceProvider.notifier).refresh();
+      if (result.downloaded > 0 || result.conflicts > 0) {
+        await ref.read(workspaceProvider.notifier).refresh();
+      }
 
       final accessibleIds = merged.map((space) => space.id).toSet();
       var activityChanged = state.activitiesBySpace.keys
