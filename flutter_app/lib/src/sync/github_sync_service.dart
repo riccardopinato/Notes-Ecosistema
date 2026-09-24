@@ -578,7 +578,7 @@ class GitHubSyncService {
         );
       }
 
-      final local = await database.syncDocuments();
+      final localIds = await database.syncDocumentIds();
       final records = await _loadRecords(current);
       final head = await api.head();
       final files = await api.listNotes(head);
@@ -596,7 +596,7 @@ class GitHubSyncService {
 
       final attachmentStore = await AttachmentStore.open();
       final ids = <String>{
-        ...local.keys,
+        ...localIds,
         ...remote.keys,
         ...records.keys,
       };
