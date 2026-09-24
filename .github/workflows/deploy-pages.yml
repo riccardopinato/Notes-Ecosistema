@@ -15,8 +15,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: notes-pages-${{ github.ref }}
@@ -66,7 +64,11 @@ jobs:
     # Set repository variable ENABLE_PAGES=true after Pages is enabled in GitHub.
     if: github.event_name != 'pull_request' && vars.ENABLE_PAGES == 'true'
     needs: build-web
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
