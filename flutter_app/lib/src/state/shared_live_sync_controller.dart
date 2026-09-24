@@ -68,6 +68,10 @@ class SharedLiveSyncState {
     this.spaceSummaries = const {},
     this.activitiesBySpace = const {},
     this.lastReadAt = const {},
+    this.backgroundLastCheckAt,
+    this.backgroundLastSuccessAt,
+    this.backgroundIntervalMinutes = 15,
+    this.backgroundError,
     this.error,
   });
 
@@ -82,6 +86,10 @@ class SharedLiveSyncState {
   final Map<String, SharedSpaceSyncSummary> spaceSummaries;
   final Map<String, List<SharedActivityEvent>> activitiesBySpace;
   final Map<String, int> lastReadAt;
+  final int? backgroundLastCheckAt;
+  final int? backgroundLastSuccessAt;
+  final int backgroundIntervalMinutes;
+  final String? backgroundError;
   final Object? error;
 
   int unreadFor(String spaceId, String identityId) => sharedUnreadCount(
@@ -111,6 +119,11 @@ class SharedLiveSyncState {
     Map<String, SharedSpaceSyncSummary>? spaceSummaries,
     Map<String, List<SharedActivityEvent>>? activitiesBySpace,
     Map<String, int>? lastReadAt,
+    int? backgroundLastCheckAt,
+    int? backgroundLastSuccessAt,
+    int? backgroundIntervalMinutes,
+    String? backgroundError,
+    bool clearBackgroundError = false,
     Object? error,
     bool clearError = false,
   }) =>
@@ -127,6 +140,15 @@ class SharedLiveSyncState {
         spaceSummaries: spaceSummaries ?? this.spaceSummaries,
         activitiesBySpace: activitiesBySpace ?? this.activitiesBySpace,
         lastReadAt: lastReadAt ?? this.lastReadAt,
+        backgroundLastCheckAt:
+            backgroundLastCheckAt ?? this.backgroundLastCheckAt,
+        backgroundLastSuccessAt:
+            backgroundLastSuccessAt ?? this.backgroundLastSuccessAt,
+        backgroundIntervalMinutes:
+            backgroundIntervalMinutes ?? this.backgroundIntervalMinutes,
+        backgroundError: clearBackgroundError
+            ? null
+            : backgroundError ?? this.backgroundError,
         error: clearError ? null : error ?? this.error,
       );
 }
@@ -190,8 +212,28 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       clearError: true,
       clearNextRetry: true,
     );
+    unawaited(refreshBackgroundStatus());
     if (enabled) {
       unawaited(syncNow(silent: true));
+    }
+  }
+
+  Future<void> refreshBackgroundStatus() async {
+    try {
+      final background = await SharedBackgroundBridge.status();
+      if (!mounted) return;
+      state = state.copyWith(
+        backgroundLastCheckAt:
+            background.lastCheckAt > 0 ? background.lastCheckAt : null,
+        backgroundLastSuccessAt:
+            background.lastSuccessAt > 0 ? background.lastSuccessAt : null,
+        backgroundIntervalMinutes: background.intervalMinutes,
+        backgroundError: background.lastError,
+        clearBackgroundError:
+            background.lastError == null || background.lastError!.trim().isEmpty,
+      );
+    } catch (_) {
+      // Native background diagnostics are optional outside Android.
     }
   }
 
@@ -280,6 +322,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       clearNextRetry: true,
     );
 
+    await refreshBackgroundStatus();
     if (enabled) {
       await syncNow();
     }
@@ -466,6 +509,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   }
 
   Future<void> syncOnForeground() async {
+    unawaited(refreshBackgroundStatus());
     if (!state.enabled || state.busy) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final nextRetryAt = state.nextRetryAt;
