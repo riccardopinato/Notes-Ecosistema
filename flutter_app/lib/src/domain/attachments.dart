@@ -167,7 +167,9 @@ class AttachmentStore {
     if (!await root.exists()) {
       await root.create(recursive: true);
     }
-    return AttachmentStore._(root);
+    final store = AttachmentStore._(root);
+    await store._cleanupStaleTemps();
+    return store;
   }
 
   File file(String key) {
@@ -228,8 +230,14 @@ class AttachmentStore {
         'incoming-${DateTime.now().microsecondsSinceEpoch}.tmp',
       ),
     );
-    await temp.writeAsBytes(bytes, flush: true);
-    await temp.rename(target.path);
+    try {
+      await temp.writeAsBytes(bytes, flush: true);
+      await temp.rename(target.path);
+    } finally {
+      if (await temp.exists()) {
+        await temp.delete();
+      }
+    }
   }
 
   Future<Uint8List> read(String key) async {
@@ -242,7 +250,25 @@ class AttachmentStore {
     return bytes;
   }
 
+  Future<void> _cleanupStaleTemps() async {
+    final cutoff = DateTime.now().subtract(const Duration(hours: 1));
+    await for (final entity in root.list()) {
+      if (entity is! File) continue;
+      final name = p.basename(entity.path);
+      if (!name.startsWith('incoming-') || !name.endsWith('.tmp')) continue;
+      try {
+        final modified = (await entity.stat()).modified;
+        if (modified.isBefore(cutoff)) {
+          await entity.delete();
+        }
+      } catch (_) {
+        // Best-effort cleanup: attachment access must not fail for stale temps.
+      }
+    }
+  }
+
   Future<({int files, int bytes})> cleanup(Set<String> referenced) async {
+    await _cleanupStaleTemps();
     var files = 0;
     var bytes = 0;
     await for (final entity in root.list()) {
