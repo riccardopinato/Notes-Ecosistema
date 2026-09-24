@@ -157,6 +157,13 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     required String userId,
     required String login,
   }) async {
+    final current = _identity;
+    final canonicalId = SharedSpaces.githubIdentityId(userId);
+    if (current.id == canonicalId &&
+        current.githubUserId == userId &&
+        current.githubLogin == login) {
+      return;
+    }
     final snapshot = SharedSpaces.bindGitHubIdentity(
       SharedSpacesSnapshot(
         identity: _identity,
