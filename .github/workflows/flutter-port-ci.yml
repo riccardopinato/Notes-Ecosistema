@@ -2,18 +2,18 @@ name: Flutter Port CI
 
 on:
   push:
-    branches: [ "main", "flutter-port" ]
+    branches: [ "main" ]
     paths:
       - "flutter_app/**"
       - ".github/workflows/flutter-port-ci.yml"
   pull_request:
-    branches: [ "main", "flutter-port" ]
+    branches: [ "main" ]
     paths:
       - "flutter_app/**"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: flutter-port-${{ github.ref }}
@@ -21,8 +21,12 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      NOTES_RELEASE_STORE_PASSWORD: ${{ secrets.NOTES_ANDROID_STORE_PASSWORD }}
+      NOTES_RELEASE_KEY_ALIAS: ${{ secrets.NOTES_ANDROID_KEY_ALIAS }}
+      NOTES_RELEASE_KEY_PASSWORD: ${{ secrets.NOTES_ANDROID_KEY_PASSWORD }}
     defaults:
       run:
         working-directory: flutter_app
@@ -30,11 +34,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Flutter stable
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter 3.47.5
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.47.5"
           channel: stable
           cache: true
+
+      - name: Toolchain fingerprint
+        shell: bash
+        run: |
+          flutter --version
+          java -version
+          python3 --version
+
+      - name: Configure persistent release signing
+        shell: bash
+        env:
+          NOTES_ANDROID_KEYSTORE_BASE64: ${{ secrets.NOTES_ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$NOTES_ANDROID_KEYSTORE_BASE64" || {
+            echo "::error::Missing NOTES_ANDROID_KEYSTORE_BASE64 repository secret."
+            exit 1
+          }
+          test -n "$NOTES_RELEASE_STORE_PASSWORD" || {
+            echo "::error::Missing NOTES_ANDROID_STORE_PASSWORD repository secret."
+            exit 1
+          }
+          test -n "$NOTES_RELEASE_KEY_ALIAS" || {
+            echo "::error::Missing NOTES_ANDROID_KEY_ALIAS repository secret."
+            exit 1
+          }
+          test -n "$NOTES_RELEASE_KEY_PASSWORD" || {
+            echo "::error::Missing NOTES_ANDROID_KEY_PASSWORD repository secret."
+            exit 1
+          }
+          KEYSTORE="$RUNNER_TEMP/notes-ecosistema-release.jks"
+          printf '%s' "$NOTES_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          echo "NOTES_RELEASE_KEYSTORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
 
       - name: Generate Android platform shell
         shell: bash
@@ -52,7 +96,7 @@ jobs:
           if 'androidx.work:work-runtime:2.11.2' not in s:
               s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n}\n'
           if 'proguard-rules.pro' not in s:
-              s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
+              s += '\n\nandroid {\n    signingConfigs {\n        create("release") {\n            storeFile = file(System.getenv("NOTES_RELEASE_KEYSTORE_FILE"))\n            storePassword = System.getenv("NOTES_RELEASE_STORE_PASSWORD")\n            keyAlias = System.getenv("NOTES_RELEASE_KEY_ALIAS")\n            keyPassword = System.getenv("NOTES_RELEASE_KEY_PASSWORD")\n        }\n    }\n    buildTypes {\n        getByName("release") {\n            signingConfig = signingConfigs.getByName("release")\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -163,17 +207,6 @@ jobs:
       - name: Tests
         run: flutter test --no-pub
 
-      - name: Build debug APK
-        run: flutter build apk --debug --no-pub
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Notes-Ecosistema-Flutter-debug
-          path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Read app version
         id: app_version
         shell: bash
@@ -187,6 +220,14 @@ jobs:
           flutter build apk --release --split-per-abi --no-pub
           --obfuscate --split-debug-info=build/symbols
 
+      - name: Verify release signature
+        shell: bash
+        run: |
+          APK="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee build/release-signature.txt
+          grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" build/release-signature.txt
+
       - name: APK size report and regression gate
         shell: bash
         run: |
@@ -199,11 +240,48 @@ jobs:
           echo "arm64 bytes: $BYTES / budget: $LIMIT"
           test "$BYTES" -le "$LIMIT"
 
-      - name: Upload release APKs
+      - name: Enable KVM for Android smoke test
+        shell: bash
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Android release install, functional smoke, UI and crash gate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: >
+            python3 flutter_app/tool/android_release_smoke.py
+            --apk flutter_app/build/app/outputs/flutter-apk/app-x86_64-release.apk
+            --out flutter_app/build/smoke
+
+      - name: Upload Android smoke evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-release-split
-          path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-android-smoke
+          path: flutter_app/build/smoke
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Prepare single ARM64 release APK
+        shell: bash
+        run: |
+          mkdir -p build/release
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk             "build/release/Notes-Ecosistema-${{ steps.app_version.outputs.version }}-arm64-v8a.apk"
+
+      - name: Upload ARM64 release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-arm64-release
+          path: flutter_app/build/release/Notes-Ecosistema-${{ steps.app_version.outputs.version }}-arm64-v8a.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -214,3 +292,17 @@ jobs:
           path: flutter_app/build/symbols
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish direct APK asset on GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.app_version.outputs.version }}"
+          TAG="v$VERSION"
+          APK="build/release/Notes-Ecosistema-$VERSION-arm64-v8a.apk"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG"               --title "Notes Ecosistema $VERSION"               --notes "Release Android ARM64 verificata da CI, smoke test emulatore, logcat e size gate."
+          fi
+          gh release upload "$TAG" "$APK" --clobber
