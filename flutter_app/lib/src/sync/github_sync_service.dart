@@ -608,7 +608,7 @@ class GitHubSyncService {
       };
 
       for (final id in ids) {
-        final localDocument = local[id];
+        final localDocument = await database.syncDocument(id);
         final remoteDocument = remote[id];
         final previous = records[id];
 
@@ -638,6 +638,20 @@ class GitHubSyncService {
             attachmentStore,
             head,
           );
+          final concurrent = await _concurrentLocalEdit(
+            expectedLocal: localDocument,
+            remote: remoteDocument,
+          );
+          if (concurrent != null) {
+            records[id] = GitHubSyncRecord(
+              base: previous?.base,
+              sha: remoteSha[id],
+              conflict: true,
+              local: concurrent,
+              remote: remoteDocument,
+            );
+            continue;
+          }
           await database.applySyncDocument(remoteDocument);
           records[id] = GitHubSyncRecord(
             base: remoteDocument,
@@ -681,6 +695,20 @@ class GitHubSyncService {
               attachmentStore,
               head,
             );
+            final concurrent = await _concurrentLocalEdit(
+              expectedLocal: localDocument,
+              remote: remoteDocument,
+            );
+            if (concurrent != null) {
+              records[id] = GitHubSyncRecord(
+                base: previous?.base,
+                sha: remoteSha[id],
+                conflict: true,
+                local: concurrent,
+                remote: remoteDocument,
+              );
+              break;
+            }
             await database.applySyncDocument(remoteDocument);
             records[id] = GitHubSyncRecord(
               base: remoteDocument,
@@ -688,11 +716,13 @@ class GitHubSyncService {
             );
             break;
           case SyncDecision.conflict:
+            final currentLocal =
+                await database.syncDocument(id) ?? localDocument;
             records[id] = GitHubSyncRecord(
               base: previous?.base,
               sha: remoteSha[id],
               conflict: true,
-              local: localDocument,
+              local: currentLocal,
               remote: remoteDocument,
             );
             break;
@@ -756,6 +786,20 @@ class GitHubSyncService {
     );
     await _saveRecords(current, records);
     await run();
+  }
+
+  Future<SyncDocument?> _concurrentLocalEdit({
+    required SyncDocument? expectedLocal,
+    required SyncDocument remote,
+  }) async {
+    final currentLocal = await database.syncDocument(remote.id);
+    return shouldPreserveConcurrentLocal(
+      expectedLocal: expectedLocal,
+      currentLocal: currentLocal,
+      remote: remote,
+    )
+        ? currentLocal
+        : null;
   }
 
   Future<void> _publishAssets(
