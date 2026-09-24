@@ -172,6 +172,19 @@ class SharedActivityBackgroundWorker(
                 return Result.failure()
             }
 
+            val repository = requestJson(
+                token = token,
+                url = "https://api.github.com/repos/$owner/$repo",
+            ) as? JSONObject ?: return Result.retry()
+            val permissions = repository.optJSONObject("permissions")
+            if (!repository.optBoolean("private", false) ||
+                permissions?.optBoolean("push", false) != true
+            ) {
+                throw PermanentBackgroundFailure(
+                    "Shared Spaces richiede un repository GitHub privato e scrivibile.",
+                )
+            }
+
             val ref = URLEncoder.encode(branch, Charsets.UTF_8.name())
             val base = "https://api.github.com/repos/$owner/$repo/contents"
             val sharedPath = folder
