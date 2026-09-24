@@ -105,7 +105,7 @@ class SharedGitHubApi {
     return SharedGitHubAccount(id: id, login: login);
   }
 
-  Future<bool> verifyPrivateWritable() async {
+  Future<bool> verifyPrivateWritable({bool checkHead = true}) async {
     final decoded = jsonDecode(await _request('GET', _root));
     if (decoded is! Map) {
       throw const FormatException('Repository GitHub non valido.');
@@ -116,7 +116,7 @@ class SharedGitHubApi {
         'Shared Live Sync richiede accesso Contents: Read and write.',
       );
     }
-    await head();
+    if (checkHead) await head();
     return decoded['private'] == true;
   }
 
