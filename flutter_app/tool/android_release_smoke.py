@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+import argparse
+import pathlib
+import re
+import subprocess
+import time
+import xml.etree.ElementTree as ET
+
+PACKAGE = "it.notes.ecosystem.lymlyc"
+ACTIVITY = "it.notes.ecosystem.notes_ecosistema.MainActivity"
+CRASH_PATTERNS = (
+    "FATAL EXCEPTION",
+    f"ANR in {PACKAGE}",
+    f"Process: {PACKAGE}",
+    f"am_crash.*{PACKAGE}",
+)
+
+def run(*args, check=True, capture=True):
+    result = subprocess.run(
+        list(args),
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.STDOUT if capture else None,
+    )
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed ({result.returncode}): {' '.join(args)}\n"
+            f"{result.stdout or ''}"
+        )
+    return result.stdout or ""
+
+def adb(*args, check=True):
+    return run("adb", *args, check=check)
+
+def dump_ui():
+    adb("shell", "uiautomator", "dump", "/sdcard/window.xml")
+    raw = adb("shell", "cat", "/sdcard/window.xml")
+    return ET.fromstring(raw)
+
+def bounds_center(value):
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", value or "")
+    if not match:
+        raise RuntimeError(f"Invalid bounds: {value}")
+    x1, y1, x2, y2 = map(int, match.groups())
+    return (x1 + x2) // 2, (y1 + y2) // 2
+
+def find_node(text, timeout=20):
+    deadline = time.time() + timeout
+    last = []
+    while time.time() < deadline:
+        try:
+            root = dump_ui()
+            nodes = list(root.iter("node"))
+            last = [
+                (n.attrib.get("text", ""), n.attrib.get("content-desc", ""))
+                for n in nodes
+                if n.attrib.get("text") or n.attrib.get("content-desc")
+            ]
+            for node in nodes:
+                if node.attrib.get("text") == text or node.attrib.get("content-desc") == text:
+                    return node
+        except Exception:
+            pass
+        time.sleep(1)
+    raise RuntimeError(f"UI node not found: {text}. Visible sample: {last[:80]}")
+
+def tap_text(text, timeout=20):
+    node = find_node(text, timeout=timeout)
+    x, y = bounds_center(node.attrib.get("bounds", ""))
+    adb("shell", "input", "tap", str(x), str(y))
+    time.sleep(1)
+
+def assert_text(text, timeout=20):
+    find_node(text, timeout=timeout)
+
+def screenshot(path):
+    data = subprocess.run(
+        ["adb", "exec-out", "screencap", "-p"],
+        check=True,
+        stdout=subprocess.PIPE,
+    ).stdout
+    pathlib.Path(path).write_bytes(data)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--apk", required=True)
+    parser.add_argument("--out", default="build/smoke")
+    args = parser.parse_args()
+
+    out = pathlib.Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    apk = pathlib.Path(args.apk)
+    if not apk.is_file():
+        raise RuntimeError(f"APK not found: {apk}")
+
+    adb("wait-for-device")
+    adb("install", "-r", str(apk))
+    adb("shell", "pm", "clear", PACKAGE)
+    adb("logcat", "-c")
+
+    launch = adb(
+        "shell",
+        "am",
+        "start",
+        "-W",
+        "-n",
+        f"{PACKAGE}/{ACTIVITY}",
+    )
+    (out / "launch.txt").write_text(launch, encoding="utf-8")
+    time.sleep(4)
+
+    pid = adb("shell", "pidof", PACKAGE).strip()
+    if not pid:
+        raise RuntimeError("Notes process is not running after launch.")
+
+    # Home boot + primary navigation.
+    assert_text("Oggi, nel tuo spazio.")
+    assert_text("Crea")
+    tap_text("Spazi")
+    assert_text("I tuoi spazi")
+    tap_text("Home")
+    assert_text("Oggi, nel tuo spazio.")
+
+    # Real functional persistence path: create and save one note.
+    tap_text("Crea")
+    tap_text("Nuova nota")
+    assert_text("La tua pagina")
+    tap_text("Titolo")
+    adb("shell", "input", "text", "SmokeTest032")
+    tap_text("Comincia da un pensiero…")
+    adb("shell", "input", "text", "ReleaseSmokeBody")
+    tap_text("Salva")
+    assert_text("Oggi, nel tuo spazio.")
+
+    tap_text("Note")
+    assert_text("SmokeTest032")
+    screenshot(out / "notes-smoke.png")
+
+    ui = adb("shell", "cat", "/sdcard/window.xml", check=False)
+    (out / "last-window.xml").write_text(ui, encoding="utf-8")
+
+    logcat = adb("logcat", "-d", "-v", "threadtime")
+    (out / "logcat.txt").write_text(logcat, encoding="utf-8")
+    for pattern in CRASH_PATTERNS:
+        if re.search(pattern, logcat, flags=re.IGNORECASE):
+            raise RuntimeError(f"Crash/ANR signature found in logcat: {pattern}")
+
+    if not adb("shell", "pidof", PACKAGE).strip():
+        raise RuntimeError("Notes process died during smoke test.")
+
+    print("Android release smoke test passed.")
+
+if __name__ == "__main__":
+    main()
