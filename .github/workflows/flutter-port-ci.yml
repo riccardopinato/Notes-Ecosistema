@@ -52,7 +52,7 @@ jobs:
           if 'androidx.work:work-runtime:2.11.2' not in s:
               s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n}\n'
           if 'proguard-rules.pro' not in s:
-              s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
+              s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -155,16 +155,16 @@ jobs:
         run: flutter pub get
 
       - name: Format check
-        run: dart format lib test
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-pub
 
       - name: Tests
-        run: flutter test
+        run: flutter test --no-pub
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug --no-pub
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -174,18 +174,43 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Build release APKs per ABI
-        run: flutter build apk --release --split-per-abi
+      - name: Read app version
+        id: app_version
+        shell: bash
+        run: |
+          VERSION="$(awk '/^version:/{print $2; exit}' pubspec.yaml | cut -d+ -f1)"
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: APK size report
+      - name: Build release APKs per ABI
+        run: >
+          flutter build apk --release --split-per-abi --no-pub
+          --obfuscate --split-debug-info=build/symbols
+
+      - name: APK size report and regression gate
+        shell: bash
         run: |
           echo "APK prodotti:"
           du -h build/app/outputs/flutter-apk/*.apk | sort -h
+          ARM64="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+          test -f "$ARM64"
+          BYTES="$(stat -c%s "$ARM64")"
+          LIMIT="$((38 * 1024 * 1024))"
+          echo "arm64 bytes: $BYTES / budget: $LIMIT"
+          test "$BYTES" -le "$LIMIT"
 
       - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-0.30.0-release-split
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-release-split
           path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload obfuscation symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-symbols
+          path: flutter_app/build/symbols
+          if-no-files-found: error
+          retention-days: 30
