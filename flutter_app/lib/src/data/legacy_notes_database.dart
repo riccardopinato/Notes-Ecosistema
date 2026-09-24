@@ -103,6 +103,23 @@ class LegacyNotesDatabase {
     return rows.isEmpty ? null : Note.fromMap(rows.first);
   }
 
+  Future<SyncDocument?> syncDocument(String id) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT n.*, c.name AS syncCollectionName '
+      'FROM notes n '
+      'LEFT JOIN collections c ON c.id = n.collectionId '
+      'WHERE n.id = ? LIMIT 1',
+      [id],
+    );
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return SyncDocument.fromNote(
+      Note.fromMap(row),
+      row['syncCollectionName']?.toString(),
+    );
+  }
+
   Future<void> saveNote(Note note) async {
     final db = await database;
     await db.transaction((txn) async {
@@ -215,18 +232,20 @@ class LegacyNotesDatabase {
         );
       }
 
-      await txn.delete(
-        'content_blocks',
-        where: 'ownerType = ? AND ownerId = ?',
-        whereArgs: ['note', noteId],
-      );
+      final batch = txn.batch()
+        ..delete(
+          'content_blocks',
+          where: 'ownerType = ? AND ownerId = ?',
+          whereArgs: ['note', noteId],
+        );
       for (final block in normalized) {
-        await txn.insert(
+        batch.insert(
           'content_blocks',
           block.toMap(),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
+      await batch.commit(noResult: true);
     });
     return normalized;
   }
@@ -441,22 +460,23 @@ class LegacyNotesDatabase {
     );
 
     await db.transaction((txn) async {
+      final batch = txn.batch();
       for (final collection in plan.collections) {
-        await txn.insert(
+        batch.insert(
           'collections',
           {'id': collection.id, 'name': collection.name},
           conflictAlgorithm: ConflictAlgorithm.abort,
         );
       }
       for (final note in plan.notes) {
-        await txn.insert(
+        batch.insert(
           'notes',
           note.toMap(),
           conflictAlgorithm: ConflictAlgorithm.abort,
         );
       }
       for (final draft in plan.drafts) {
-        await txn.insert(
+        batch.insert(
           'drafts',
           {
             'id': draft.id,
@@ -469,6 +489,7 @@ class LegacyNotesDatabase {
           conflictAlgorithm: ConflictAlgorithm.abort,
         );
       }
+      await batch.commit(noResult: true);
     });
   }
 
