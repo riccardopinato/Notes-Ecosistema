@@ -146,7 +146,7 @@ class GitHubApi {
     return text;
   }
 
-  Future<bool> verify() async {
+  Future<bool> verify({bool checkHead = true}) async {
     final repo = jsonDecode(await _request('GET', _root));
     if (repo is! Map) {
       throw const FormatException('Risposta repository non valida.');
@@ -157,7 +157,7 @@ class GitHubApi {
         'Serve accesso Contents: Read and write al repository.',
       );
     }
-    await head();
+    if (checkHead) await head();
     return repo['private'] == true;
   }
 
@@ -571,7 +571,7 @@ class GitHubSyncService {
 
     final api = GitHubApi(current);
     try {
-      final private = await api.verify();
+      final private = await api.verify(checkHead: false);
       if (!private && !current.allowPublic) {
         throw const FormatException(
           'Il repository ora è pubblico. Sincronizzazione sospesa.',
