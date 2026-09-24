@@ -168,6 +168,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   Timer? _timer;
   int _failureStreak = 0;
   int? _lastIdentityVerificationAt;
+  int? _lastIdentityConfigFingerprint;
   int? _lastRemoteDiscoveryAt;
 
   Future<void> _load() async {
@@ -310,6 +311,9 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     _timer?.cancel();
     _timer = null;
     _failureStreak = 0;
+    _lastIdentityVerificationAt = null;
+    _lastIdentityConfigFingerprint = null;
+    _lastRemoteDiscoveryAt = null;
 
     state = state.copyWith(
       enabled: enabled,
@@ -363,21 +367,23 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       );
     }
 
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final lastVerified = _lastIdentityVerificationAt;
-    if (!force &&
-        current.githubBound &&
-        lastVerified != null &&
-        now - lastVerified < _identityVerificationInterval.inMilliseconds) {
-      return current;
-    }
-
     final database = ref.read(databaseProvider);
     final config = await GitHubSyncService(database).config();
     if (config == null) {
       throw const FormatException(
         'Collega prima GitHub Sync nelle Impostazioni.',
       );
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fingerprint = Object.hash(config.key, config.token);
+    final lastVerified = _lastIdentityVerificationAt;
+    if (!force &&
+        current.githubBound &&
+        lastVerified != null &&
+        _lastIdentityConfigFingerprint == fingerprint &&
+        now - lastVerified < _identityVerificationInterval.inMilliseconds) {
+      return current;
     }
 
     final api = SharedGitHubApi(config);
@@ -388,6 +394,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
             login: account.login,
           );
       _lastIdentityVerificationAt = now;
+      _lastIdentityConfigFingerprint = fingerprint;
     } finally {
       api.close();
     }
