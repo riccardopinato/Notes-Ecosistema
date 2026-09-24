@@ -379,12 +379,14 @@ abstract final class PlannerPro {
     final planned = <String, List<Note>>{};
     final due = <String, List<Note>>{};
     final unplanned = <Note>[];
+    final details = <String, TaskDetails>{};
 
     for (final note in notes) {
       final task = TaskDetails.tryDecode(note.taskJson);
       if (task == null || note.isDeleted || note.archived || task.completed) {
         continue;
       }
+      details[note.id] = task;
       if (task.plannedDate == null) {
         unplanned.add(note);
       } else {
@@ -396,8 +398,8 @@ abstract final class PlannerPro {
     }
 
     int comparePlanned(Note a, Note b) {
-      final ta = TaskDetails.tryDecode(a.taskJson)!;
-      final tb = TaskDetails.tryDecode(b.taskJson)!;
+      final ta = details[a.id]!;
+      final tb = details[b.id]!;
       final time = (ta.plannedTime ?? '99:99').compareTo(tb.plannedTime ?? '99:99');
       if (time != 0) return time;
       final priority = tb.priority.compareTo(ta.priority);
@@ -406,8 +408,8 @@ abstract final class PlannerPro {
     }
 
     int compareDue(Note a, Note b) {
-      final pa = TaskDetails.tryDecode(a.taskJson)?.priority ?? 0;
-      final pb = TaskDetails.tryDecode(b.taskJson)?.priority ?? 0;
+      final pa = details[a.id]?.priority ?? 0;
+      final pb = details[b.id]?.priority ?? 0;
       return pb.compareTo(pa);
     }
 
@@ -418,8 +420,8 @@ abstract final class PlannerPro {
       list.sort(compareDue);
     }
     unplanned.sort((a, b) {
-      final ta = TaskDetails.tryDecode(a.taskJson)!;
-      final tb = TaskDetails.tryDecode(b.taskJson)!;
+      final ta = details[a.id]!;
+      final tb = details[b.id]!;
       final dueCompare = (ta.due ?? '9999-12-31').compareTo(tb.due ?? '9999-12-31');
       if (dueCompare != 0) return dueCompare;
       final priority = tb.priority.compareTo(ta.priority);
@@ -436,29 +438,28 @@ abstract final class PlannerPro {
     DateTime today,
   ) {
     final todayKey = dateKey(today);
-    final result = notes.where((note) {
+    final result = <Note>[];
+    final details = <String, TaskDetails>{};
+    for (final note in notes) {
       final task = TaskDetails.tryDecode(note.taskJson);
-      if (task == null) return false;
-      if (note.isDeleted || note.archived) return false;
-      switch (scope) {
-        case PlannerScope.today:
-          final dueToday = task.due != null && task.due!.compareTo(todayKey) <= 0;
-          return !task.completed &&
-              (task.plannedDate == todayKey || dueToday);
-        case PlannerScope.upcoming:
-          return !task.completed &&
-              ((task.plannedDate?.compareTo(todayKey) ?? -1) > 0 ||
-                  (task.due?.compareTo(todayKey) ?? -1) > 0);
-        case PlannerScope.all:
-          return !task.completed;
-        case PlannerScope.completed:
-          return task.completed;
-      }
-    }).toList();
+      if (task == null || note.isDeleted || note.archived) continue;
+      details[note.id] = task;
+      final include = switch (scope) {
+        PlannerScope.today => !task.completed &&
+            (task.plannedDate == todayKey ||
+                (task.due != null && task.due!.compareTo(todayKey) <= 0)),
+        PlannerScope.upcoming => !task.completed &&
+            ((task.plannedDate?.compareTo(todayKey) ?? -1) > 0 ||
+                (task.due?.compareTo(todayKey) ?? -1) > 0),
+        PlannerScope.all => !task.completed,
+        PlannerScope.completed => task.completed,
+      };
+      if (include) result.add(note);
+    }
 
     result.sort((a, b) {
-      final ta = TaskDetails.tryDecode(a.taskJson)!;
-      final tb = TaskDetails.tryDecode(b.taskJson)!;
+      final ta = details[a.id]!;
+      final tb = details[b.id]!;
       final da = ta.plannedDate ?? ta.due ?? '9999-12-31';
       final db = tb.plannedDate ?? tb.due ?? '9999-12-31';
       final date = da.compareTo(db);
