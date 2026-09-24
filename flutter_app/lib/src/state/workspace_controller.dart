@@ -64,6 +64,10 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
 
   Future<void> save(Note note) async {
     await _database.saveNote(note);
+    await _upsertNote(note);
+  }
+
+  Future<void> _upsertNote(Note note) async {
     if (state.loading) {
       await refresh();
       return;
@@ -81,6 +85,15 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     );
   }
 
+  Future<void> _reloadNote(String id) async {
+    final note = await _database.loadNote(id);
+    if (note == null) {
+      await refresh();
+      return;
+    }
+    await _upsertNote(note);
+  }
+
   Future<String> createTemplate(TemplateContent content) async {
     final valid = PersonalTemplates.capture(
       content.title,
@@ -89,20 +102,19 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     );
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = const Uuid().v4();
-    await _database.saveNote(
-      Note(
-        id: id,
-        title: valid.title,
-        body: valid.body,
-        favorite: false,
-        createdAt: now,
-        updatedAt: now,
-        pinned: false,
-        archived: true,
-        tags: valid.tags,
-      ),
+    final note = Note(
+      id: id,
+      title: valid.title,
+      body: valid.body,
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: true,
+      tags: valid.tags,
     );
-    await refresh();
+    await _database.saveNote(note);
+    await _upsertNote(note);
     return id;
   }
 
@@ -150,28 +162,28 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     int nextAt,
   ) async {
     final changed = await _database.snoozeReminder(id, expectedAt, nextAt);
-    if (changed) await refresh();
+    if (changed) await _reloadNote(id);
     return changed;
   }
 
   Future<void> favorite(String id) async {
     await _database.toggleFavorite(id);
-    await refresh();
+    await _reloadNote(id);
   }
 
   Future<void> archive(String id, bool value) async {
     await _database.setArchived(id, value);
-    await refresh();
+    await _reloadNote(id);
   }
 
   Future<void> pin(String id, bool value) async {
     await _database.setPinned(id, value);
-    await refresh();
+    await _reloadNote(id);
   }
 
   Future<void> trash(String id) async {
     await _database.trash(id);
-    await refresh();
+    await _reloadNote(id);
   }
 }
 
