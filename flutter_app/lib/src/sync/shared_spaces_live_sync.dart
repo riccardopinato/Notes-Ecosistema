@@ -379,7 +379,6 @@ class SharedSpacesLiveSyncService {
       remoteSpaces: discoveredRemoteSpaces,
     );
 
-    final localDocuments = await database.syncDocuments();
     final resultSpaces = <SharedSpace>[];
     final spaceSummaries = <String, SharedSpaceSyncSummary>{};
     final activitiesBySpace = <String, List<SharedActivityEvent>>{};
@@ -399,7 +398,6 @@ class SharedSpacesLiveSyncService {
         root,
         snapshot.identity,
         localSpace,
-        localDocuments,
       );
       resultSpaces.add(result.space);
       spaceSummaries[result.space.id] = SharedSpaceSyncSummary(
@@ -417,13 +415,6 @@ class SharedSpacesLiveSyncService {
       purged += result.purged;
       waiting += result.waiting;
 
-      // Keep subsequent spaces consistent when a conflict copy or download
-      // changed the canonical local database.
-      if (result.downloaded > 0 || result.conflicts > 0) {
-        localDocuments
-          ..clear()
-          ..addAll(await database.syncDocuments());
-      }
     }
 
     return SharedLiveSyncResult(
@@ -442,7 +433,6 @@ class SharedSpacesLiveSyncService {
     GitHubConfig root,
     SharedIdentity identity,
     SharedSpace localSpace,
-    Map<String, SyncDocument> localDocuments,
   ) async {
     GitHubHttpFailure? lastConflict;
     for (var attempt = 0; attempt < 3; attempt++) {
@@ -451,14 +441,10 @@ class SharedSpacesLiveSyncService {
           root,
           identity,
           localSpace,
-          localDocuments,
         );
       } on GitHubHttpFailure catch (error) {
         if (error.status != 409 && error.status != 422) rethrow;
         lastConflict = error;
-        localDocuments
-          ..clear()
-          ..addAll(await database.syncDocuments());
         await Future<void>.delayed(
           Duration(milliseconds: 150 * (attempt + 1)),
         );
@@ -474,7 +460,6 @@ class SharedSpacesLiveSyncService {
     GitHubConfig root,
     SharedIdentity identity,
     SharedSpace localSpace,
-    Map<String, SyncDocument> localDocuments,
   ) async {
     final canonicalLocalSpace = SharedSpaces.canonicalizeIdentity(
       localSpace,
@@ -562,10 +547,10 @@ class SharedSpacesLiveSyncService {
       for (final id in activeIds) {
         final filename = SyncCodec.filename(id);
         final remoteFile = byName[filename];
-        final local = localDocuments[id];
         final remote = remoteFile == null
             ? null
             : await api.readNote(remoteFile, head);
+        final local = await database.syncDocument(id);
 
         if (remote != null && remote.id != id) {
           throw const FormatException(
@@ -598,6 +583,13 @@ class SharedSpacesLiveSyncService {
                   conflicts++;
                 }
                 await _receiveAssets(remote, api, head);
+                if (await _preserveConcurrentLocalIfNeeded(
+                  expectedLocal: local,
+                  remote: remote,
+                  suffix: ' (copia locale Shared Space)',
+                )) {
+                  conflicts++;
+                }
                 await database.applySyncDocument(remote);
                 finalDocuments[id] = remote;
                 records.baseHashes[id] = sharedLiveDocumentHash(remote);
@@ -655,6 +647,13 @@ class SharedSpacesLiveSyncService {
               break;
             }
             await _receiveAssets(remote, api, head);
+            if (await _preserveConcurrentLocalIfNeeded(
+              expectedLocal: local,
+              remote: remote,
+              suffix: ' (conflitto Shared Space)',
+            )) {
+              conflicts++;
+            }
             await database.applySyncDocument(remote);
             finalDocuments[id] = remote;
             records.baseHashes[id] = sharedLiveDocumentHash(remote);
@@ -673,13 +672,14 @@ class SharedSpacesLiveSyncService {
               waiting++;
               break;
             }
-            if (local != null && local != remote) {
+            await _receiveAssets(remote, api, head);
+            final currentLocal = await database.syncDocument(id);
+            if (currentLocal != null && currentLocal != remote) {
               await database.saveSyncCopy(
-                local,
+                currentLocal,
                 suffix: ' (conflitto Shared Space)',
               );
             }
-            await _receiveAssets(remote, api, head);
             await database.applySyncDocument(remote);
             finalDocuments[id] = remote;
             records.baseHashes[id] = sharedLiveDocumentHash(remote);
@@ -755,6 +755,28 @@ class SharedSpacesLiveSyncService {
     } finally {
       api.close();
     }
+  }
+
+  Future<bool> _preserveConcurrentLocalIfNeeded({
+    required SyncDocument? expectedLocal,
+    required SyncDocument remote,
+    required String suffix,
+  }) async {
+    final currentLocal = await database.syncDocument(remote.id);
+    if (!shouldPreserveConcurrentLocal(
+      expectedLocal: expectedLocal,
+      currentLocal: currentLocal,
+      remote: remote,
+    )) {
+      return false;
+    }
+    if (currentLocal != null) {
+      await database.saveSyncCopy(
+        currentLocal,
+        suffix: suffix,
+      );
+    }
+    return true;
   }
 
   Future<void> _publishAssets(
