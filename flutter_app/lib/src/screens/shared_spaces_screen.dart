@@ -226,6 +226,9 @@ class _SharedSpacesScreenState
     final spaces = shared.spaces
         .where((space) => space.canRead(identity.id))
         .toList(growable: false);
+    final notesById = {
+      for (final note in workspace.notes) note.id: note,
+    };
     final totalUnread = live.totalUnread(identity.id);
 
     return ListView(
@@ -305,9 +308,10 @@ class _SharedSpacesScreenState
           _EmptySpaces(onCreate: _createSpace, onJoin: _joinSpace)
         else
           ...spaces.map((space) {
-            final content = workspace.notes
-                .where((note) => space.contentIds.contains(note.id))
-                .toList(growable: false);
+            final content = [
+              for (final id in space.contentIds)
+                if (notesById[id] case final note?) note,
+            ];
             final tasks = content.where((note) => note.isTask).length;
             final planned = content.where((note) {
               final task = TaskDetails.tryDecode(note.taskJson);
@@ -620,15 +624,14 @@ class _SharedSpaceDetailScreenState
       );
     }
 
-    final contents = workspace.notes
-        .where((note) => space.contentIds.contains(note.id))
-        .toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final missing = space.contentIds
-        .where(
-          (id) => !workspace.notes.any((note) => note.id == id),
-        )
-        .length;
+    final notesById = {
+      for (final note in workspace.notes) note.id: note,
+    };
+    final contents = [
+      for (final id in space.contentIds)
+        if (notesById[id] case final note?) note,
+    ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final missing = space.contentIds.length - contents.length;
     final canEdit = role.canEdit;
     final canManage = role.canManage;
     final activity = live.activitiesBySpace[space.id] ?? const [];
