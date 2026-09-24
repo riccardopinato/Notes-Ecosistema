@@ -142,6 +142,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   static const _readKey = 'shared_live_activity_read_v1';
   static const _normalInterval = Duration(seconds: 90);
   static const _busyRetry = Duration(seconds: 10);
+  static const _foregroundMinInterval = Duration(seconds: 30);
 
   final Ref ref;
   Timer? _timer;
@@ -462,6 +463,19 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       );
       if (state.enabled) _schedule(retryDelay);
     }
+  }
+
+  Future<void> syncOnForeground() async {
+    if (!state.enabled || state.busy) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final nextRetryAt = state.nextRetryAt;
+    if (nextRetryAt != null && nextRetryAt > now) return;
+    final lastSyncAt = state.lastSyncAt;
+    if (lastSyncAt != null &&
+        now - lastSyncAt < _foregroundMinInterval.inMilliseconds) {
+      return;
+    }
+    await syncNow(silent: true);
   }
 
   Future<void> syncSoon() async {
