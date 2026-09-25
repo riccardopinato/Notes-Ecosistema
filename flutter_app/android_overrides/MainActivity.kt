@@ -66,7 +66,8 @@ class MainActivity : FlutterActivity() {
     private var quickSyncChannel: MethodChannel? = null
     private var sharedBackgroundChannel: MethodChannel? = null
     private var reminderActionChannel: MethodChannel? = null
-    private var reminderPermissionResult: MethodChannel.Result? = null
+    private var notificationPermissionResult: MethodChannel.Result? = null
+    private var notificationPermissionChannel: String? = null
     private var pendingCapture: Map<String, Any?>? = null
     private var pendingQuickSync = false
     private var pendingSharedSpaceId: String? = null
@@ -135,6 +136,33 @@ class MainActivity : FlutterActivity() {
                     "status" -> result.success(
                         SharedBackgroundContract.status(this)
                     )
+                    "notificationsAllowed" -> result.success(
+                        SharedBackgroundContract.notificationsAllowed(this)
+                    )
+                    "requestPermission" -> {
+                        SharedBackgroundContract.ensureNotificationChannel(this)
+                        requestNotificationPermission(
+                            result,
+                            SharedBackgroundContract.NOTIFICATION_CHANNEL,
+                        )
+                    }
+                    "openNotificationSettings" -> {
+                        SharedBackgroundContract.ensureNotificationChannel(this)
+                        openNotificationChannelSettings(
+                            SharedBackgroundContract.NOTIFICATION_CHANNEL,
+                        )
+                        result.success(null)
+                    }
+                    "openAppSettings" -> {
+                        startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                .setData(Uri.parse("package:$packageName"))
+                        )
+                        result.success(null)
+                    }
+                    "testNotification" -> result.success(
+                        SharedBackgroundContract.postTestNotification(this)
+                    )
                     else -> result.notImplemented()
                 }
             }
@@ -165,8 +193,13 @@ class MainActivity : FlutterActivity() {
                         .onSuccess { result.success(null) }
                         .onFailure { result.error("REMINDER_SYNC", it.message, null) }
                 }
-                "allowed" -> result.success(notificationsAllowed())
-                "requestPermission" -> requestNotificationPermission(result)
+                "allowed" -> result.success(
+                    notificationChannelAllowed(NOTIFICATION_CHANNEL)
+                )
+                "requestPermission" -> requestNotificationPermission(
+                    result,
+                    NOTIFICATION_CHANNEL,
+                )
                 "openSettings" -> {
                     startActivity(
                         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
@@ -716,7 +749,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun notificationsAllowed(): Boolean {
+    private fun notificationChannelAllowed(channelId: String): Boolean {
         if (
             Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
@@ -727,27 +760,47 @@ class MainActivity : FlutterActivity() {
         val manager = getSystemService(NotificationManager::class.java)
         if (!manager.areNotificationsEnabled()) return false
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.getNotificationChannel(NOTIFICATION_CHANNEL)?.importance !=
+            manager.getNotificationChannel(channelId)?.importance !=
                 NotificationManager.IMPORTANCE_NONE
         } else {
             true
         }
     }
 
-    private fun requestNotificationPermission(result: MethodChannel.Result) {
-        if (Build.VERSION.SDK_INT < 33 || notificationsAllowed()) {
-            result.success(true)
+    private fun requestNotificationPermission(
+        result: MethodChannel.Result,
+        channelId: String,
+    ) {
+        val runtimeGranted =
+            Build.VERSION.SDK_INT < 33 ||
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+        if (runtimeGranted) {
+            result.success(notificationChannelAllowed(channelId))
             return
         }
-        if (reminderPermissionResult != null) {
+        if (notificationPermissionResult != null) {
             result.error("BUSY", "Richiesta notifiche già in corso.", null)
             return
         }
-        reminderPermissionResult = result
+        notificationPermissionResult = result
+        notificationPermissionChannel = channelId
         requestPermissions(
             arrayOf(Manifest.permission.POST_NOTIFICATIONS),
             PERMISSION_REQUEST,
         )
+    }
+
+    private fun openNotificationChannelSettings(channelId: String) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+        } else {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+        startActivity(intent)
     }
 
     override fun onRequestPermissionsResult(
@@ -757,8 +810,13 @@ class MainActivity : FlutterActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQUEST) {
-            reminderPermissionResult?.success(notificationsAllowed())
-            reminderPermissionResult = null
+            val channelId =
+                notificationPermissionChannel ?: NOTIFICATION_CHANNEL
+            notificationPermissionResult?.success(
+                notificationChannelAllowed(channelId)
+            )
+            notificationPermissionResult = null
+            notificationPermissionChannel = null
         }
     }
 
