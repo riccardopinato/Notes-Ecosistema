@@ -311,13 +311,17 @@ class _SpaceRemoteState {
   final String sha;
 }
 
+const sharedRemoteWriteVersion = 1;
+
+bool sharedRemoteVersionSupported(int? version) =>
+    version == 1 || version == 2;
+
 class SharedSpacesLiveSyncService {
   SharedSpacesLiveSyncService(this.database);
 
   final LegacyNotesDatabase database;
 
   static const _remoteFormat = 'notes-ecosystem-shared-live';
-  static const _remoteVersion = 2;
   static const _remoteStateLimit = 1024 * 1024;
 
   Future<SharedLiveSyncResult> run(
@@ -822,7 +826,7 @@ class SharedSpacesLiveSyncService {
       );
     }
     final version = (decoded['version'] as num?)?.toInt();
-    if (version != 1 && version != _remoteVersion) {
+    if (!sharedRemoteVersionSupported(version)) {
       throw const FormatException(
         'Versione Shared Space remota non supportata.',
       );
@@ -870,7 +874,7 @@ class SharedSpacesLiveSyncService {
     final normalized = mergeSharedActivity(const [], activity);
     return jsonEncode({
       'format': _remoteFormat,
-      'version': _remoteVersion,
+      'version': sharedRemoteWriteVersion,
       'space': space.toJson(),
       'activity': normalized.map((event) => event.toJson()).toList(),
     });
