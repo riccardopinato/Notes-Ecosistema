@@ -106,6 +106,57 @@ def tap_text(text, timeout=20):
     adb("shell", "input", "tap", str(x), str(y))
     time.sleep(1)
 
+def find_editable(index, timeout=20):
+    deadline = time.time() + timeout
+    last = []
+    while time.time() < deadline:
+        try:
+            root = dump_ui()
+            nodes = list(root.iter("node"))
+            if _dismiss_launcher_anr(nodes):
+                continue
+            editables = [
+                node
+                for node in nodes
+                if node.attrib.get("class") == "android.widget.EditText"
+                and node.attrib.get("clickable") == "true"
+            ]
+            last = [
+                {
+                    "text": node.attrib.get("text", ""),
+                    "bounds": node.attrib.get("bounds", ""),
+                    "focused": node.attrib.get("focused", ""),
+                }
+                for node in editables
+            ]
+            if len(editables) > index:
+                return editables[index]
+        except Exception:
+            pass
+        time.sleep(1)
+    raise RuntimeError(
+        f"Editable field index {index} not found. Visible editables: {last}"
+    )
+
+def tap_editable(index, timeout=20):
+    node = find_editable(index, timeout=timeout)
+    x, y = bounds_center(node.attrib.get("bounds", ""))
+    adb("shell", "input", "tap", str(x), str(y))
+    time.sleep(1)
+
+def assert_editable_value(index, expected, timeout=20):
+    deadline = time.time() + timeout
+    last = ""
+    while time.time() < deadline:
+        node = find_editable(index, timeout=2)
+        last = node.attrib.get("text", "")
+        if expected in last:
+            return
+        time.sleep(0.5)
+    raise RuntimeError(
+        f"Editable field {index} does not contain {expected!r}. Value: {last!r}"
+    )
+
 def assert_text(text, timeout=20):
     find_node(text, timeout=timeout)
 
@@ -175,10 +226,21 @@ def main():
         tap_text("Crea")
         tap_text("Nuova nota")
         assert_text("La tua pagina")
-        tap_text("Titolo")
+
+        # Flutter does not expose InputDecoration hints as stable Android
+        # semantics. Drive the two actual EditText nodes instead: title first,
+        # Markdown body second. This also prevents accidentally tapping the
+        # Markdown toolbar action named "Titolo".
+        tap_editable(0)
         adb("shell", "input", "text", "SmokeTest032")
-        tap_text("Comincia da un pensiero…")
+        adb("shell", "input", "keyevent", "4")
+        assert_editable_value(0, "SmokeTest032")
+
+        tap_editable(1)
         adb("shell", "input", "text", "ReleaseSmokeBody")
+        adb("shell", "input", "keyevent", "4")
+        assert_editable_value(1, "ReleaseSmokeBody")
+
         tap_text("Salva")
         assert_text("Oggi, nel tuo spazio.")
 
