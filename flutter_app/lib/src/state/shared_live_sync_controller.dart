@@ -149,8 +149,8 @@ class SharedLiveSyncState {
             backgroundLastSuccessAt ?? this.backgroundLastSuccessAt,
         backgroundIntervalMinutes:
             backgroundIntervalMinutes ?? this.backgroundIntervalMinutes,
-        backgroundNotificationsAllowed:
-            backgroundNotificationsAllowed ?? this.backgroundNotificationsAllowed,
+        backgroundNotificationsAllowed: backgroundNotificationsAllowed ??
+            this.backgroundNotificationsAllowed,
         backgroundRestricted:
             backgroundRestricted ?? this.backgroundRestricted,
         backgroundError: clearBackgroundError
