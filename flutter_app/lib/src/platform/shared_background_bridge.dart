@@ -6,6 +6,8 @@ class SharedBackgroundStatus {
     required this.lastCheckAt,
     required this.lastSuccessAt,
     required this.intervalMinutes,
+    required this.notificationsAllowed,
+    required this.backgroundRestricted,
     this.lastError,
   });
 
@@ -13,6 +15,8 @@ class SharedBackgroundStatus {
   final int lastCheckAt;
   final int lastSuccessAt;
   final int intervalMinutes;
+  final bool notificationsAllowed;
+  final bool backgroundRestricted;
   final String? lastError;
 
   bool get configured => enabledAt > 0;
@@ -24,6 +28,8 @@ class SharedBackgroundStatus {
         lastCheckAt: (map['lastCheckAt'] as num?)?.toInt() ?? 0,
         lastSuccessAt: (map['lastSuccessAt'] as num?)?.toInt() ?? 0,
         intervalMinutes: (map['intervalMinutes'] as num?)?.toInt() ?? 15,
+        notificationsAllowed: map['notificationsAllowed'] == true,
+        backgroundRestricted: map['backgroundRestricted'] == true,
         lastError: map['lastError']?.toString(),
       );
 }
@@ -61,4 +67,19 @@ class SharedBackgroundBridge {
     );
     return SharedBackgroundStatus.fromMap(raw ?? const {});
   }
+
+  static Future<bool> notificationsAllowed() async =>
+      await _channel.invokeMethod<bool>('notificationsAllowed') ?? false;
+
+  static Future<bool> requestPermission() async =>
+      await _channel.invokeMethod<bool>('requestPermission') ?? false;
+
+  static Future<void> openNotificationSettings() =>
+      _channel.invokeMethod<void>('openNotificationSettings');
+
+  static Future<void> openAppSettings() =>
+      _channel.invokeMethod<void>('openAppSettings');
+
+  static Future<bool> testNotification() async =>
+      await _channel.invokeMethod<bool>('testNotification') ?? false;
 }
