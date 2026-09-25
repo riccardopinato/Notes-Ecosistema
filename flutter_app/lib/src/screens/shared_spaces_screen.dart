@@ -11,7 +11,7 @@ import '../domain/shared_spaces.dart';
 import '../state/shared_live_sync_controller.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
-import '../platform/reminder_bridge.dart';
+import '../platform/shared_background_bridge.dart';
 import '../sync/shared_spaces_live_sync.dart';
 import '../widgets/editorial.dart';
 
@@ -255,18 +255,45 @@ class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
             () => ref.read(sharedLiveSyncProvider.notifier).syncNow(),
           ),
           onNotifications: () async {
-            final allowed = await ReminderBridge.requestPermission();
+            final allowed = await SharedBackgroundBridge.requestPermission();
+            await ref
+                .read(sharedLiveSyncProvider.notifier)
+                .refreshBackgroundStatus();
+            if (!context.mounted) return;
+            if (!allowed) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Il canale Shared Spaces non è attivo. Controlla le impostazioni Android.',
+                  ),
+                ),
+              );
+              await SharedBackgroundBridge.openNotificationSettings();
+              return;
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Notifiche Shared Spaces abilitate.'),
+              ),
+            );
+          },
+          onTestNotification: () async {
+            final delivered = await SharedBackgroundBridge.testNotification();
+            await ref
+                .read(sharedLiveSyncProvider.notifier)
+                .refreshBackgroundStatus();
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  allowed
-                      ? 'Notifiche Shared Spaces abilitate.'
-                      : 'Notifiche non abilitate. Puoi attivarle dalle impostazioni di Android.',
+                  delivered
+                      ? 'Test inviato: controlla la tendina notifiche.'
+                      : 'Test non inviato: abilita il canale Shared Spaces.',
                 ),
               ),
             );
           },
+          onBatterySettings: SharedBackgroundBridge.openAppSettings,
         ),
         const SizedBox(height: 22),
         Row(
@@ -987,12 +1014,16 @@ class _LiveSyncCard extends StatelessWidget {
     required this.onToggle,
     required this.onSync,
     required this.onNotifications,
+    required this.onTestNotification,
+    required this.onBatterySettings,
   });
 
   final SharedLiveSyncState state;
   final ValueChanged<bool> onToggle;
   final VoidCallback onSync;
   final Future<void> Function() onNotifications;
+  final Future<void> Function() onTestNotification;
+  final Future<void> Function() onBatterySettings;
 
   @override
   Widget build(BuildContext context) {
@@ -1094,24 +1125,79 @@ class _LiveSyncCard extends StatelessWidget {
             if (state.enabled) ...[
               const SizedBox(height: 10),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.notifications_active_outlined, size: 18),
+                  Icon(
+                    state.backgroundNotificationsAllowed
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_off_outlined,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       state.backgroundLastCheckAt == null
-                          ? 'Background Android pianificato ogni '
-                              '${state.backgroundIntervalMinutes} minuti.'
+                          ? 'WorkManager attivo: intervallo minimo '
+                              '${state.backgroundIntervalMinutes} min; Android '
+                              'può ritardare i controlli.'
                           : 'Background: ultimo controllo '
                               '${_formatCompactSyncTime(state.backgroundLastCheckAt!)}.',
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  Chip(
+                    avatar: Icon(
+                      state.backgroundNotificationsAllowed
+                          ? Icons.check_circle_outline
+                          : Icons.warning_amber_rounded,
+                      size: 18,
+                    ),
+                    label: Text(
+                      state.backgroundNotificationsAllowed
+                          ? 'Canale notifiche attivo'
+                          : 'Canale notifiche non attivo',
+                    ),
+                  ),
                   TextButton(
                     onPressed: onNotifications,
-                    child: const Text('Notifiche'),
+                    child: const Text('Impostazioni'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onTestNotification,
+                    icon: const Icon(Icons.notifications_none, size: 18),
+                    label: const Text('Test'),
                   ),
                 ],
               ),
+              if (state.backgroundRestricted) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.battery_alert_outlined,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Android sta limitando l’attività in background. '
+                        'I controlli possono non partire finché l’app resta limitata.',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: onBatterySettings,
+                      child: const Text('Apri app'),
+                    ),
+                  ],
+                ),
+              ],
               if (state.backgroundLastSuccessAt != null)
                 Text(
                   'Ultimo controllo riuscito: '
