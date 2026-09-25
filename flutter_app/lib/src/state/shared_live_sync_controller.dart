@@ -69,6 +69,8 @@ class SharedLiveSyncState {
     this.backgroundLastCheckAt,
     this.backgroundLastSuccessAt,
     this.backgroundIntervalMinutes = 15,
+    this.backgroundNotificationsAllowed = false,
+    this.backgroundRestricted = false,
     this.backgroundError,
     this.error,
   });
@@ -87,6 +89,8 @@ class SharedLiveSyncState {
   final int? backgroundLastCheckAt;
   final int? backgroundLastSuccessAt;
   final int backgroundIntervalMinutes;
+  final bool backgroundNotificationsAllowed;
+  final bool backgroundRestricted;
   final String? backgroundError;
   final Object? error;
 
@@ -120,6 +124,8 @@ class SharedLiveSyncState {
     int? backgroundLastCheckAt,
     int? backgroundLastSuccessAt,
     int? backgroundIntervalMinutes,
+    bool? backgroundNotificationsAllowed,
+    bool? backgroundRestricted,
     String? backgroundError,
     bool clearBackgroundError = false,
     Object? error,
@@ -143,6 +149,11 @@ class SharedLiveSyncState {
             backgroundLastSuccessAt ?? this.backgroundLastSuccessAt,
         backgroundIntervalMinutes:
             backgroundIntervalMinutes ?? this.backgroundIntervalMinutes,
+        backgroundNotificationsAllowed:
+            backgroundNotificationsAllowed ??
+                this.backgroundNotificationsAllowed,
+        backgroundRestricted:
+            backgroundRestricted ?? this.backgroundRestricted,
         backgroundError: clearBackgroundError
             ? null
             : backgroundError ?? this.backgroundError,
@@ -227,6 +238,8 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         backgroundLastSuccessAt:
             background.lastSuccessAt > 0 ? background.lastSuccessAt : null,
         backgroundIntervalMinutes: background.intervalMinutes,
+        backgroundNotificationsAllowed: background.notificationsAllowed,
+        backgroundRestricted: background.backgroundRestricted,
         backgroundError: background.lastError,
         clearBackgroundError: background.lastError == null ||
             background.lastError!.trim().isEmpty,
