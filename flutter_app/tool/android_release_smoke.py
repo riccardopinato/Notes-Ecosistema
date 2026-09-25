@@ -84,7 +84,16 @@ def find_node(text, timeout=20):
                 if n.attrib.get("text") or n.attrib.get("content-desc")
             ]
             for node in nodes:
-                if node.attrib.get("text") == text or node.attrib.get("content-desc") == text:
+                values = (
+                    node.attrib.get("text", ""),
+                    node.attrib.get("content-desc", ""),
+                )
+                if any(
+                    text == value.strip()
+                    or text in [line.strip() for line in value.splitlines()]
+                    for value in values
+                    if value
+                ):
                     return node
         except Exception:
             pass
