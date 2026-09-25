@@ -45,6 +45,30 @@ def bounds_center(value):
     x1, y1, x2, y2 = map(int, match.groups())
     return (x1 + x2) // 2, (y1 + y2) // 2
 
+def _dismiss_launcher_anr(nodes):
+    title = next(
+        (
+            n
+            for n in nodes
+            if "Pixel Launcher isn't responding" in n.attrib.get("text", "")
+        ),
+        None,
+    )
+    if title is None:
+        return False
+
+    close = next(
+        (n for n in nodes if n.attrib.get("text") == "Close app"),
+        None,
+    )
+    if close is None:
+        return False
+
+    x, y = bounds_center(close.attrib.get("bounds", ""))
+    adb("shell", "input", "tap", str(x), str(y))
+    time.sleep(1)
+    return True
+
 def find_node(text, timeout=20):
     deadline = time.time() + timeout
     last = []
@@ -52,6 +76,8 @@ def find_node(text, timeout=20):
         try:
             root = dump_ui()
             nodes = list(root.iter("node"))
+            if _dismiss_launcher_anr(nodes):
+                continue
             last = [
                 (n.attrib.get("text", ""), n.attrib.get("content-desc", ""))
                 for n in nodes
@@ -100,6 +126,16 @@ def main():
         adb("shell", "pm", "clear", PACKAGE)
         adb("logcat", "-c")
 
+        # The Google APIs image can occasionally surface a launcher-only
+        # ANR during cold boot under CI load. It is unrelated to Notes, so
+        # force-stop the launcher before explicitly starting our activity.
+        adb(
+            "shell",
+            "am",
+            "force-stop",
+            "com.google.android.apps.nexuslauncher",
+            check=False,
+        )
         launch = adb(
             "shell",
             "am",
