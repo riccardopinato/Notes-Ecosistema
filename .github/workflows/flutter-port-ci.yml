@@ -213,6 +213,13 @@ jobs:
           KEYSTORE="$RUNNER_TEMP/notes-ecosistema-release.jks"
           printf '%s' "$NOTES_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
           test -s "$KEYSTORE"
+
+          # Fail fast before the expensive release build if any signing
+          # credential was copied incorrectly.
+          keytool -list             -keystore "$KEYSTORE"             -storepass "$NOTES_RELEASE_STORE_PASSWORD"             -alias "$NOTES_RELEASE_KEY_ALIAS" >/dev/null
+          keytool -certreq             -keystore "$KEYSTORE"             -storepass "$NOTES_RELEASE_STORE_PASSWORD"             -alias "$NOTES_RELEASE_KEY_ALIAS"             -keypass "$NOTES_RELEASE_KEY_PASSWORD"             -file "$RUNNER_TEMP/notes-release-preflight.csr" >/dev/null
+          rm -f "$RUNNER_TEMP/notes-release-preflight.csr"
+
           echo "NOTES_RELEASE_KEYSTORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
 
       - name: Build release APKs per ABI
