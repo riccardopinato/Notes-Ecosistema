@@ -164,7 +164,10 @@ def main():
         assert_text("Oggi, nel tuo spazio.")
         assert_text("Crea")
         tap_text("Spazi")
-        assert_text("I tuoi spazi")
+        # Unique Shared Spaces content. The screen title itself is merged by
+        # Flutter into a multiline semantics node and the bottom nav also
+        # contains "Spazi", so it is not a reliable navigation assertion.
+        assert_text("PRIVATE BY DEFAULT")
         tap_text("Home")
         assert_text("Oggi, nel tuo spazio.")
 
