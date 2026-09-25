@@ -34,11 +34,12 @@ Il merge ordina gli eventi dal più recente e applica il limite di 200 elementi.
 
 ## Stato remoto
 
-`space.json` passa alla versione remota 2 aggiungendo `activity`.
+`activity` è un campo additivo di `space.json`.
 
-La lettura resta retrocompatibile con la versione 1 usata dalla 0.26-0.28:
-uno spazio v1 viene interpretato con cronologia vuota e aggiornato al formato
-v2 al successivo sync scrivibile.
+Dalla 0.31.1 il writer usa di nuovo l'envelope remoto **versione 1**, così i
+client 0.26-0.28 continuano a leggere lo spazio e ignorano il campo sconosciuto
+`activity`. I client moderni leggono sia v1 sia la storica v2 prodotta dalle
+0.29-0.31.0, evitando una migrazione distruttiva.
 
 Il formato locale Shared Spaces v1, gli inviti NS26 e gli ZIP 0.26 restano
 invariati.
