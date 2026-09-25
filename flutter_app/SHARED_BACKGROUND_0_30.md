@@ -15,7 +15,8 @@ anche quando Notes non è aperta.
 - periodic work unico con intervallo minimo Android di circa 15 minuti;
 - token GitHub letto dal medesimo Android Keystore già usato dall'app;
 - configurazione GitHub e identità lette dalle SharedPreferences Flutter;
-- formato remoto Shared Activity v2 riutilizzato senza duplicare storage.
+- cronologia Shared Activity riutilizzata senza duplicare storage;
+- envelope remoto v1 additivo, con lettura compatibile anche con la storica v2.
 
 Il worker non apre l'app e non avvia servizi permanenti.
 
@@ -27,8 +28,9 @@ Prima di accettare dati remoti il worker:
 2. verifica l'account autenticato tramite /user;
 3. confronta l'id GitHub con il profilo Shared Spaces locale;
 4. considera solo gli spazi in cui l'identità è membro attivo;
-5. accetta solo activity log v2 e limita la lettura a 200 eventi per spazio;
-6. ignora gli eventi generati dall'identità corrente.
+5. accetta envelope v1/v2 e limita la lettura a 200 eventi per spazio;
+6. valida gli ID evento deterministici;
+7. ignora gli eventi generati dall'identità corrente.
 
 Il token non viene copiato in SharedPreferences in chiaro.
 
@@ -44,9 +46,13 @@ Per ogni Shared Space viene prodotta al massimo una notifica aggregata per
 controllo background. Se sono presenti più eventi, la notifica mostra il numero
 di nuove attività e l'ultima modifica.
 
-Il worker mantiene un timestamp last-seen per spazio. Disattivare e riattivare
-Live Sync crea una nuova baseline, evitando notifiche retroattive di eventi
-precedenti alla riattivazione.
+Il worker mantiene un cursore per spazio basato sugli ID evento deterministici,
+con migrazione dal precedente timestamp last-seen. Questo evita duplicati anche
+quando più eventi hanno lo stesso timestamp. Il cursore avanza anche quando il
+canale notifiche è disabilitato, evitando backlog improvvisi alla riattivazione.
+
+Disattivare e riattivare Live Sync crea inoltre una nuova baseline per non
+notificare attività avvenute mentre il monitoraggio era spento.
 
 ## Tap sulla notifica
 
@@ -70,7 +76,7 @@ logica SQLite, mantenendo una sola implementazione autorevole per i contenuti.
 ## Compatibilità
 
 - Shared Spaces locale v1 invariato;
-- remote state v2 invariato;
+- remote state scritto come v1 additivo e letto come v1/v2;
 - inviti NS26 invariati;
 - ZIP 0.26 invariati;
 - nessuna migrazione database;
