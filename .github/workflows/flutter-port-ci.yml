@@ -172,33 +172,6 @@ jobs:
       - name: Dependencies
         run: flutter pub get
 
-      - name: Preinstall verified Android CMake
-        shell: bash
-        run: |
-          set -euo pipefail
-          CMAKE_DIR="$ANDROID_HOME/cmake/3.22.1"
-          if [ -x "$CMAKE_DIR/bin/cmake" ]; then
-            "$CMAKE_DIR/bin/cmake" --version
-          else
-            ok=0
-            for attempt in 1 2 3; do
-              echo "Installing CMake 3.22.1 (attempt $attempt/3)"
-              rm -rf "$CMAKE_DIR"
-              rm -rf "$HOME/.android/cache" || true
-              mkdir -p "$HOME/.android/cache"
-              if sdkmanager --install "cmake;3.22.1"; then
-                if [ -x "$CMAKE_DIR/bin/cmake" ] &&
-                   "$CMAKE_DIR/bin/cmake" --version >/dev/null 2>&1; then
-                  ok=1
-                  break
-                fi
-              fi
-              sleep 3
-            done
-            test "$ok" -eq 1
-            "$CMAKE_DIR/bin/cmake" --version
-          fi
-
       - name: Format check
         run: dart format --output=none --set-exit-if-changed lib test
 
@@ -248,6 +221,41 @@ jobs:
           rm -f "$RUNNER_TEMP/notes-release-preflight.csr"
 
           echo "NOTES_RELEASE_KEYSTORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Preinstall verified Android CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+          CMAKE_DIR="$ANDROID_HOME/cmake/3.22.1"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -perm -u+x 2>/dev/null | sort | tail -1)"
+          fi
+          test -n "$SDKMANAGER"
+          test -x "$SDKMANAGER"
+          echo "Using sdkmanager: $SDKMANAGER"
+
+          if [ -x "$CMAKE_DIR/bin/cmake" ]; then
+            "$CMAKE_DIR/bin/cmake" --version
+          else
+            ok=0
+            for attempt in 1 2 3; do
+              echo "Installing CMake 3.22.1 (attempt $attempt/3)"
+              rm -rf "$CMAKE_DIR"
+              rm -rf "$HOME/.android/cache" || true
+              mkdir -p "$HOME/.android/cache"
+              if "$SDKMANAGER" --install "cmake;3.22.1"; then
+                if [ -x "$CMAKE_DIR/bin/cmake" ] &&
+                   "$CMAKE_DIR/bin/cmake" --version >/dev/null 2>&1; then
+                  ok=1
+                  break
+                fi
+              fi
+              sleep 3
+            done
+            test "$ok" -eq 1
+            "$CMAKE_DIR/bin/cmake" --version
+          fi
 
       - name: Build release APKs per ABI
         run: >
