@@ -142,6 +142,15 @@ void main() {
     );
   });
 
+  test('remote activity envelope keeps legacy readers compatible', () {
+    expect(sharedRemoteWriteVersion, 1);
+    expect(sharedRemoteVersionSupported(1), isTrue);
+    expect(sharedRemoteVersionSupported(2), isTrue);
+    expect(sharedRemoteVersionSupported(0), isFalse);
+    expect(sharedRemoteVersionSupported(3), isFalse);
+    expect(sharedRemoteVersionSupported(null), isFalse);
+  });
+
   test('initial state creates only one bootstrap event', () {
     final space = SharedSpaces.create(
       owner: actor,
