@@ -157,6 +157,28 @@ def assert_editable_value(index, expected, timeout=20):
         f"Editable field {index} does not contain {expected!r}. Value: {last!r}"
     )
 
+def assert_any_editable_value(expected, timeout=20):
+    deadline = time.time() + timeout
+    last = []
+    while time.time() < deadline:
+        try:
+            root = dump_ui()
+            nodes = list(root.iter("node"))
+            editables = [
+                node
+                for node in nodes
+                if node.attrib.get("class") == "android.widget.EditText"
+            ]
+            last = [node.attrib.get("text", "") for node in editables]
+            if any(expected in value for value in last):
+                return
+        except Exception:
+            pass
+        time.sleep(0.5)
+    raise RuntimeError(
+        f"No visible editable field contains {expected!r}. Values: {last!r}"
+    )
+
 def assert_text(text, timeout=20):
     find_node(text, timeout=timeout)
 
@@ -239,7 +261,10 @@ def main():
         tap_editable(1)
         adb("shell", "input", "text", "ReleaseSmokeBody")
         adb("shell", "input", "keyevent", "4")
-        assert_editable_value(1, "ReleaseSmokeBody")
+        # Focusing the multiline body scrolls the title field out of the
+        # visible semantics tree, so the body can become EditText index 0.
+        # Assert the persisted input by value instead of a post-scroll index.
+        assert_any_editable_value("ReleaseSmokeBody")
 
         tap_text("Salva")
         assert_text("Oggi, nel tuo spazio.")
