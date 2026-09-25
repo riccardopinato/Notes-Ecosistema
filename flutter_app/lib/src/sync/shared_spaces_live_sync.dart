@@ -313,8 +313,7 @@ class _SpaceRemoteState {
 
 const sharedRemoteWriteVersion = 1;
 
-bool sharedRemoteVersionSupported(int? version) =>
-    version == 1 || version == 2;
+bool sharedRemoteVersionSupported(int? version) => version == 1 || version == 2;
 
 class SharedSpacesLiveSyncService {
   SharedSpacesLiveSyncService(this.database);
