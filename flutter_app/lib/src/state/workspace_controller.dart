@@ -145,9 +145,10 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
 
   Future<BackupSnapshot> snapshot() => _database.snapshot();
 
-  Future<void> importCopies(BackupSnapshot snapshot) async {
-    await _database.importCopies(snapshot);
+  Future<BackupImportPlan> importCopies(BackupSnapshot snapshot) async {
+    final plan = await _database.importCopies(snapshot);
     await refresh();
+    return plan;
   }
 
   Future<void> createCollection(String name) async {
