@@ -1455,7 +1455,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.folder_sync_outlined),
+                  leading: const Icon(Icons.sync_outlined),
                   title: const Text('Sincronizza cartella Markdown'),
                   subtitle: const Text(
                     'Mirror interoperabile con protezione dei cambi esterni e conflitti.',
