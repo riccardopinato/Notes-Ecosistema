@@ -1133,6 +1133,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
 
     await ref.read(workspaceProvider.notifier).deleteForever(id);
+    await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
       await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
