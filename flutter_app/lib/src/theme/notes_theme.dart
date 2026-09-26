@@ -97,46 +97,80 @@ abstract final class NotesTheme {
     );
 
     final base = ThemeData(brightness: brightness, useMaterial3: true);
+    final text = base.textTheme;
+    final heroColor =
+        brightness == Brightness.light ? primary : onSurface;
+
     return base.copyWith(
       colorScheme: scheme,
       scaffoldBackgroundColor: scaffold,
       canvasColor: scaffold,
       cardColor: surface,
       dividerColor: outlineVariant,
-      textTheme: base.textTheme.copyWith(
-        displayMedium: const TextStyle(
-            fontFamily: 'serif',
-            fontWeight: FontWeight.w500,
-            fontSize: 48,
-            height: 56 / 48),
-        headlineLarge: const TextStyle(
-            fontFamily: 'serif',
-            fontWeight: FontWeight.w500,
-            fontSize: 36,
-            height: 42 / 36),
-        headlineMedium: const TextStyle(
-            fontFamily: 'serif',
-            fontWeight: FontWeight.w500,
-            fontSize: 30,
-            height: 36 / 30),
-        headlineSmall: const TextStyle(
-            fontFamily: 'serif',
-            fontWeight: FontWeight.w500,
-            fontSize: 25,
-            height: 32 / 25),
-        titleLarge: const TextStyle(
-            fontWeight: FontWeight.w600, fontSize: 22, height: 28 / 22),
-        titleMedium: const TextStyle(
-            fontWeight: FontWeight.w600, fontSize: 18, height: 25 / 18),
-        bodyLarge: const TextStyle(fontSize: 17, height: 27 / 17),
-        bodyMedium: const TextStyle(fontSize: 15, height: 23 / 15),
+      textTheme: text.copyWith(
+        displayMedium: text.displayMedium?.copyWith(
+          fontFamily: 'serif',
+          fontWeight: FontWeight.w500,
+          fontSize: 48,
+          height: 56 / 48,
+          color: heroColor,
+        ),
+        headlineLarge: text.headlineLarge?.copyWith(
+          fontFamily: 'serif',
+          fontWeight: FontWeight.w500,
+          fontSize: 36,
+          height: 42 / 36,
+          color: heroColor,
+        ),
+        headlineMedium: text.headlineMedium?.copyWith(
+          fontFamily: 'serif',
+          fontWeight: FontWeight.w500,
+          fontSize: 30,
+          height: 36 / 30,
+          color: heroColor,
+        ),
+        headlineSmall: text.headlineSmall?.copyWith(
+          fontFamily: 'serif',
+          fontWeight: FontWeight.w500,
+          fontSize: 25,
+          height: 32 / 25,
+          color: heroColor,
+        ),
+        titleLarge: text.titleLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontSize: 22,
+          height: 28 / 22,
+          color: onSurface,
+        ),
+        titleMedium: text.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          height: 25 / 18,
+          color: onSurface,
+        ),
+        titleSmall: text.titleSmall?.copyWith(color: onSurface),
+        bodyLarge: text.bodyLarge?.copyWith(
+          fontSize: 17,
+          height: 27 / 17,
+          color: onSurface,
+        ),
+        bodyMedium: text.bodyMedium?.copyWith(
+          fontSize: 15,
+          height: 23 / 15,
+          color: onSurfaceVariant,
+        ),
+        bodySmall: text.bodySmall?.copyWith(color: onSurfaceVariant),
+        labelLarge: text.labelLarge?.copyWith(color: onSurface),
+        labelMedium: text.labelMedium?.copyWith(color: onSurfaceVariant),
+        labelSmall: text.labelSmall?.copyWith(color: onSurfaceVariant),
       ),
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: outlineVariant)),
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: outlineVariant),
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
@@ -152,22 +186,30 @@ abstract final class NotesTheme {
         ),
       ),
       appBarTheme: AppBarTheme(
-          backgroundColor: scaffold,
-          foregroundColor: onSurface,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent),
+        backgroundColor: scaffold,
+        foregroundColor: onSurface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primary,
         foregroundColor: onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+        labelStyle: TextStyle(color: onSurfaceVariant),
+        hintStyle: TextStyle(color: onSurfaceVariant),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(20),
-            borderSide: BorderSide(color: outlineVariant)),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: outlineVariant),
+        ),
       ),
     );
   }
