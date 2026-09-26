@@ -773,8 +773,86 @@ class LegacyNotesDatabase {
   Future<void> trash(String id) async {
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    await db.update('notes', {'deletedAt': now, 'updatedAt': now},
-        where: 'id = ? AND deletedAt IS NULL', whereArgs: [id]);
+    await db.transaction((txn) async {
+      final changed = await txn.update(
+        'notes',
+        {'deletedAt': now, 'updatedAt': now},
+        where: 'id = ? AND deletedAt IS NULL',
+        whereArgs: [id],
+      );
+      if (changed == 0) return;
+      await txn.delete('drafts', where: 'id = ?', whereArgs: [id]);
+    });
+  }
+
+  Future<void> restore(String id) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        'notes',
+        columns: ['deletedAt'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isEmpty) {
+        throw const FormatException('Elemento non trovato.');
+      }
+      if (rows.first['deletedAt'] == null) {
+        throw const FormatException('L’elemento non è nel cestino.');
+      }
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await txn.update(
+        'notes',
+        {'deletedAt': null, 'updatedAt': now},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+  }
+
+  Future<Note> deleteForever(String id) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'notes',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isEmpty) {
+        throw const FormatException('Elemento non trovato.');
+      }
+      final note = Note.fromMap(rows.first);
+      if (!note.isDeleted) {
+        throw const FormatException(
+          'Sposta prima l’elemento nel cestino.',
+        );
+      }
+
+      await txn.delete('drafts', where: 'id = ?', whereArgs: [id]);
+      await txn.delete(
+        'note_revisions',
+        where: 'noteId = ?',
+        whereArgs: [id],
+      );
+      await txn.delete(
+        'content_blocks',
+        where: 'ownerType = ? AND ownerId = ?',
+        whereArgs: ['note', id],
+      );
+      final removed = await txn.delete(
+        'notes',
+        where: 'id = ? AND deletedAt IS NOT NULL',
+        whereArgs: [id],
+      );
+      if (removed != 1) {
+        throw const FormatException(
+          'L’elemento è cambiato. Aggiorna il cestino e riprova.',
+        );
+      }
+      return note;
+    });
   }
 
   Future<void> close() async {

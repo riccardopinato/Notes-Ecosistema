@@ -3,29 +3,33 @@ import 'package:flutter/services.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 
+List<Map<String, Object?>> reminderPayload(List<Note> notes) {
+  final reminders = <Map<String, Object?>>[];
+  for (final note in notes) {
+    final task = TaskDetails.tryDecode(note.taskJson);
+    if (task == null ||
+        note.isDeleted ||
+        note.archived ||
+        task.completed ||
+        task.reminderAt == null) {
+      continue;
+    }
+    reminders.add({
+      'id': note.id,
+      'title': note.title.trim().isEmpty ? 'Attività' : note.title.trim(),
+      'at': task.reminderAt,
+    });
+  }
+  return reminders;
+}
+
 class ReminderBridge {
   ReminderBridge._();
 
   static const _channel = MethodChannel('notes.ecosystem/reminders');
 
   static Future<void> sync(List<Note> notes) async {
-    final reminders = <Map<String, Object?>>[];
-    for (final note in notes) {
-      final task = TaskDetails.tryDecode(note.taskJson);
-      if (task == null ||
-          note.isDeleted ||
-          note.archived ||
-          task.completed ||
-          task.reminderAt == null) {
-        continue;
-      }
-      reminders.add({
-        'id': note.id,
-        'title': note.title.trim().isEmpty ? 'Attività' : note.title.trim(),
-        'at': task.reminderAt,
-      });
-    }
-    await _channel.invokeMethod<void>('sync', reminders);
+    await _channel.invokeMethod<void>('sync', reminderPayload(notes));
   }
 
   static Future<bool> allowed() async =>

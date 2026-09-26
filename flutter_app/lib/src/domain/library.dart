@@ -54,7 +54,9 @@ List<Note> searchNotes(
   final needle = query.trim().toLowerCase();
   final tags = NoteTags.normalize(options.tags);
   final filtered = notes.where((note) {
-    if (note.isTask) return false;
+    // Deleted tasks must remain reachable from the universal trash so they can
+    // be restored or permanently deleted like every other user-owned item.
+    if (note.isTask && scope != NoteScope.trash) return false;
 
     final visible = switch (scope) {
       NoteScope.trash => note.isDeleted,

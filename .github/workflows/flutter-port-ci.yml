@@ -199,6 +199,25 @@ jobs:
           echo "arm64 bytes: $BYTES / budget: $LIMIT"
           test "$BYTES" -le "$LIMIT"
 
+      - name: Generate release evidence
+        shell: bash
+        run: |
+          mkdir -p build/release-evidence
+          ARM64="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+          test -f "$ARM64"
+          SHA256="$(sha256sum "$ARM64" | awk '{print $1}')"
+          BYTES="$(stat -c%s "$ARM64")"
+          {
+            echo "version=${{ steps.app_version.outputs.version }}"
+            echo "build_sha=$GITHUB_SHA"
+            echo "git_ref=$GITHUB_REF"
+            echo "artifact=app-arm64-v8a-release.apk"
+            echo "bytes=$BYTES"
+            echo "sha256=$SHA256"
+          } | tee build/release-evidence/arm64-release.txt
+          sha256sum build/app/outputs/flutter-apk/app-*-release.apk \
+            > build/release-evidence/all-release-sha256.txt
+
       - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
@@ -206,6 +225,14 @@ jobs:
           path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-evidence
+          path: flutter_app/build/release-evidence
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload obfuscation symbols
         uses: actions/upload-artifact@v4

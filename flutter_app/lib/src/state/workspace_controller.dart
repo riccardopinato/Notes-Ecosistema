@@ -189,6 +189,26 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     await _database.trash(id);
     await _reloadNote(id);
   }
+
+  Future<void> restore(String id) async {
+    await _database.restore(id);
+    await _reloadNote(id);
+  }
+
+  Future<Note> deleteForever(String id) async {
+    final deleted = await _database.deleteForever(id);
+    if (state.loading) {
+      await refresh();
+      return deleted;
+    }
+    _refreshGeneration++;
+    state = state.copyWith(
+      notes: state.notes.where((note) => note.id != id).toList(growable: false),
+      loading: false,
+      clearError: true,
+    );
+    return deleted;
+  }
 }
 
 int _compareNotes(Note a, Note b) {
