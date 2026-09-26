@@ -3,7 +3,7 @@ class CalendarLocaleConfig {
     required this.locale,
     required this.firstWeekday,
     required this.weekdayNarrow,
-  }) : assert(weekdayNarrow.length == 7);
+  });
 
   final String locale;
   final int firstWeekday;
