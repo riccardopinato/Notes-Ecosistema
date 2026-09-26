@@ -203,9 +203,7 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
     }
     _refreshGeneration++;
     state = state.copyWith(
-      notes: state.notes
-          .where((note) => note.id != id)
-          .toList(growable: false),
+      notes: state.notes.where((note) => note.id != id).toList(growable: false),
       loading: false,
       clearError: true,
     );
