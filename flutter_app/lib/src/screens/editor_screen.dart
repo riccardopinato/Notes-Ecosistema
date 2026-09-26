@@ -24,7 +24,6 @@ import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
 import '../domain/research.dart';
-import '../domain/derivatives.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
 import '../platform/attachment_bridge.dart';
