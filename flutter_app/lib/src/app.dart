@@ -1106,7 +1106,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   Future<void> _exportMarkdownWorkspace() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
-      final bytes = MarkdownWorkspaceBundle.encode(snapshot.notes);
+      final syncedBlocks = await ref.read(knowledgeStoreProvider).syncedBlocks();
+      final bytes = MarkdownWorkspaceBundle.encode(
+        snapshot.notes,
+        syncedBlocks: syncedBlocks,
+      );
       final now = DateTime.now();
       final stamp = '${now.year.toString().padLeft(4, '0')}-'
           '${now.month.toString().padLeft(2, '0')}-'
@@ -1186,7 +1190,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             updatedAt: stamp,
             pinned: false,
             archived: false,
-            tags: const ['import-markdown'],
+            tags: {
+              ...document.tags,
+              'import-markdown',
+            }.toList(growable: false),
+            taskJson: document.taskJson,
           ),
         );
         stamp++;
