@@ -61,19 +61,21 @@ abstract final class QuickSwitcher {
         ),
       ),
       ...notes.where((note) => !note.isDeleted && !note.isVisual).map(
-        (note) => QuickSwitcherEntry(
-          id: note.id,
-          label: note.title.trim().isEmpty ? 'Senza titolo' : note.title.trim(),
-          subtitle: note.isTask ? 'Attività' : 'Nota',
-          kind: note.isTask
-              ? QuickSwitcherKind.task
-              : QuickSwitcherKind.note,
-        ),
-      ),
+            (note) => QuickSwitcherEntry(
+              id: note.id,
+              label: note.title.trim().isEmpty
+                  ? 'Senza titolo'
+                  : note.title.trim(),
+              subtitle: note.isTask ? 'Attività' : 'Nota',
+              kind:
+                  note.isTask ? QuickSwitcherKind.task : QuickSwitcherKind.note,
+            ),
+          ),
     ];
 
     int score(QuickSwitcherEntry entry) {
-      if (needle.isEmpty) return entry.kind == QuickSwitcherKind.command ? 3 : 1;
+      if (needle.isEmpty)
+        return entry.kind == QuickSwitcherKind.command ? 3 : 1;
       final label = _normalize(entry.label);
       final subtitle = _normalize(entry.subtitle ?? '');
       if (label == needle) return 100;
