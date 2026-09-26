@@ -1067,13 +1067,60 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         dialogTitle: 'Scegli cartella Markdown',
       );
       if (path == null || path.trim().isEmpty) return;
-      await prefs.setString('markdown_mirror_path', path);
 
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
-      final result = await MarkdownFolderMirror.sync(path, snapshot.notes);
+      final shared = ref.read(sharedSpacesProvider);
+      final editableIds = <String>{};
+      final viewerIds = <String>{};
+      final identity = shared.identity;
+      if (identity != null) {
+        for (final space in shared.spaces) {
+          final role = space.roleFor(identity.id);
+          if (role == null) continue;
+          if (role.canEdit) {
+            editableIds.addAll(space.contentIds);
+          } else {
+            viewerIds.addAll(space.contentIds);
+          }
+        }
+      }
+      final viewerOnlyIds = viewerIds.difference(editableIds);
+      final eligible = snapshot.notes
+          .where((note) => !viewerOnlyIds.contains(note.id))
+          .toList(growable: false);
+
+      final result = await MarkdownFolderMirror.sync(path, eligible);
+
+      // Re-check collaboration permissions immediately before persistence.
+      final latestShared = ref.read(sharedSpacesProvider);
+      final latestIdentity = latestShared.identity;
       for (final note in result.updatedNotes) {
+        var hasViewerLink = false;
+        var hasEditableLink = false;
+        if (latestIdentity != null) {
+          for (final space in latestShared.spaces) {
+            if (!space.contentIds.contains(note.id)) continue;
+            final role = space.roleFor(latestIdentity.id);
+            if (role == null) continue;
+            if (role.canEdit) {
+              hasEditableLink = true;
+            } else {
+              hasViewerLink = true;
+            }
+          }
+        }
+        if (hasViewerLink && !hasEditableLink) {
+          throw const FormatException(
+            'La cartella Markdown non può modificare un contenuto Shared Space in sola lettura.',
+          );
+        }
         await ref.read(workspaceProvider.notifier).save(note);
       }
+
+      // The merge base becomes trusted only after DB writes have succeeded.
+      await MarkdownFolderMirror.finalize(path, result);
+      await prefs.setString('markdown_mirror_path', path);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1097,6 +1144,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         SnackBar(
           content: Text(
             error.toString().replaceFirst('FormatException: ', ''),
+          ),
+          action: SnackBarAction(
+            label: 'Cambia cartella',
+            onPressed: () async {
+              final settings = await SharedPreferences.getInstance();
+              await settings.remove('markdown_mirror_path');
+            },
           ),
         ),
       );
