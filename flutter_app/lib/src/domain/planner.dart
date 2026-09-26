@@ -580,8 +580,7 @@ abstract final class PlannerPro {
     return result;
   }
 
-  static List<DateTime> weekDays(DateTime date) =>
-      appCalendar.weekDays(date);
+  static List<DateTime> weekDays(DateTime date) => appCalendar.weekDays(date);
 
   static List<DateTime> monthGrid(DateTime month) =>
       appCalendar.monthGrid(month);
