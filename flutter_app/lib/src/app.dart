@@ -799,6 +799,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         onArchive: (id, value) =>
             ref.read(workspaceProvider.notifier).archive(id, value),
         onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
+        onRestore: _restoreFromTrash,
+        onDeleteForever: _deleteForever,
         onBulkEdit: (notes, change) =>
             ref.read(workspaceProvider.notifier).bulkEdit(notes, change),
         onRenameCollection: (collection, name) =>
@@ -1097,7 +1099,47 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
-  Future<void> _cleanupAttachments() async {
+  Future<void> _restoreFromTrash(String id) async {
+    await ref.read(workspaceProvider.notifier).restore(id);
+  }
+
+  Future<void> _deleteForever(String id) async {
+    final shared = ref.read(sharedSpacesProvider);
+    final identity = shared.identity;
+    final linkedSpaces = shared.spaces
+        .where((space) => space.contentIds.contains(id))
+        .toList(growable: false);
+
+    if (linkedSpaces.isNotEmpty) {
+      if (identity == null) {
+        throw const FormatException(
+          'Impossibile verificare i permessi dello Shared Space.',
+        );
+      }
+      for (final space in linkedSpaces) {
+        final role = space.roleFor(identity.id);
+        if (role == null || !role.canEdit) {
+          throw const FormatException(
+            'Questo elemento è ancora condiviso in uno spazio che non puoi modificare. '
+            'Rimuovilo dallo spazio prima dell’eliminazione definitiva.',
+          );
+        }
+      }
+      for (final space in linkedSpaces) {
+        await ref
+            .read(sharedSpacesProvider.notifier)
+            .unlinkContent(space.id, id);
+      }
+    }
+
+    await ref.read(workspaceProvider.notifier).deleteForever(id);
+    await _cleanupAttachments(silent: true);
+    if (linkedSpaces.isNotEmpty) {
+      await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
+    }
+  }
+
+  Future<void> _cleanupAttachments({bool silent = false}) async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
       final referenced = <String>{};
@@ -1116,7 +1158,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
       final store = await AttachmentStore.open();
       final result = await store.cleanup(referenced);
-      if (!mounted) return;
+      if (!mounted || silent) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
