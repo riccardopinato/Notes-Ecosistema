@@ -37,7 +37,8 @@ void main() {
     expect(result.hits.first.citation(1), '[1] Progetto Alpha');
   });
 
-  test('related notes exclude the source and preserve deterministic ordering', () {
+  test('related notes exclude the source and preserve deterministic ordering',
+      () {
     final source = note(
       'source',
       'Ricerca batterie',
@@ -70,16 +71,17 @@ void main() {
   });
 
   test('summary is extractive and bounded', () {
-    const source =
-        'Alpha riguarda il progetto principale. '
+    const source = 'Alpha riguarda il progetto principale. '
         'Alpha richiede una review. '
         'La cucina è separata. '
         'Il progetto Alpha ha una scadenza. '
         'Serve preparare il documento finale. '
         'Un dettaglio secondario completa il testo.';
     final summary = LocalDerivation.summarize(source, maxSentences: 3);
-    final sentenceCount =
-        summary.split(RegExp(r'(?<=[.!?])\s+')).where((e) => e.isNotEmpty).length;
+    final sentenceCount = summary
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .where((e) => e.isNotEmpty)
+        .length;
 
     expect(sentenceCount, lessThanOrEqualTo(3));
     expect(source, contains(summary.split('.').first));
