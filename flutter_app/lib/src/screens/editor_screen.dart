@@ -234,26 +234,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _intelligenceWorkspace() async {
+    final source = widget.note;
+    if (source == null || _dirty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Salva prima la nota: i derivati vengono creati solo da una fonte persistita.',
+          ),
+        ),
+      );
+      return;
+    }
     await showIntelligenceSheet(
       context: context,
       notes: widget.allNotes,
       derivativeStore: ref.read(derivativeStoreProvider),
-      currentNote: Note(
-        id: _id,
-        title: _title.text,
-        body: _body.text,
-        collectionId: _collectionId,
-        favorite: widget.note?.favorite ?? false,
-        createdAt:
-            widget.note?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-        deletedAt: widget.note?.deletedAt,
-        pinned: widget.note?.pinned ?? false,
-        archived: widget.note?.archived ?? false,
-        tags: _tags,
-        taskJson: widget.note?.taskJson,
-        sketchJson: widget.note?.sketchJson,
-      ),
+      currentNote: source,
       onOpenNote: (note) => _openLinkedNote(note.id),
       onInsertMarkdown: _insertResearchMarkdown,
     );
@@ -1901,7 +1898,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         )
                       else
                         MarkdownBody(
-                          data: _body.text,
+                          data: SyncedBlockCodec.resolve(
+                            _body.text,
+                            _syncedBlocks,
+                          ),
                           selectable: true,
                           onTapLink: (text, href, title) {
                             if (href == null) return;
