@@ -128,10 +128,14 @@ class KnowledgeStore {
         label.length > 80) {
       throw const FormatException('Relazione non valida.');
     }
+    final normalizedSource =
+        sourceId.compareTo(targetId) <= 0 ? sourceId : targetId;
+    final normalizedTarget =
+        sourceId.compareTo(targetId) <= 0 ? targetId : sourceId;
     final relation = NoteRelation(
       id: const Uuid().v4(),
-      sourceId: sourceId,
-      targetId: targetId,
+      sourceId: normalizedSource,
+      targetId: normalizedTarget,
       label: label.trim(),
       updatedAt: DateTime.now().millisecondsSinceEpoch,
     );
@@ -196,6 +200,105 @@ class KnowledgeStore {
         whereArgs: [noteId, noteId],
       );
     });
+  }
+
+  Future<Map<String, Object?>> exportBackup() async {
+    final db = await database;
+    return {
+      'version': 1,
+      'sources': await db.query(
+        'research_sources',
+        orderBy: 'updatedAt ASC, id ASC',
+      ),
+      'relations': await db.query(
+        'note_relations',
+        orderBy: 'updatedAt ASC, id ASC',
+      ),
+      'syncedBlocks': await db.query(
+        'synced_blocks',
+        orderBy: 'updatedAt ASC, id ASC',
+      ),
+    };
+  }
+
+  Future<Map<String, String>> importBackup(
+    Map<String, Object?> payload, {
+    required Map<String, String> noteIdMap,
+  }) async {
+    if (payload.isEmpty) return const {};
+    if (payload['version'] != 1 ||
+        payload['sources'] is! List ||
+        payload['relations'] is! List ||
+        payload['syncedBlocks'] is! List) {
+      throw const FormatException('Backup knowledge non valido.');
+    }
+    final sources = payload['sources'] as List;
+    final relations = payload['relations'] as List;
+    final blocks = payload['syncedBlocks'] as List;
+    if (sources.length > 100000 ||
+        relations.length > 100000 ||
+        blocks.length > 10000) {
+      throw const FormatException('Backup knowledge troppo grande.');
+    }
+
+    for (final raw in sources) {
+      if (raw is! Map) {
+        throw const FormatException('Fonte knowledge non valida.');
+      }
+      final source = ResearchSource.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      ResearchRules.validateSource(source);
+      final noteId = noteIdMap[source.noteId];
+      if (noteId == null) continue;
+      await addSource(
+        noteId: noteId,
+        title: source.title,
+        url: source.url,
+        author: source.author,
+        publishedAt: source.publishedAt,
+        quote: source.quote,
+      );
+    }
+
+    for (final raw in relations) {
+      if (raw is! Map) {
+        throw const FormatException('Relazione knowledge non valida.');
+      }
+      final relation = NoteRelation.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      final sourceId = noteIdMap[relation.sourceId];
+      final targetId = noteIdMap[relation.targetId];
+      if (sourceId == null || targetId == null || sourceId == targetId) continue;
+      try {
+        await addRelation(
+          sourceId: sourceId,
+          targetId: targetId,
+          label: relation.label,
+        );
+      } on FormatException catch (error) {
+        if (!error.message.toString().contains('già presente')) rethrow;
+      }
+    }
+
+    final blockMap = <String, String>{};
+    for (final raw in blocks) {
+      if (raw is! Map) {
+        throw const FormatException('Synced Block non valido.');
+      }
+      final source = SyncedBlock.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (source.id.trim().isEmpty ||
+          source.markdown.trim().isEmpty ||
+          source.markdown.length > 200000) {
+        throw const FormatException('Synced Block non valido.');
+      }
+      final created = await upsertSyncedBlock(markdown: source.markdown);
+      blockMap[source.id.toLowerCase()] = created.id;
+    }
+    return Map.unmodifiable(blockMap);
   }
 
   Future<void> close() async {
