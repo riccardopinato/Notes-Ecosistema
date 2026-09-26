@@ -88,7 +88,7 @@ void main() {
     expect(decoded.snapshot.drafts.single.id, 'd1');
   });
 
-  test('media bundle v2 preserves complete sidecar payloads', () {
+  test('media bundle v3 preserves complete sidecar payloads', () {
     final snapshot = BackupSnapshot(
       notes: [note(id: 'n1', title: 'Sidecar', body: 'Body')],
       collections: const [],
@@ -112,10 +112,16 @@ void main() {
         'version': 1,
         'derivatives': [],
       },
+      projects: const {
+        'version': 1,
+        'projects': [],
+        'links': [],
+      },
     );
     final preview = MediaBundle.decode(zip);
     expect(preview.properties['version'], 1);
     expect(preview.knowledge['version'], 1);
     expect(preview.derivatives['version'], 1);
+    expect(preview.projects['version'], 1);
   });
 }
