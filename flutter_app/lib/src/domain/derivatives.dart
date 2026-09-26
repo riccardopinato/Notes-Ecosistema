@@ -109,7 +109,7 @@ abstract final class LocalDerivation {
     for (final raw in input.split('\n')) {
       final line = raw.trim();
       if (line.isEmpty) continue;
-      final checkbox = RegExp(r'^[-*]?\s*\[[ xX]\]\s+(.+)$').firstMatch(line);
+      final checkbox = RegExp(r'^[-*]?\\s*\\[ \\]\\s+(.+)\$').firstMatch(line);
       final action = RegExp(
         r'^(?:todo|task|azione|da fare|ricordati|ricordare)\s*[:\-]\s*(.+)$',
         caseSensitive: false,
