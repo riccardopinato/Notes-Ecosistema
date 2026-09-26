@@ -231,10 +231,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         );
         if (mounted) {
           setState(() {
-            _propertyDefinitions = [..._propertyDefinitions, created]
-              ..sort(
-                (a, b) =>
-                    a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            _propertyDefinitions = [..._propertyDefinitions, created]..sort(
+                (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
               );
           });
         }
