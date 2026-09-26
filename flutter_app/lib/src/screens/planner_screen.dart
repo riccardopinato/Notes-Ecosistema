@@ -387,7 +387,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(DateFormat('EEE d', appCalendar.locale).format(day),
+                          Text(
+                              DateFormat('EEE d', appCalendar.locale)
+                                  .format(day),
                               style: Theme.of(context).textTheme.titleSmall),
                           const SizedBox(height: 6),
                           Text('${planned.length} pianificate'),
@@ -418,7 +420,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        Text('Dettaglio ${DateFormat('EEE d MMM', appCalendar.locale).format(_selected)}',
+        Text(
+            'Dettaglio ${DateFormat('EEE d MMM', appCalendar.locale).format(_selected)}',
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         _day(index),
@@ -1243,7 +1246,8 @@ class _DateNavigator extends StatelessWidget {
         : view == PlannerView.week
             ? '${DateFormat('d MMM', appCalendar.locale).format(PlannerPro.weekDays(selected).first)} – '
                 '${DateFormat('d MMM yyyy', appCalendar.locale).format(PlannerPro.weekDays(selected).last)}'
-            : DateFormat('EEEE d MMMM yyyy', appCalendar.locale).format(selected);
+            : DateFormat('EEEE d MMMM yyyy', appCalendar.locale)
+                .format(selected);
 
     return Row(
       children: [
