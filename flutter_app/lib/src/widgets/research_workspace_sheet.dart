@@ -168,7 +168,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
         )
         .toList(growable: false)
       ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-    final selected = await showSearch<Note>(
+    final selected = await showSearch<Note?>(
       context: context,
       delegate: _RelationSearchDelegate(candidates),
     );
@@ -472,7 +472,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
   }
 }
 
-class _RelationSearchDelegate extends SearchDelegate<Note> {
+class _RelationSearchDelegate extends SearchDelegate<Note?> {
   _RelationSearchDelegate(this.notes);
 
   final List<Note> notes;
