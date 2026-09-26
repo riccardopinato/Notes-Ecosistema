@@ -171,7 +171,7 @@ abstract final class MarkdownWorkspaceBundle {
       final parsed = _parseFrontMatter(text);
       final body = parsed.body;
       final titleMatch =
-          RegExp(r'^#\s+(.+)
+          RegExp(r'^#\s+(.+)$', multiLine: true).firstMatch(body);
       final title = titleMatch?.group(1)?.trim() ??
           entry.name.split('/').last.replaceFirst(RegExp(r'\.(md|txt)$'), '');
       final cleanBody = titleMatch == null
@@ -197,131 +197,10 @@ abstract final class MarkdownWorkspaceBundle {
     final end = text.indexOf('\n---\n', 4);
     if (end < 0 || end > 10000) return (body: text, sourceId: null);
     final header = text.substring(4, end);
-    final match = RegExp(r'^notes_source_id:\s*(\S+)\s*
-    return (
-      body: text.substring(end + 5),
-      sourceId: match?.group(1),
-    );
-  }
-
-  static String _safeName(String input) {
-    final normalized = input
-        .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]'), '-')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .replaceAll(RegExp(r'[. ]+$'), '');
-    final safe = normalized.isEmpty ? 'nota' : normalized;
-    return safe.length > 90 ? safe.substring(0, 90).trim() : safe;
-  }
-}
-, multiLine: true).firstMatch(body);
-      final title = titleMatch?.group(1)?.trim() ??
-          entry.name.split('/').last.replaceFirst(RegExp(r'\.(md|txt)$'), '');
-      final cleanBody = titleMatch == null
-          ? body.trim()
-          : body.replaceRange(titleMatch.start, titleMatch.end, '').trim();
-      result.add(
-        MarkdownPortableDocument(
-          fileName: entry.name,
-          title: title,
-          body: cleanBody,
-          sourceId: parsed.sourceId,
-        ),
-      );
-      if (result.length > maxDocuments) {
-        throw const FormatException('Troppi documenti Markdown.');
-      }
-    }
-    return result;
-  }
-
-  static ({String body, String? sourceId}) _parseFrontMatter(String text) {
-    if (!text.startsWith('---\n')) return (body: text, sourceId: null);
-    final end = text.indexOf('\n---\n', 4);
-    if (end < 0 || end > 10000) return (body: text, sourceId: null);
-    final header = text.substring(4, end);
-    final match =
-        RegExp(r'^notes_source_id:\s*(\S+)\s*$', multiLine: true)
-            .firstMatch(header);
-    return (
-      body: text.substring(end + 5),
-      sourceId: match?.group(1),
-    );
-  }
-
-  static String _safeName(String input) {
-    final normalized = input
-        .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]'), '-')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .replaceAll(RegExp(r'[. ]+$'), '');
-    final safe = normalized.isEmpty ? 'nota' : normalized;
-    return safe.length > 90 ? safe.substring(0, 90).trim() : safe;
-  }
-}
-, multiLine: true)
-        .firstMatch(header);
-    return (
-      body: text.substring(end + 5),
-      sourceId: match?.group(1),
-    );
-  }
-
-  static String _safeName(String input) {
-    final normalized = input
-        .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]'), '-')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .replaceAll(RegExp(r'[. ]+$'), '');
-    final safe = normalized.isEmpty ? 'nota' : normalized;
-    return safe.length > 90 ? safe.substring(0, 90).trim() : safe;
-  }
-}
-, multiLine: true).firstMatch(body);
-      final title = titleMatch?.group(1)?.trim() ??
-          entry.name.split('/').last.replaceFirst(RegExp(r'\.(md|txt)$'), '');
-      final cleanBody = titleMatch == null
-          ? body.trim()
-          : body.replaceRange(titleMatch.start, titleMatch.end, '').trim();
-      result.add(
-        MarkdownPortableDocument(
-          fileName: entry.name,
-          title: title,
-          body: cleanBody,
-          sourceId: parsed.sourceId,
-        ),
-      );
-      if (result.length > maxDocuments) {
-        throw const FormatException('Troppi documenti Markdown.');
-      }
-    }
-    return result;
-  }
-
-  static ({String body, String? sourceId}) _parseFrontMatter(String text) {
-    if (!text.startsWith('---\n')) return (body: text, sourceId: null);
-    final end = text.indexOf('\n---\n', 4);
-    if (end < 0 || end > 10000) return (body: text, sourceId: null);
-    final header = text.substring(4, end);
-    final match = RegExp(r'^notes_source_id:\s*(\S+)\s*
-    return (
-      body: text.substring(end + 5),
-      sourceId: match?.group(1),
-    );
-  }
-
-  static String _safeName(String input) {
-    final normalized = input
-        .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]'), '-')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .replaceAll(RegExp(r'[. ]+$'), '');
-    final safe = normalized.isEmpty ? 'nota' : normalized;
-    return safe.length > 90 ? safe.substring(0, 90).trim() : safe;
-  }
-}
-, multiLine: true)
-        .firstMatch(header);
+    final match = RegExp(
+      r'^notes_source_id:\s*(\S+)\s*$',
+      multiLine: true,
+    ).firstMatch(header);
     return (
       body: text.substring(end + 5),
       sourceId: match?.group(1),
