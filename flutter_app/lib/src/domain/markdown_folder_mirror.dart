@@ -54,9 +54,8 @@ abstract final class MarkdownFolderMirror {
       final file = File('${directory.path}/$fileName');
       final local = _documentText(note);
       final base = previous?['base']?.toString() ?? local;
-      final external = await file.exists()
-          ? await file.readAsString(encoding: utf8)
-          : base;
+      final external =
+          await file.exists() ? await file.readAsString(encoding: utf8) : base;
 
       final resolved = ExternalChangeResolver.resolve(
         base: base,
