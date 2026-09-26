@@ -962,9 +962,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _body.text = body;
       _body.selection = TextSelection.collapsed(offset: body.length);
       _dirty = true;
-      if (_blocksInitialized) {
-        _blocks = BlockEditorCodec.parse(_id, body);
-      }
+      _syncBlocksForBody(body);
     });
     _rememberDraft(immediate: true);
   }
@@ -980,9 +978,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     setState(() {
       _dirty = true;
       _error = null;
-      if (_blocksInitialized) {
-        _blocks = BlockEditorCodec.parse(_id, edit.text);
-      }
+      _syncBlocksForBody(edit.text);
     });
     _rememberDraft();
   }
