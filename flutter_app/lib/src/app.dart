@@ -792,8 +792,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           _index = 1;
         }),
         onOpenNote: _openEditor,
-        sharedUnread:
-            identity == null ? 0 : live.totalUnread(identity.id),
+        sharedUnread: identity == null ? 0 : live.totalUnread(identity.id),
       );
     } else if (_index == 1 || _index == 5) {
       body = NotesScreen(
