@@ -98,8 +98,7 @@ abstract final class NotesTheme {
 
     final base = ThemeData(brightness: brightness, useMaterial3: true);
     final text = base.textTheme;
-    final heroColor =
-        brightness == Brightness.light ? primary : onSurface;
+    final heroColor = brightness == Brightness.light ? primary : onSurface;
 
     return base.copyWith(
       colorScheme: scheme,
