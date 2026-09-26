@@ -24,6 +24,7 @@ import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
 import '../domain/research.dart';
+import '../domain/derivatives.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
 import '../platform/attachment_bridge.dart';
@@ -34,6 +35,7 @@ import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
 import '../widgets/properties_sheet.dart';
 import '../widgets/research_workspace_sheet.dart';
+import '../widgets/intelligence_sheet.dart';
 import '../widgets/smart_capture_sheet.dart';
 import '../widgets/universal_block_editor.dart';
 
@@ -230,6 +232,32 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       selection: TextSelection.collapsed(offset: start + markdown.length),
     );
     _bodyChanged();
+  }
+
+  Future<void> _intelligenceWorkspace() async {
+    await showIntelligenceSheet(
+      context: context,
+      notes: widget.allNotes,
+      derivativeStore: ref.read(derivativeStoreProvider),
+      currentNote: Note(
+        id: _id,
+        title: _title.text,
+        body: _body.text,
+        collectionId: _collectionId,
+        favorite: widget.note?.favorite ?? false,
+        createdAt:
+            widget.note?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        deletedAt: widget.note?.deletedAt,
+        pinned: widget.note?.pinned ?? false,
+        archived: widget.note?.archived ?? false,
+        tags: _tags,
+        taskJson: widget.note?.taskJson,
+        sketchJson: widget.note?.sketchJson,
+      ),
+      onOpenNote: (note) => _openLinkedNote(note.id),
+      onInsertMarkdown: _insertResearchMarkdown,
+    );
   }
 
   Future<void> _researchWorkspace() async {
@@ -1566,6 +1594,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             eyebrow: 'IL TUO TACCUINO',
           ),
           actions: [
+            if (!_focusEditor)
+              IconButton(
+                onPressed: _saving ? null : _intelligenceWorkspace,
+                tooltip: 'Knowledge Intelligence',
+                icon: const Icon(Icons.auto_awesome_outlined),
+              ),
             if (!_focusEditor)
               IconButton(
                 onPressed: _saving ? null : _researchWorkspace,
