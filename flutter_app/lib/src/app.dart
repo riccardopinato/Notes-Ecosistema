@@ -311,7 +311,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
-  Future<void> _openEditor([Note? note, bool readOnly = false]) async {
+  Future<void> _openEditor([
+    Note? note,
+    bool readOnly = false,
+    bool autoRecord = false,
+  ]) async {
     if (note?.isVisual == true) {
       await _openVisual(note!, readOnly: readOnly);
       return;
@@ -325,6 +329,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           collections: collections,
           allNotes: ref.read(workspaceProvider).notes,
           readOnly: readOnly,
+          autoRecord: autoRecord,
         ),
       ),
     );
@@ -952,6 +957,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               onTap: () => Navigator.pop(context, 'note'),
             ),
             ListTile(
+              leading: const Icon(Icons.mic_none),
+              title: const Text('Nota vocale'),
+              subtitle: const Text('Conserva l’audio originale nella nota'),
+              onTap: () => Navigator.pop(context, 'voice'),
+            ),
+            ListTile(
               leading: const Icon(Icons.today),
               title: const Text('Diario di oggi'),
               onTap: () => Navigator.pop(context, 'diary'),
@@ -989,6 +1000,23 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     if (!mounted || action == null) return;
     if (action == 'note') {
       await _openEditor();
+    } else if (action == 'voice') {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await _openEditor(
+        Note(
+          id: const Uuid().v4(),
+          title: 'Nota vocale',
+          body: '',
+          favorite: false,
+          createdAt: now,
+          updatedAt: now,
+          pinned: false,
+          archived: false,
+          tags: const ['voice-source'],
+        ),
+        false,
+        true,
+      );
     } else if (action == 'diary') {
       await _createDiaryEntry(DateTime.now(), null);
     } else if (action == 'task') {
