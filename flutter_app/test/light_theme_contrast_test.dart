@@ -32,9 +32,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: NotesTheme.light(),
-        home: const Scaffold(
+        home: Scaffold(
           appBar: AppBar(
-            title: EditorialAppTitle('Note'),
+            title: const EditorialAppTitle('Note'),
           ),
         ),
       ),
