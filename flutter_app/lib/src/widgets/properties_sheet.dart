@@ -179,8 +179,8 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
       );
       if (!mounted) return;
       setState(() => _definitions = [..._definitions, created]..sort(
-            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-          ));
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        ));
     } catch (e) {
       if (mounted) {
         setState(
