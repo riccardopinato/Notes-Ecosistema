@@ -105,9 +105,11 @@ class PropertyStore {
     final db = await database;
     final changed = await db.update(
       'property_definitions',
-      definition.copyWith(
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-      ).toMap(),
+      definition
+          .copyWith(
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          )
+          .toMap(),
       where: 'id = ?',
       whereArgs: [definition.id],
     );
@@ -147,7 +149,9 @@ class PropertyStore {
     if (noteId.trim().isEmpty) {
       throw const FormatException('Nota mancante per le proprietà.');
     }
-    final byId = {for (final definition in definitions) definition.id: definition};
+    final byId = {
+      for (final definition in definitions) definition.id: definition
+    };
     for (final key in values.keys) {
       if (!byId.containsKey(key)) {
         throw const FormatException('Definizione proprietà mancante.');
