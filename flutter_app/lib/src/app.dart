@@ -15,6 +15,7 @@ import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
+import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
 import 'domain/planner.dart';
 import 'domain/shared_space_bundle.dart';
@@ -1043,6 +1044,50 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     );
   }
 
+  Future<void> _syncMarkdownFolder() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var path = prefs.getString('markdown_mirror_path');
+      path ??= await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Scegli cartella Markdown',
+      );
+      if (path == null || path.trim().isEmpty) return;
+      await prefs.setString('markdown_mirror_path', path);
+
+      final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final result = await MarkdownFolderMirror.sync(path, snapshot.notes);
+      for (final note in result.updatedNotes) {
+        await ref.read(workspaceProvider.notifier).save(note);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cartella Markdown sincronizzata: ${result.writtenFiles} file scritti, '
+            '${result.updatedNotes.length} aggiornamenti esterni, '
+            '${result.conflicts} conflitti preservati.',
+          ),
+          action: SnackBarAction(
+            label: 'Cambia cartella',
+            onPressed: () async {
+              final settings = await SharedPreferences.getInstance();
+              await settings.remove('markdown_mirror_path');
+            },
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _exportMarkdownWorkspace() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
@@ -1408,6 +1453,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   onTap: () {
                     Navigator.pop(context);
                     _importBackup();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.folder_sync_outlined),
+                  title: const Text('Sincronizza cartella Markdown'),
+                  subtitle: const Text(
+                    'Mirror interoperabile con protezione dei cambi esterni e conflitti.',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _syncMarkdownFolder();
                   },
                 ),
                 ListTile(
