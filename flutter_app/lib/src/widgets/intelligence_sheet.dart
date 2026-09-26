@@ -47,7 +47,7 @@ class _IntelligenceSheet extends StatefulWidget {
 
 class _IntelligenceSheetState extends State<_IntelligenceSheet> {
   final _query = TextEditingController();
-  const _engine = LocalKnowledgeRetrieval();
+  final _engine = const LocalKnowledgeRetrieval();
   KnowledgeQueryResult? _result;
   List<KnowledgeHit> _related = const [];
   List<SourceDerivative> _derivatives = const [];
