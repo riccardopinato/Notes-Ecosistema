@@ -18,6 +18,7 @@ import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
 import 'domain/planner.dart';
+import 'domain/research.dart';
 import 'domain/shared_space_bundle.dart';
 import 'domain/shared_spaces.dart';
 import 'domain/sync.dart';
@@ -1275,7 +1276,16 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
       final store = await AttachmentStore.open();
-      final bytes = await MediaBundle.encode(snapshot, store);
+      final properties = await ref.read(propertyStoreProvider).exportBackup();
+      final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
+      final derivatives = await ref.read(derivativeStoreProvider).exportBackup();
+      final bytes = await MediaBundle.encode(
+        snapshot,
+        store,
+        properties: properties,
+        knowledge: knowledge,
+        derivatives: derivatives,
+      );
       final now = DateTime.now();
       final stamp =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -1387,14 +1397,63 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         final store = await AttachmentStore.open();
         await MediaBundle.installAssets(bundle, store);
       }
-      await ref.read(workspaceProvider.notifier).importCopies(snapshot);
+      final plan =
+          await ref.read(workspaceProvider.notifier).importCopies(snapshot);
+      if (bundle != null) {
+        await ref.read(propertyStoreProvider).importBackup(
+              bundle.properties,
+              noteIdMap: plan.noteIdMap,
+            );
+        final blockMap = await ref.read(knowledgeStoreProvider).importBackup(
+              bundle.knowledge,
+              noteIdMap: plan.noteIdMap,
+            );
+        await ref.read(derivativeStoreProvider).importBackup(
+              bundle.derivatives,
+              noteIdMap: plan.noteIdMap,
+            );
+
+        if (blockMap.isNotEmpty) {
+          final notifier = ref.read(workspaceProvider.notifier);
+          for (final note in plan.notes) {
+            if (note.isVisual) continue;
+            final body = SyncedBlockCodec.remapReferences(note.body, blockMap);
+            if (body != note.body) {
+              await notifier.save(
+                note.copyWith(
+                  body: body,
+                  updatedAt: DateTime.now().millisecondsSinceEpoch,
+                ),
+              );
+            }
+          }
+          final database = ref.read(databaseProvider);
+          for (final draft in plan.drafts) {
+            final body = SyncedBlockCodec.remapReferences(
+              draft.body,
+              blockMap,
+            );
+            if (body == draft.body) continue;
+            await database.saveDraft(
+              BackupDraft(
+                id: draft.id,
+                title: draft.title,
+                body: body,
+                collectionId: draft.collectionId,
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+                tags: draft.tags,
+              ),
+            );
+          }
+        }
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             bundle == null
                 ? 'Backup JSON importato come copie.'
-                : 'Backup completo importato con allegati.',
+                : 'Backup completo importato con allegati e metadati sidecar.',
           ),
         ),
       );
