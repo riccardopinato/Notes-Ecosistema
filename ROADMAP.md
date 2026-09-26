@@ -54,15 +54,15 @@
 
 **Completato in 0.35.0**
 
-- import/export workspace Markdown;
-- cartella Markdown mirror interoperabile;
-- protezione dirty-state e merge a tre vie;
+- import/export workspace Markdown con tag/task preservati e Synced Blocks materializzati;
+- cartella Markdown mirror interoperabile, path-confined e staged/finalized;
+- protezione dirty-state, permessi Shared Spaces e merge a tre vie;
 - conflitti preservati, mai sovrascritti silenziosamente;
 - Research Workspace;
 - fonti e footnote Markdown;
 - relazioni note↔note;
 - rollup deterministici;
-- Synced Blocks canonici;
+- Synced Blocks canonici con preview ed export portabile;
 - metadati in notes-knowledge.db separato;
 - cleanup lifecycle di fonti e relazioni.
 
@@ -80,6 +80,8 @@
 - summary estrattivo;
 - task extraction solo da marker espliciti;
 - lifecycle cleanup dei derivati;
+- backup ZIP v2 include e remappa Properties, Knowledge e Derivatives;
+- derivati persistibili solo da una fonte già salvata;
 - nessuna dipendenza core da AI, rete o account.
 
 ## Gate finale roadmap
@@ -107,7 +109,7 @@ La chiusura funzionale della roadmap **non equivale** alla certificazione hardwa
 - REUSE-FIRST: estendere i sistemi canonici, non crearne duplicati.
 - CORE APP != AI.
 - Originale immutabile; elaborazioni come derivati eliminabili/rigenerabili.
-- Anti-lock-in: formati portabili e dati esportabili.
+- Anti-lock-in: formati portabili, backup completo dei sidecar e dati esportabili.
 - Graceful degradation: ridurre elaborazioni costose prima di compromettere editing o salvataggio.
 - Shared Spaces è il workspace collaborativo canonico.
 - README e ROADMAP vanno aggiornati a ogni release/step completato.
