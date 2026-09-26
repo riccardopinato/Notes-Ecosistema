@@ -182,6 +182,4 @@ void main() {
     );
     expect(tasks, ['Da fare']);
   });
-t(result.updatedNotes.single.body, contains('External'));
-  });
 }
