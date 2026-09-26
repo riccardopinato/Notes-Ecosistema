@@ -214,8 +214,9 @@ class PropertyStore {
     final snapshot = await this.snapshot();
     return {
       'version': 1,
-      'definitions':
-          snapshot.definitions.map((item) => item.toMap()).toList(growable: false),
+      'definitions': snapshot.definitions
+          .map((item) => item.toMap())
+          .toList(growable: false),
       'values':
           snapshot.values.map((item) => item.toMap()).toList(growable: false),
     };
@@ -238,16 +239,14 @@ class PropertyStore {
       throw const FormatException('Backup proprietà troppo grande.');
     }
 
-    final sourceDefinitions = rawDefinitions
-        .map((raw) {
-          if (raw is! Map) {
-            throw const FormatException('Definizione proprietà non valida.');
-          }
-          return PropertyDefinition.fromMap(
-            raw.map((key, value) => MapEntry(key.toString(), value)),
-          );
-        })
-        .toList(growable: false);
+    final sourceDefinitions = rawDefinitions.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Definizione proprietà non valida.');
+      }
+      return PropertyDefinition.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }).toList(growable: false);
 
     final definitionMap = <String, String>{};
     var current = await loadDefinitions();
@@ -298,7 +297,8 @@ class PropertyStore {
         if (noteId == null || definitionId == null) continue;
         final definition = targetDefinitions[definitionId];
         if (definition == null) {
-          throw const FormatException('Definizione proprietà importata mancante.');
+          throw const FormatException(
+              'Definizione proprietà importata mancante.');
         }
         PropertyRules.decodeValue(definition, source.valueJson);
         await txn.insert(
