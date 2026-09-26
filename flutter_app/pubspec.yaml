@@ -1,7 +1,7 @@
 name: notes_ecosistema
 description: Flutter port of Notes Ecosistema. Local-first, private-by-default.
 publish_to: "none"
-version: 0.35.0+44
+version: 0.36.0+45
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
