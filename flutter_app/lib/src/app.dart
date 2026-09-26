@@ -20,6 +20,7 @@ import 'domain/shared_space_bundle.dart';
 import 'domain/shared_spaces.dart';
 import 'domain/sync.dart';
 import 'domain/quick_capture.dart';
+import 'domain/quick_switcher.dart';
 import 'domain/templates.dart';
 import 'domain/visual_documents.dart';
 import 'platform/quick_capture_bridge.dart';
@@ -43,6 +44,7 @@ import 'state/workspace_controller.dart';
 import 'sync/github_sync_service.dart';
 import 'theme/notes_theme.dart';
 import 'widgets/editorial.dart';
+import 'widgets/quick_switcher_sheet.dart';
 
 class NotesEcosistemaApp extends ConsumerStatefulWidget {
   const NotesEcosistemaApp({super.key});
@@ -719,7 +721,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
   @override
   Widget build(BuildContext context) {
-    ref.read(sharedLiveSyncProvider);
+    final live = ref.watch(sharedLiveSyncProvider);
     final workspace = ref.watch(workspaceProvider);
     final shared = ref.watch(sharedSpacesProvider);
     final section = labels[_index];
@@ -784,6 +786,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           _libraryCollectionId = id;
           _index = 1;
         }),
+        onOpenNote: _openEditor,
+        sharedUnread:
+            identity == null ? 0 : live.totalUnread(identity.id),
       );
     } else if (_index == 1 || _index == 5) {
       body = NotesScreen(
@@ -847,6 +852,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         title: EditorialAppTitle(section == 'Home' ? 'Il tuo spazio' : section),
         actions: [
           IconButton(
+            tooltip: 'Quick Switcher',
+            onPressed: () => _quickSwitcher(personalNotes),
+            icon: const Icon(Icons.bolt_outlined),
+          ),
+          IconButton(
             tooltip: 'Impostazioni',
             onPressed: () => _settings(context),
             icon: const Icon(Icons.settings),
@@ -882,6 +892,51 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ],
       ),
     );
+  }
+
+  Future<void> _quickSwitcher(List<Note> notes) async {
+    final workspace = ref.read(workspaceProvider);
+    final selected = await showQuickSwitcher(
+      context: context,
+      notes: notes,
+      collections: workspace.collections,
+    );
+    if (selected == null || !mounted) return;
+
+    switch (selected.kind) {
+      case QuickSwitcherKind.note:
+        final note = notes.where((item) => item.id == selected.id).firstOrNull;
+        if (note != null) await _openEditor(note);
+        break;
+      case QuickSwitcherKind.task:
+        setState(() {
+          _plannerTaskId = selected.id;
+          _index = 3;
+        });
+        break;
+      case QuickSwitcherKind.collection:
+        setState(() {
+          _libraryCollectionId = selected.id;
+          _index = 1;
+        });
+        break;
+      case QuickSwitcherKind.command:
+        switch (selected.id) {
+          case 'today':
+            setState(() => _index = 0);
+            break;
+          case 'new-note':
+            await _openEditor();
+            break;
+          case 'tasks':
+            setState(() => _index = 3);
+            break;
+          case 'search':
+            setState(() => _index = 5);
+            break;
+        }
+        break;
+    }
   }
 
   Future<void> _createMenu(BuildContext context) async {
