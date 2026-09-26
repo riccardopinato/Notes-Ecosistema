@@ -74,8 +74,7 @@ abstract final class MarkdownFolderMirror {
       final file = _safeTarget(directory, fileName);
       final local = _documentText(note);
       final exists = await file.exists();
-      final external =
-          exists ? await file.readAsString(encoding: utf8) : local;
+      final external = exists ? await file.readAsString(encoding: utf8) : local;
 
       late final ExternalMergeResult resolved;
       if (previous == null) {
