@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/focus.dart';
 import '../domain/note.dart';
+import '../domain/workday.dart';
 import '../widgets/editorial.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,6 +17,8 @@ class HomeScreen extends StatefulWidget {
     required this.onTasks,
     required this.onSketch,
     required this.onCollection,
+    required this.onOpenNote,
+    this.sharedUnread = 0,
     super.key,
   });
 
@@ -27,6 +30,8 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onTasks;
   final VoidCallback onSketch;
   final ValueChanged<String> onCollection;
+  final ValueChanged<Note> onOpenNote;
+  final int sharedUnread;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -50,12 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final pending = widget.notes
         .where((n) => !n.isDeleted && n.isTask && !n.taskCompleted)
         .length;
-    final todayKey = DateFormat('yyyy-MM-dd').format(now);
-    final agenda = widget.notes.where((n) {
-      if (n.isDeleted || !n.isTask || n.taskCompleted) return false;
-      final due = n.taskDue;
-      return due != null && due.compareTo(todayKey) <= 0;
-    }).toList(growable: false);
+    final briefing = Workday.build(
+      notes: widget.notes,
+      now: now,
+      sharedUnread: widget.sharedUnread,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 104),
@@ -65,7 +69,11 @@ class _HomeScreenState extends State<HomeScreen> {
         Text('Oggi, nel tuo spazio.',
             style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 16),
-        _AgendaCard(agenda: agenda, onOpen: widget.onAgenda),
+        _DailyBriefingCard(
+          briefing: briefing,
+          onOpenPlanner: widget.onAgenda,
+          onOpenNote: widget.onOpenNote,
+        ),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -125,47 +133,106 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _AgendaCard extends StatelessWidget {
-  const _AgendaCard({required this.agenda, required this.onOpen});
-  final List<Note> agenda;
-  final VoidCallback onOpen;
+class _DailyBriefingCard extends StatelessWidget {
+  const _DailyBriefingCard({
+    required this.briefing,
+    required this.onOpenPlanner,
+    required this.onOpenNote,
+  });
+
+  final WorkdayBriefing briefing;
+  final VoidCallback onOpenPlanner;
+  final ValueChanged<Note> onOpenNote;
 
   @override
   Widget build(BuildContext context) => _SurfaceCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const EditorialEyebrow('LA TUA AGENDA'),
+            const EditorialEyebrow('DAILY WORK BRIEFING'),
             const SizedBox(height: 6),
-            Text('Un passo alla volta.',
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 10),
-            if (agenda.isEmpty)
-              Text('Oggi hai spazio. Nessuna attività prevista o scaduta.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant))
+            Text(
+              'Oggi',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
+            if (briefing.items.isEmpty)
+              Text(
+                'Nessun blocco pianificato oggi.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              )
             else
-              ...agenda.take(3).map((n) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.radio_button_unchecked,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: Text(n.title.isEmpty ? 'Attività' : n.title,
-                                style:
-                                    Theme.of(context).textTheme.titleMedium)),
-                      ],
+              ...briefing.items.take(5).map(
+                    (item) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      leading: SizedBox(
+                        width: 54,
+                        child: Text(
+                          item.time ?? '—',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                      title: Text(
+                        item.note.title.trim().isEmpty
+                            ? 'Attività'
+                            : item.note.title,
+                      ),
+                      onTap: onOpenPlanner,
                     ),
-                  )),
-            TextButton(
-                onPressed: onOpen,
-                child: Text(agenda.length > 3
-                    ? 'Apri agenda · ${agenda.length} attività'
-                    : 'Apri agenda')),
+                  ),
+            const Divider(height: 24),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (briefing.dueToday > 0)
+                  Chip(
+                    avatar: const Icon(Icons.today, size: 18),
+                    label: Text(
+                      '${briefing.dueToday} task in scadenza',
+                    ),
+                  ),
+                if (briefing.overdue > 0)
+                  Chip(
+                    avatar: const Icon(Icons.warning_amber, size: 18),
+                    label: Text('${briefing.overdue} task arretrati'),
+                  ),
+                if (briefing.sharedUnread > 0)
+                  Chip(
+                    avatar: const Icon(Icons.group_work_outlined, size: 18),
+                    label: Text(
+                      'Workspace · ${briefing.sharedUnread} novità',
+                    ),
+                  ),
+              ],
+            ),
+            if (briefing.inbox.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Inbox da smistare',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              ...briefing.inbox.take(3).map(
+                    (note) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      leading: const Icon(Icons.inbox_outlined),
+                      title: Text(
+                        note.title.trim().isEmpty ? 'Senza titolo' : note.title,
+                      ),
+                      subtitle: const Text('Apri e assegna raccolta/tag'),
+                      onTap: () => onOpenNote(note),
+                    ),
+                  ),
+            ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onOpenPlanner,
+                child: const Text('Apri Planner'),
+              ),
+            ),
           ],
         ),
       );

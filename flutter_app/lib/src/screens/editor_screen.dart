@@ -43,6 +43,7 @@ class EditorScreen extends ConsumerStatefulWidget {
     this.note,
     this.allNotes = const [],
     this.readOnly = false,
+    this.autoRecord = false,
     super.key,
   });
 
@@ -50,6 +51,7 @@ class EditorScreen extends ConsumerStatefulWidget {
   final List<NoteCollection> collections;
   final List<Note> allNotes;
   final bool readOnly;
+  final bool autoRecord;
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -81,6 +83,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   List<PropertyDefinition> _propertyDefinitions = const [];
   Map<String, Object?> _propertyValues = {};
   bool _propertiesLoaded = false;
+  bool _focusEditor = false;
+  bool _autoRecordStarted = false;
 
   bool get _readOnlyVisual => widget.note?.isVisual == true;
   bool get _readOnly => widget.readOnly || _readOnlyVisual;
@@ -103,6 +107,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_restoreDraft());
       unawaited(_loadProperties());
+      if (widget.autoRecord && !_autoRecordStarted && !_readOnly) {
+        _autoRecordStarted = true;
+        unawaited(_toggleRecording());
+      }
     });
   }
 
@@ -1520,15 +1528,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ),
           actions: [
             IconButton(
-              onPressed: _saving ? null : _saveAsTemplate,
-              tooltip: 'Salva come modello',
-              icon: const Icon(Icons.dashboard_customize),
+              onPressed: _saving
+                  ? null
+                  : () => setState(() => _focusEditor = !_focusEditor),
+              tooltip: _focusEditor ? 'Esci da Focus editor' : 'Focus editor',
+              icon: Icon(
+                _focusEditor
+                    ? Icons.fullscreen_exit
+                    : Icons.center_focus_strong,
+              ),
             ),
-            IconButton(
-              onPressed: _saving ? null : _history,
-              tooltip: 'Cronologia',
-              icon: const Icon(Icons.history),
-            ),
+            if (!_focusEditor)
+              IconButton(
+                onPressed: _saving ? null : _saveAsTemplate,
+                tooltip: 'Salva come modello',
+                icon: const Icon(Icons.dashboard_customize),
+              ),
+            if (!_focusEditor)
+              IconButton(
+                onPressed: _saving ? null : _history,
+                tooltip: 'Cronologia',
+                icon: const Icon(Icons.history),
+              ),
             FilledButton(
               onPressed: _saving || _recording ? null : _save,
               child: Text(_saving ? 'Salvataggio…' : 'Salva'),
@@ -1569,59 +1590,60 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ),
                       maxLines: null,
                     ),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ActionChip(
-                          avatar: const Icon(Icons.folder, size: 18),
-                          label: Text(collectionName ?? 'Inbox'),
-                          onPressed: _saving ? null : _chooseCollection,
-                        ),
-                        ActionChip(
-                          avatar: const Icon(Icons.sell, size: 18),
-                          label: Text(
-                            visibleTags.isEmpty
-                                ? 'Aggiungi tag'
-                                : 'Tag (${visibleTags.length})',
+                    if (!_focusEditor)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ActionChip(
+                            avatar: const Icon(Icons.folder, size: 18),
+                            label: Text(collectionName ?? 'Inbox'),
+                            onPressed: _saving ? null : _chooseCollection,
                           ),
-                          onPressed: _saving ? null : _editTags,
-                        ),
-                        ActionChip(
-                          avatar: const Icon(Icons.calendar_today, size: 18),
-                          label: Text(
-                            _diaryDate == null
-                                ? 'Giorno'
-                                : dateKey(_diaryDate!),
-                          ),
-                          onPressed: _saving ? null : _chooseDiaryDate,
-                        ),
-                        ActionChip(
-                          avatar: const Icon(Icons.tune, size: 18),
-                          label: Text(
-                            _propertyValues.isEmpty
-                                ? 'Proprietà'
-                                : 'Proprietà (${_propertyValues.length})',
-                          ),
-                          onPressed: _saving || !_propertiesLoaded
-                              ? null
-                              : _editProperties,
-                        ),
-                        if (_adaptive.degraded)
-                          Chip(
-                            avatar: const Icon(Icons.speed, size: 18),
+                          ActionChip(
+                            avatar: const Icon(Icons.sell, size: 18),
                             label: Text(
-                              'Editor adattivo · ${_adaptive.label}',
+                              visibleTags.isEmpty
+                                  ? 'Aggiungi tag'
+                                  : 'Tag (${visibleTags.length})',
                             ),
+                            onPressed: _saving ? null : _editTags,
                           ),
-                        if (_diaryDate != null)
-                          IconButton(
-                            onPressed: _saving ? null : _removeDiaryDate,
-                            tooltip: 'Rimuovi dal Diario',
-                            icon: const Icon(Icons.event_busy),
+                          ActionChip(
+                            avatar: const Icon(Icons.calendar_today, size: 18),
+                            label: Text(
+                              _diaryDate == null
+                                  ? 'Giorno'
+                                  : dateKey(_diaryDate!),
+                            ),
+                            onPressed: _saving ? null : _chooseDiaryDate,
                           ),
-                      ],
-                    ),
+                          ActionChip(
+                            avatar: const Icon(Icons.tune, size: 18),
+                            label: Text(
+                              _propertyValues.isEmpty
+                                  ? 'Proprietà'
+                                  : 'Proprietà (${_propertyValues.length})',
+                            ),
+                            onPressed: _saving || !_propertiesLoaded
+                                ? null
+                                : _editProperties,
+                          ),
+                          if (_adaptive.degraded)
+                            Chip(
+                              avatar: const Icon(Icons.speed, size: 18),
+                              label: Text(
+                                'Editor adattivo · ${_adaptive.label}',
+                              ),
+                            ),
+                          if (_diaryDate != null)
+                            IconButton(
+                              onPressed: _saving ? null : _removeDiaryDate,
+                              tooltip: 'Rimuovi dal Diario',
+                              icon: const Icon(Icons.event_busy),
+                            ),
+                        ],
+                      ),
                     if (visibleTags.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -1639,53 +1661,55 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed:
-                              _saving || _recording ? null : _attachFiles,
-                          icon: const Icon(Icons.attach_file),
-                          label: const Text('Allega'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _saving || _recording ? null : _takePhoto,
-                          icon: const Icon(Icons.photo_camera_outlined),
-                          label: const Text('Foto'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _saving ? null : _toggleRecording,
-                          icon: Icon(
-                            _recording ? Icons.stop_circle : Icons.mic_none,
+                    if (!_focusEditor)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed:
+                                _saving || _recording ? null : _attachFiles,
+                            icon: const Icon(Icons.attach_file),
+                            label: const Text('Allega'),
                           ),
-                          label: Text(
-                            _recording ? 'Termina' : 'Registra',
+                          OutlinedButton.icon(
+                            onPressed:
+                                _saving || _recording ? null : _takePhoto,
+                            icon: const Icon(Icons.photo_camera_outlined),
+                            label: const Text('Foto'),
                           ),
-                        ),
-                        FilledButton.tonalIcon(
-                          onPressed:
-                              _saving || _recording ? null : _smartCapture,
-                          icon: const Icon(Icons.document_scanner),
-                          label: const Text('Smart Capture'),
-                        ),
-                        Text(
-                          '${Attachments.refs(_body.text).length}/20 allegati',
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                        if (_recording)
+                          OutlinedButton.icon(
+                            onPressed: _saving ? null : _toggleRecording,
+                            icon: Icon(
+                              _recording ? Icons.stop_circle : Icons.mic_none,
+                            ),
+                            label: Text(
+                              _recording ? 'Termina' : 'Registra',
+                            ),
+                          ),
+                          FilledButton.tonalIcon(
+                            onPressed:
+                                _saving || _recording ? null : _smartCapture,
+                            icon: const Icon(Icons.document_scanner),
+                            label: const Text('Smart Capture'),
+                          ),
                           Text(
-                            'Registrazione in corso · massimo 5 minuti',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
+                            '${Attachments.refs(_body.text).length}/20 allegati',
+                            style: Theme.of(context).textTheme.labelMedium,
                           ),
-                      ],
-                    ),
+                          if (_recording)
+                            Text(
+                              'Registrazione in corso · massimo 5 minuti',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                            ),
+                        ],
+                      ),
                     if (Attachments.refs(_body.text).isNotEmpty) ...[
                       const SizedBox(height: 8),
                       ...Attachments.refs(_body.text).map(
@@ -1712,48 +1736,51 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.text,
-                          onSelected: _saving
-                              ? null
-                              : (_) => setState(() => _mode = _EditorMode.text),
-                          label: const Text('Testo'),
-                        ),
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.preview,
-                          onSelected: _saving
-                              ? null
-                              : (_) =>
-                                  setState(() => _mode = _EditorMode.preview),
-                          label: const Text('Anteprima'),
-                        ),
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.blocks,
-                          onSelected: _saving ? null : (_) => _enableBlocks(),
-                          label: const Text('Blocchi'),
-                        ),
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.checklist,
-                          onSelected: _saving
-                              ? null
-                              : (_) => setState(
-                                    () => _mode = _EditorMode.checklist,
-                                  ),
-                          label: Text('Checklist (${checklist.length})'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (_mode == _EditorMode.text) ...[
-                      _MarkdownToolbar(
-                        enabled: !_saving,
-                        onAction: _applyMarkdown,
-                        onLink: _insertLink,
+                    if (!_focusEditor)
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.text,
+                            onSelected: _saving
+                                ? null
+                                : (_) =>
+                                    setState(() => _mode = _EditorMode.text),
+                            label: const Text('Testo'),
+                          ),
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.preview,
+                            onSelected: _saving
+                                ? null
+                                : (_) =>
+                                    setState(() => _mode = _EditorMode.preview),
+                            label: const Text('Anteprima'),
+                          ),
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.blocks,
+                            onSelected: _saving ? null : (_) => _enableBlocks(),
+                            label: const Text('Blocchi'),
+                          ),
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.checklist,
+                            onSelected: _saving
+                                ? null
+                                : (_) => setState(
+                                      () => _mode = _EditorMode.checklist,
+                                    ),
+                            label: Text('Checklist (${checklist.length})'),
+                          ),
+                        ],
                       ),
-                      if (_adaptive.liveKnowledgeRefresh)
+                    const SizedBox(height: 10),
+                    if (_focusEditor || _mode == _EditorMode.text) ...[
+                      if (!_focusEditor)
+                        _MarkdownToolbar(
+                          enabled: !_saving,
+                          onAction: _applyMarkdown,
+                          onLink: _insertLink,
+                        ),
+                      if (!_focusEditor && _adaptive.liveKnowledgeRefresh)
                         KnowledgeToolsBar(
                           text: _body.text,
                           selection: _body.selection,
@@ -1763,7 +1790,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                           onEdit: _applyKnowledgeEdit,
                           onOpenNote: _openLinkedNote,
                         )
-                      else
+                      else if (!_focusEditor)
                         Text(
                           'Knowledge tools live sospesi: il documento è grande. '
                           'Salvataggio e testo restano prioritari.',

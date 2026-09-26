@@ -8,6 +8,37 @@ enum PlannerView { agenda, day, week, month, kanban, focus }
 
 enum PlannerScope { today, upcoming, all, completed }
 
+class TaskSubtask {
+  const TaskSubtask({
+    required this.id,
+    required this.title,
+    required this.completed,
+  });
+
+  final String id;
+  final String title;
+  final bool completed;
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'title': title,
+        'completed': completed,
+      };
+
+  factory TaskSubtask.fromJson(Map<String, Object?> map) {
+    final id = map['id']?.toString().trim() ?? '';
+    final title = map['title']?.toString().trim() ?? '';
+    final completed = map['completed'];
+    if (id.isEmpty || id.length > 200 || title.isEmpty || title.length > 500) {
+      throw const FormatException('Sotto-attività non valida.');
+    }
+    if (completed is! bool) {
+      throw const FormatException('Stato sotto-attività non valido.');
+    }
+    return TaskSubtask(id: id, title: title, completed: completed);
+  }
+}
+
 class TaskDetails {
   TaskDetails._(Map<String, dynamic> data)
       : _data = Map<String, dynamic>.from(data);
@@ -31,6 +62,7 @@ class TaskDetails {
         'plannedDate': null,
         'plannedTime': null,
         'plannedMinutes': 30,
+        'subtasks': <dynamic>[],
       });
 
   factory TaskDetails.decode(String raw) {
@@ -66,6 +98,24 @@ class TaskDetails {
   String? get plannedTime => _string('plannedTime');
   int get plannedMinutes => _int('plannedMinutes') ?? 30;
   bool get completed => completedAt != null;
+
+  List<TaskSubtask> get subtasks {
+    final raw = _data['subtasks'];
+    if (raw == null) return const [];
+    if (raw is! List || raw.length > 100) {
+      throw const FormatException('Sotto-attività non valide.');
+    }
+    return raw.map((value) {
+      if (value is! Map) {
+        throw const FormatException('Sotto-attività non valida.');
+      }
+      return TaskSubtask.fromJson(
+        value.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }).toList(growable: false);
+  }
+
+  int get completedSubtasks => subtasks.where((item) => item.completed).length;
 
   List<String> get focusReceipts {
     final raw = _data['focusReceipts'];
@@ -106,6 +156,7 @@ class TaskDetails {
     Object? plannedDate = _unset,
     Object? plannedTime = _unset,
     Object? plannedMinutes = _unset,
+    Object? subtasks = _unset,
   }) {
     final next = Map<String, dynamic>.from(_data);
     void set(String key, Object? value) {
@@ -128,6 +179,17 @@ class TaskDetails {
     set('plannedDate', plannedDate);
     set('plannedTime', plannedTime);
     set('plannedMinutes', plannedMinutes);
+    set(
+      'subtasks',
+      identical(subtasks, _unset)
+          ? _unset
+          : (subtasks as List<TaskSubtask>)
+              .map((item) => item.toJson())
+              .toList(growable: false),
+    );
+    if (identical(next['subtasks'], _unset)) {
+      next['subtasks'] = _data['subtasks'];
+    }
 
     return TaskDetails._(next)..validate();
   }
@@ -311,6 +373,12 @@ class TaskDetails {
     }
     if (plannedMinutes < 5 || plannedMinutes > 720) {
       throw const FormatException('Durata del blocco non valida.');
+    }
+    final seenSubtasks = <String>{};
+    for (final item in subtasks) {
+      if (!seenSubtasks.add(item.id)) {
+        throw const FormatException('Sotto-attività duplicate.');
+      }
     }
     if (!const {'NONE', 'DAILY', 'WEEKLY', 'MONTHLY'}.contains(repeat)) {
       throw const FormatException('Ricorrenza non valida.');

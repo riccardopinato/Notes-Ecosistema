@@ -143,6 +143,34 @@ class _PlannerScreenState extends State<PlannerScreen> {
     });
   }
 
+  Future<void> _toggleSubtask(
+    Note note,
+    TaskSubtask subtask,
+    bool completed,
+  ) async {
+    final task = TaskDetails.tryDecode(note.taskJson);
+    if (task == null) return;
+    final next = task.subtasks
+        .map(
+          (item) => item.id == subtask.id
+              ? TaskSubtask(
+                  id: item.id,
+                  title: item.title,
+                  completed: completed,
+                )
+              : item,
+        )
+        .toList(growable: false);
+    await _run(
+      () => widget.onSave(
+        note.copyWith(
+          taskJson: task.copyWith(subtasks: next).encode(),
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      ),
+    );
+  }
+
   Future<void> _plan(Note note) async {
     final task = TaskDetails.tryDecode(note.taskJson);
     if (task == null) return;
@@ -752,6 +780,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     ),
                   ],
                 ),
+                if (task.subtasks.isNotEmpty)
+                  ...task.subtasks.take(4).map(
+                        (subtask) => CheckboxListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.only(left: 34),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: subtask.completed,
+                          title: Text(subtask.title),
+                          onChanged: _busy || task.completed
+                              ? null
+                              : (value) => _toggleSubtask(
+                                    note,
+                                    subtask,
+                                    value ?? false,
+                                  ),
+                        ),
+                      ),
                 Row(
                   children: [
                     if (task.priority > 0)
@@ -759,6 +804,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     if (task.repeat != 'NONE') ...[
                       const SizedBox(width: 6),
                       Chip(label: Text(_repeatLabel(task.repeat))),
+                    ],
+                    if (task.subtasks.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Chip(
+                        label: Text(
+                          '${task.completedSubtasks}/${task.subtasks.length} sotto-attività',
+                        ),
+                      ),
                     ],
                     const Spacer(),
                     TextButton(
@@ -785,6 +838,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final due = TextEditingController(text: initial.due ?? initialDue ?? '');
     final plannedDate = TextEditingController(text: initial.plannedDate ?? '');
     final plannedTime = TextEditingController(text: initial.plannedTime ?? '');
+    final subtasks = TextEditingController(
+      text: initial.subtasks.map((item) => item.title).join('\n'),
+    );
     final reminderInstant = initial.reminderAt == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(initial.reminderAt!);
@@ -803,6 +859,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       due.dispose();
       plannedDate.dispose();
       plannedTime.dispose();
+      subtasks.dispose();
       reminderDate.dispose();
       reminderTime.dispose();
       return null;
@@ -870,6 +927,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
                           label: Text(item.$2),
                         ),
                     ],
+                  ),
+                  const Divider(height: 28),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Sotto-attività'),
+                  ),
+                  TextField(
+                    controller: subtasks,
+                    minLines: 2,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Una sotto-attività per riga',
+                    ),
                   ),
                   const Divider(height: 28),
                   const Align(
@@ -967,6 +1037,38 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     plannedMinutes: plannedMinutes,
                   );
 
+                  final existingByTitle = {
+                    for (final item in initial.subtasks)
+                      item.title.toLowerCase(): item,
+                  };
+                  final parsedSubtasks = <TaskSubtask>[];
+                  final seenTitles = <String>{};
+                  for (final raw in subtasks.text.split('\n')) {
+                    final subtaskTitle = raw.trim();
+                    if (subtaskTitle.isEmpty) continue;
+                    if (subtaskTitle.length > 500) {
+                      throw const FormatException(
+                        'Sotto-attività troppo lunga.',
+                      );
+                    }
+                    final key = subtaskTitle.toLowerCase();
+                    if (!seenTitles.add(key)) continue;
+                    final existing = existingByTitle[key];
+                    parsedSubtasks.add(
+                      TaskSubtask(
+                        id: existing?.id ?? const Uuid().v4(),
+                        title: subtaskTitle,
+                        completed: existing?.completed ?? false,
+                      ),
+                    );
+                    if (parsedSubtasks.length > 100) {
+                      throw const FormatException(
+                        'Massimo 100 sotto-attività.',
+                      );
+                    }
+                  }
+                  details = details.copyWith(subtasks: parsedSubtasks);
+
                   final reminderDayText = reminderDate.text.trim();
                   final reminderClockText = reminderTime.text.trim();
                   if (reminderDayText.isEmpty && reminderClockText.isEmpty) {
@@ -1023,6 +1125,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       due.dispose();
       plannedDate.dispose();
       plannedTime.dispose();
+      subtasks.dispose();
       reminderDate.dispose();
       reminderTime.dispose();
     });
