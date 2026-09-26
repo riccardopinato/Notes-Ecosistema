@@ -77,8 +77,7 @@ class _QuickSwitcherDialogState extends State<_QuickSwitcherDialog> {
                                 Icons.check_circle_outline,
                               QuickSwitcherKind.collection =>
                                 Icons.folder_outlined,
-                              QuickSwitcherKind.project =>
-                                Icons.work_outline,
+                              QuickSwitcherKind.project => Icons.work_outline,
                               QuickSwitcherKind.command => Icons.bolt_outlined,
                             },
                           ),
