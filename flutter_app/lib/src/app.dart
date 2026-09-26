@@ -1370,12 +1370,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
       final derivatives =
           await ref.read(derivativeStoreProvider).exportBackup();
+      final projects = await ref.read(projectStoreProvider).exportBackup();
       final bytes = await MediaBundle.encode(
         snapshot,
         store,
         properties: properties,
         knowledge: knowledge,
         derivatives: derivatives,
+        projects: projects,
       );
       final now = DateTime.now();
       final stamp =
@@ -1503,6 +1505,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               bundle.derivatives,
               noteIdMap: plan.noteIdMap,
             );
+        await ref.read(projectStoreProvider).importBackup(
+              bundle.projects,
+              noteIdMap: plan.noteIdMap,
+            );
+        await ref.read(projectWorkspaceProvider.notifier).refresh();
 
         if (blockMap.isNotEmpty) {
           final notifier = ref.read(workspaceProvider.notifier);
@@ -1597,6 +1604,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
     await ref.read(derivativeStoreProvider).deleteForNote(id);
+    await ref.read(projectStoreProvider).deleteLinksForNote(id);
+    await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
       await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
