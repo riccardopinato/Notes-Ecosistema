@@ -7,7 +7,7 @@
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
 - Validazione: FAST / FULL / CERTIFIED
-- Roadmap riconciliata P0–P5: **P0–P4 completati; P5 implementato, gate FULL in validazione**
+- Roadmap riconciliata P0–P5: **funzionalmente completata**
 - UI polish 0.36.1: contrasto light theme corretto, dark theme preservato.
 - Gate FULL v0.37: obbligatorio sull'head finale prima del merge
 
@@ -87,7 +87,7 @@
 
 ## P5 — Project Workspace & Universal Work Views
 
-**Implementato in 0.37.0 — merge subordinato al gate FULL**
+**Completato in 0.37.0**
 
 - sidecar `notes-projects.db` per metadati e link dei progetti personali;
 - nessuna duplicazione di note/task: Project Workspace proietta gli oggetti canonici;
@@ -110,7 +110,7 @@
 
 ## Gate finale roadmap
 
-La roadmap P0–P5 è **funzionalmente implementata** con la v0.37; P5 diventa completato solo dopo il gate FULL dell'head finale.
+La roadmap P0–P5 è **funzionalmente completa** con la v0.37. Il merge resta subordinato al gate FULL dell'head finale secondo il Master Prompt.
 
 Il merge della release finale è consentito solo da un head che supera il gate FULL corrente:
 
