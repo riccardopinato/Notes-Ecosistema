@@ -137,7 +137,11 @@ void main() {
     final result = await MarkdownFolderMirror.sync(directory.path, [dirty]);
     expect(result.conflicts, 1);
     expect(result.updatedNotes.single.body, contains('Local'));
-    expec
+    expect(result.updatedNotes.single.body, contains('External'));
+    final merged = await files.single.readAsString();
+    expect(merged, contains('Local'));
+    expect(merged, contains('External'));
+  });
 
   test('portable Markdown materializes synced blocks and restores task metadata',
       () {
