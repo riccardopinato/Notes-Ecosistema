@@ -1071,23 +1071,16 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
       final shared = ref.read(sharedSpacesProvider);
-      final editableIds = <String>{};
-      final viewerIds = <String>{};
+      final blockedSharedIds = <String>{};
       final identity = shared.identity;
-      if (identity != null) {
-        for (final space in shared.spaces) {
-          final role = space.roleFor(identity.id);
-          if (role == null) continue;
-          if (role.canEdit) {
-            editableIds.addAll(space.contentIds);
-          } else {
-            viewerIds.addAll(space.contentIds);
-          }
+      for (final space in shared.spaces) {
+        final role = identity == null ? null : space.roleFor(identity.id);
+        if (role == null || !role.canEdit) {
+          blockedSharedIds.addAll(space.contentIds);
         }
       }
-      final viewerOnlyIds = viewerIds.difference(editableIds);
       final eligible = snapshot.notes
-          .where((note) => !viewerOnlyIds.contains(note.id))
+          .where((note) => !blockedSharedIds.contains(note.id))
           .toList(growable: false);
 
       final result = await MarkdownFolderMirror.sync(path, eligible);
@@ -1096,24 +1089,15 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final latestShared = ref.read(sharedSpacesProvider);
       final latestIdentity = latestShared.identity;
       for (final note in result.updatedNotes) {
-        var hasViewerLink = false;
-        var hasEditableLink = false;
-        if (latestIdentity != null) {
-          for (final space in latestShared.spaces) {
-            if (!space.contentIds.contains(note.id)) continue;
-            final role = space.roleFor(latestIdentity.id);
-            if (role == null) continue;
-            if (role.canEdit) {
-              hasEditableLink = true;
-            } else {
-              hasViewerLink = true;
-            }
+        for (final space in latestShared.spaces) {
+          if (!space.contentIds.contains(note.id)) continue;
+          final role =
+              latestIdentity == null ? null : space.roleFor(latestIdentity.id);
+          if (role == null || !role.canEdit) {
+            throw const FormatException(
+              'La cartella Markdown non può modificare un contenuto Shared Space in sola lettura.',
+            );
           }
-        }
-        if (hasViewerLink && !hasEditableLink) {
-          throw const FormatException(
-            'La cartella Markdown non può modificare un contenuto Shared Space in sola lettura.',
-          );
         }
         await ref.read(workspaceProvider.notifier).save(note);
       }
