@@ -157,6 +157,16 @@ abstract final class SyncedBlockCodec {
         final id = match.group(1)!.toLowerCase();
         return blocks[id]?.markdown ?? match.group(0)!;
       });
+
+  static String remapReferences(
+    String markdown,
+    Map<String, String> idMap,
+  ) =>
+      markdown.replaceAllMapped(marker, (match) {
+        final oldId = match.group(1)!.toLowerCase();
+        final nextId = idMap[oldId] ?? idMap[match.group(1)!];
+        return nextId == null ? match.group(0)! : reference(nextId);
+      });
 }
 
 abstract final class ResearchRules {
