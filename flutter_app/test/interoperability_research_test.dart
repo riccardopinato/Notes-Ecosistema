@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/markdown_interop.dart';
+import 'package:notes_ecosistema/src/domain/markdown_folder_mirror.dart';
 import 'package:notes_ecosistema/src/domain/note.dart';
 import 'package:notes_ecosistema/src/domain/research.dart';
 
@@ -100,4 +103,37 @@ void main() {
       'Prima\n\n**Condiviso**\n\nDopo',
     );
   });
+  test('Markdown folder preserves dirty local and external changes', () async {
+    final directory = await Directory.systemTemp.createTemp('notes-mirror-');
+    addTearDown(() => directory.delete(recursive: true));
+
+    const id = '11111111-1111-4111-8111-111111111111';
+    const initial = Note(
+      id: id,
+      title: 'Mirror',
+      body: 'Base',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 1,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+
+    await MarkdownFolderMirror.sync(directory.path, [initial]);
+    final files = directory
+        .listSync()
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.md'))
+        .toList();
+    expect(files, hasLength(1));
+    await files.single.writeAsString('# Mirror\n\nExternal');
+
+    final dirty = initial.copyWith(body: 'Local', updatedAt: 2);
+    final result = await MarkdownFolderMirror.sync(directory.path, [dirty]);
+    expect(result.conflicts, 1);
+    expect(result.updatedNotes.single.body, contains('Local'));
+    expect(result.updatedNotes.single.body, contains('External'));
+  });
+
 }
