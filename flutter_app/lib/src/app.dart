@@ -893,7 +893,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         }),
         onOpenNote: _openEditor,
         onProjects: () => _openProjects(),
-        projectCount: projects.projects.where((project) => project.isActive).length,
+        projectCount:
+            projects.projects.where((project) => project.isActive).length,
         sharedUnread: identity == null ? 0 : live.totalUnread(identity.id),
       );
     } else if (_index == 1 || _index == 5) {
