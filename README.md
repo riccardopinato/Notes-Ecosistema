@@ -1,4 +1,4 @@
-# Notes — Ecosistema 0.35.0
+# Notes — Ecosistema 0.36.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
@@ -6,7 +6,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.35.0+44**
+- Versione Flutter: **0.36.0+45**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
@@ -29,6 +29,20 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - GitHub Sync con allegati e tile Quick Settings.
 - Backup JSON v6 compatibile con la linea Kotlin e backup ZIP completo con allegati.
 - Export/condivisione PNG per Sketch e Whiteboard.
+
+## 0.36 — Optional Intelligence
+
+- Knowledge Search locale e citabile su note personali, senza provider obbligatorio;
+- note correlate determinate localmente con ranking trasparente;
+- “Chiedi alle mie note” restituisce fonti/esatti documenti, non risposte inventate;
+- modello **Originale → Derivato** in `notes-derivatives.db`;
+- trascrizione grezza conservata separatamente;
+- pulizia transcript, riassunto estrattivo e task extraction deterministici;
+- ogni derivato può essere eliminato o rigenerato senza modificare audio/testo originale;
+- lifecycle purge elimina i derivati collegati alla nota;
+- nessuna funzione core richiede AI, rete o account.
+
+Dettagli: `flutter_app/OPTIONAL_INTELLIGENCE_0_36.md`.
 
 ## 0.35 — Interoperability & Research
 
@@ -146,6 +160,12 @@ Non usare quella branch per nuovo sviluppo.
 
 ## Direzione successiva
 
-Dopo Interoperability & Research 0.35:
+Roadmap riconciliata P0–P4:
 
-1. Intelligence opzionale sopra un core completamente funzionante senza AI.
+- P0 Production Truth & Data Lifecycle: completato.
+- P1 Universal Properties + Adaptive Editor: completato.
+- P2 Daily Work & Capture: completato.
+- P3 Interoperability & Research: completato.
+- P4 Optional Intelligence: completato.
+
+Le release restano soggette ai gate FAST/FULL/CERTIFIED: roadmap funzionale completata non equivale automaticamente a certificazione hardware.
