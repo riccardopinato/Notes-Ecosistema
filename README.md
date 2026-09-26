@@ -27,7 +27,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - Quick Capture Android, shortcut, widget Home e share target.
 - Promemoria Android con apertura e snooze.
 - GitHub Sync con allegati e tile Quick Settings.
-- Backup JSON v6 compatibile con la linea Kotlin e backup ZIP completo con allegati.
+- Backup JSON v6 compatibile con la linea Kotlin e backup ZIP v2 completo con allegati, Universal Properties, Research/Relations/Synced Blocks e derivati; lettura retrocompatibile ZIP v1.
 - Export/condivisione PNG per Sketch e Whiteboard.
 
 ## 0.36 — Optional Intelligence
@@ -39,6 +39,8 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - trascrizione grezza conservata separatamente;
 - pulizia transcript, riassunto estrattivo e task extraction deterministici;
 - ogni derivato può essere eliminato o rigenerato senza modificare audio/testo originale;
+- i derivati vengono creati solo da una nota già salvata, mai da testo dirty poi scartabile;
+- backup completo v2 include `notes-metadata.db`, `notes-knowledge.db` e `notes-derivatives.db` in forma portabile/remappabile;
 - lifecycle purge elimina i derivati collegati alla nota;
 - nessuna funzione core richiede AI, rete o account.
 
@@ -46,8 +48,10 @@ Dettagli: `flutter_app/OPTIONAL_INTELLIGENCE_0_36.md`.
 
 ## 0.35 — Interoperability & Research
 
-- export/import workspace Markdown in file `.md` portabili;
-- cartella Markdown mirror selezionabile dall'utente con manifest locale e merge a tre vie;
+- export/import workspace Markdown in file `.md` portabili, con tag/task preservati e Synced Blocks materializzati;
+- cartella Markdown mirror selezionabile dall'utente con manifest locale, percorsi confinati e merge a tre vie;
+- il manifest viene finalizzato solo dopo il commit SQLite e non autorizza overwrite quando la base manca;
+- contenuti Shared Spaces read-only sono esclusi dal mirror;
 - modifiche esterne non sovrascrivono mai testo locale dirty: i conflitti preservano entrambe le versioni;
 - Research Workspace per fonti, URL, autore, estratti e footnote Markdown;
 - relazioni note↔note persistenti e rollup deterministici;
@@ -144,7 +148,7 @@ Una build non è dichiarata stabile solo perché compila.
 
 - database compatibile con la linea Room v8;
 - backup JSON v6;
-- backup ZIP con allegati e restore verificato;
+- backup ZIP v2 con allegati + sidecar e restore con remapping ID; decoder retrocompatibile v1;
 - allegati con chiavi SHA-256;
 - Shared Space bundle portabile come fallback;
 - nessun reset distruttivo richiesto dalla 0.32.
