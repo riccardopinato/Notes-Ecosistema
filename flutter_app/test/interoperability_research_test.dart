@@ -143,7 +143,8 @@ void main() {
     expect(merged, contains('External'));
   });
 
-  test('portable Markdown materializes synced blocks and restores task metadata',
+  test(
+      'portable Markdown materializes synced blocks and restores task metadata',
       () {
     const blockId = '22222222-2222-4222-8222-222222222222';
     const block = SyncedBlock(
