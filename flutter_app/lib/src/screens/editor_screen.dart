@@ -13,6 +13,7 @@ import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
+import '../domain/adaptive_editor.dart';
 import '../domain/attachments.dart';
 import '../domain/backup.dart';
 import '../domain/blocks.dart';
@@ -21,6 +22,7 @@ import '../domain/editing.dart';
 import '../domain/knowledge.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../domain/properties.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
 import '../platform/attachment_bridge.dart';
@@ -29,6 +31,7 @@ import '../screens/whiteboard_screen.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
+import '../widgets/properties_sheet.dart';
 import '../widgets/smart_capture_sheet.dart';
 import '../widgets/universal_block_editor.dart';
 
@@ -75,10 +78,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Timer? _recordingTimer;
   final AudioRecorder _recorder = AudioRecorder();
   String? _error;
+  List<PropertyDefinition> _propertyDefinitions = const [];
+  Map<String, Object?> _propertyValues = {};
+  bool _propertiesLoaded = false;
 
   bool get _readOnlyVisual => widget.note?.isVisual == true;
   bool get _readOnly => widget.readOnly || _readOnlyVisual;
   DateTime? get _diaryDate => Diary.date(_tags);
+  AdaptiveEditorProfile get _adaptive =>
+      AdaptiveEditorPolicy.evaluate(_body.text);
 
   @override
   void initState() {
@@ -92,7 +100,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (Checklist.hasMarker(_body.text)) {
       _mode = _EditorMode.checklist;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreDraft());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_restoreDraft());
+      unawaited(_loadProperties());
+    });
   }
 
   @override
@@ -113,6 +124,30 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   void _changed() {
     if (!_dirty && mounted) setState(() => _dirty = true);
+    _rememberDraft();
+  }
+
+  void _syncBlocksForBody(String body) {
+    if (!_blocksInitialized) return;
+    final profile = AdaptiveEditorPolicy.evaluate(body);
+    if (profile.liveBlockParsing) {
+      _blocks = BlockEditorCodec.parse(_id, body);
+    } else {
+      // content_blocks are a derived representation. On large documents we
+      // deliberately invalidate the live cache instead of reparsing on each
+      // keystroke; explicit block mode rebuilds it from canonical Markdown.
+      _blocks = const [];
+      _blocksInitialized = false;
+      if (_mode == _EditorMode.blocks) _mode = _EditorMode.text;
+    }
+  }
+
+  void _bodyChanged() {
+    setState(() {
+      _syncBlocksForBody(_body.text);
+      _dirty = true;
+      _error = null;
+    });
     _rememberDraft();
   }
 
@@ -161,6 +196,60 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
+  Future<void> _loadProperties() async {
+    try {
+      final store = ref.read(propertyStoreProvider);
+      final definitions = await store.loadDefinitions();
+      final values = await store.loadValues(_id);
+      if (!mounted) return;
+      setState(() {
+        _propertyDefinitions = definitions;
+        _propertyValues = values;
+        _propertiesLoaded = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _propertiesLoaded = true;
+        _error = 'Impossibile caricare le proprietà strutturate.';
+      });
+    }
+  }
+
+  Future<void> _editProperties() async {
+    if (!_propertiesLoaded || _saving || _readOnly) return;
+    final store = ref.read(propertyStoreProvider);
+    final result = await showPropertiesSheet(
+      context: context,
+      definitions: _propertyDefinitions,
+      values: _propertyValues,
+      onCreateDefinition: (name, type, options) async {
+        final created = await store.createDefinition(
+          name: name,
+          type: type,
+          options: options,
+        );
+        if (mounted) {
+          setState(() {
+            _propertyDefinitions = [..._propertyDefinitions, created]
+              ..sort(
+                (a, b) =>
+                    a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+              );
+          });
+        }
+        return created;
+      },
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _propertyValues = result;
+      _dirty = true;
+      _error = null;
+    });
+    _rememberDraft();
+  }
+
   void _rememberDraft({bool immediate = false}) {
     if (_readOnly || _saving) return;
     if (!_draftLoaded) {
@@ -178,7 +267,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       unawaited(_writeDraft(token));
     } else {
       _draftTimer = Timer(
-        const Duration(milliseconds: 280),
+        _adaptive.draftDebounce,
         () => unawaited(_writeDraft(token)),
       );
     }
@@ -253,6 +342,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             );
 
       await ref.read(workspaceProvider.notifier).save(note);
+      if (_propertiesLoaded) {
+        await ref.read(propertyStoreProvider).replaceValues(
+              _id,
+              _propertyDefinitions,
+              _propertyValues,
+            );
+      }
       if (_blocksInitialized) {
         final normalized = _blocks.isEmpty
             ? BlockEditorCodec.parse(_id, _body.text)
@@ -339,6 +435,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Future<void> _enableBlocks() async {
     if (_saving) return;
+    if (_adaptive.level == AdaptiveEditorLevel.minimal) {
+      setState(() {
+        _error = 'Documento molto grande: la modalità Blocchi è sospesa per '
+            'proteggere fluidità e salvataggio. Il testo resta completamente modificabile.';
+        _mode = _EditorMode.text;
+      });
+      return;
+    }
     try {
       final stored = _blocksInitialized
           ? _blocks
@@ -518,9 +622,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             _body.selection = TextSelection.collapsed(offset: body.length);
             _dirty = true;
             _error = null;
-            if (_blocksInitialized) {
-              _blocks = BlockEditorCodec.parse(_id, body);
-            }
+            _syncBlocksForBody(body);
           });
           _rememberDraft(immediate: true);
         },
@@ -555,9 +657,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _body.selection = TextSelection.collapsed(offset: body.length);
         _dirty = true;
         _error = null;
-        if (_blocksInitialized) {
-          _blocks = BlockEditorCodec.parse(_id, body);
-        }
+        _syncBlocksForBody(body);
       });
       _rememberDraft(immediate: true);
     } catch (error) {
@@ -658,9 +758,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _dirty = true;
         _recordingPath = null;
         _error = null;
-        if (_blocksInitialized) {
-          _blocks = BlockEditorCodec.parse(_id, body);
-        }
+        _syncBlocksForBody(body);
       });
       _rememberDraft(immediate: true);
     } catch (error) {
@@ -722,9 +820,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _body.text = body;
         _body.selection = TextSelection.collapsed(offset: body.length);
         _dirty = true;
-        if (_blocksInitialized) {
-          _blocks = BlockEditorCodec.parse(_id, body);
-        }
+        _syncBlocksForBody(body);
         _error = null;
       });
       _rememberDraft(immediate: true);
@@ -1506,6 +1602,24 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                           ),
                           onPressed: _saving ? null : _chooseDiaryDate,
                         ),
+                        ActionChip(
+                          avatar: const Icon(Icons.tune, size: 18),
+                          label: Text(
+                            _propertyValues.isEmpty
+                                ? 'Proprietà'
+                                : 'Proprietà (${_propertyValues.length})',
+                          ),
+                          onPressed: _saving || !_propertiesLoaded
+                              ? null
+                              : _editProperties,
+                        ),
+                        if (_adaptive.degraded)
+                          Chip(
+                            avatar: const Icon(Icons.speed, size: 18),
+                            label: Text(
+                              'Editor adattivo · ${_adaptive.label}',
+                            ),
+                          ),
                         if (_diaryDate != null)
                           IconButton(
                             onPressed: _saving ? null : _removeDiaryDate,
@@ -1645,22 +1759,26 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         onAction: _applyMarkdown,
                         onLink: _insertLink,
                       ),
-                      KnowledgeToolsBar(
-                        text: _body.text,
-                        selection: _body.selection,
-                        notes: widget.allNotes,
-                        currentNoteId: _id,
-                        enabled: !_saving,
-                        onEdit: _applyKnowledgeEdit,
-                        onOpenNote: _openLinkedNote,
-                      ),
+                      if (_adaptive.liveKnowledgeRefresh)
+                        KnowledgeToolsBar(
+                          text: _body.text,
+                          selection: _body.selection,
+                          notes: widget.allNotes,
+                          currentNoteId: _id,
+                          enabled: !_saving,
+                          onEdit: _applyKnowledgeEdit,
+                          onOpenNote: _openLinkedNote,
+                        )
+                      else
+                        Text(
+                          'Knowledge tools live sospesi: il documento è grande. '
+                          'Salvataggio e testo restano prioritari.',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _body,
-                        onChanged: (_) {
-                          _changed();
-                          setState(() {});
-                        },
+                        onChanged: (_) => _bodyChanged(),
                         style: Theme.of(context).textTheme.bodyLarge,
                         decoration: const InputDecoration(
                           hintText: 'Comincia da un pensiero…',
@@ -1677,7 +1795,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
                       const SizedBox(height: 8),
-                      if (_body.text.length > 200000)
+                      if (_adaptive.level == AdaptiveEditorLevel.minimal)
                         const Text(
                           'Questa nota è troppo lunga per l’anteprima. '
                           'Il testo completo resta disponibile in Testo.',
