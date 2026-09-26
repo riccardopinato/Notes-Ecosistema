@@ -178,10 +178,9 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
         result.options,
       );
       if (!mounted) return;
-      setState(() => _definitions = [..._definitions, created]
-        ..sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        ));
+      setState(() => _definitions = [..._definitions, created]..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          ));
     } catch (e) {
       if (mounted) {
         setState(
@@ -213,8 +212,8 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
           setState(
             () => _values[definition.id] =
                 '${picked.year.toString().padLeft(4, '0')}-'
-                '${picked.month.toString().padLeft(2, '0')}-'
-                '${picked.day.toString().padLeft(2, '0')}',
+                    '${picked.month.toString().padLeft(2, '0')}-'
+                    '${picked.day.toString().padLeft(2, '0')}',
           );
         }
         return;
@@ -322,12 +321,10 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
               keyboardType: definition.type == NotePropertyType.number
                   ? const TextInputType.numberWithOptions(decimal: true)
                   : TextInputType.text,
-              maxLines:
-                  definition.type == NotePropertyType.text ? null : 1,
+              maxLines: definition.type == NotePropertyType.text ? null : 1,
               decoration: InputDecoration(
-                hintText: definition.type == NotePropertyType.number
-                    ? '0'
-                    : 'Valore',
+                hintText:
+                    definition.type == NotePropertyType.number ? '0' : 'Valore',
               ),
             ),
             actions: [
@@ -356,8 +353,7 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
           });
         } catch (e) {
           setState(
-            () => _error =
-                e.toString().replaceFirst('FormatException: ', ''),
+            () => _error = e.toString().replaceFirst('FormatException: ', ''),
           );
         }
         return;
@@ -434,10 +430,8 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              trailing:
-                                  const Icon(Icons.chevron_right_rounded),
-                              onTap:
-                                  _busy ? null : () => _edit(definition),
+                              trailing: const Icon(Icons.chevron_right_rounded),
+                              onTap: _busy ? null : () => _edit(definition),
                             );
                           },
                         ),
