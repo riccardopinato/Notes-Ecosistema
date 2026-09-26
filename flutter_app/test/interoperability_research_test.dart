@@ -93,7 +93,8 @@ void main() {
     expect(rollup.byLabel['supports'], 1);
   });
 
-  test('synced block keeps a canonical marker and resolves only for rendering', () {
+  test('synced block keeps a canonical marker and resolves only for rendering',
+      () {
     const id = '11111111-1111-4111-8111-111111111111';
     final marker = SyncedBlockCodec.reference(id);
     const block = SyncedBlock(id: id, markdown: '**Condiviso**', updatedAt: 1);
@@ -135,5 +136,4 @@ void main() {
     expect(result.updatedNotes.single.body, contains('Local'));
     expect(result.updatedNotes.single.body, contains('External'));
   });
-
 }
