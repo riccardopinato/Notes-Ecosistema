@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/note.dart';
 import 'package:notes_ecosistema/src/domain/planner.dart';
 import 'package:notes_ecosistema/src/domain/quick_switcher.dart';
+import 'package:notes_ecosistema/src/domain/project_workspace.dart';
 import 'package:notes_ecosistema/src/domain/workday.dart';
 
 void main() {
@@ -95,6 +96,24 @@ void main() {
     );
     expect(results.first.id, 'alpha');
   });
+  test('quick switcher exposes active project workspaces', () {
+    const project = ProjectWorkspace(
+      id: 'project-1',
+      name: 'Lancio Alpha',
+      description: '',
+      createdAt: 1,
+      updatedAt: 2,
+    );
+    final results = QuickSwitcher.search(
+      query: 'lancio',
+      notes: const [],
+      collections: const [],
+      projects: const [project],
+    );
+    expect(results.single.kind, QuickSwitcherKind.project);
+    expect(results.single.id, 'project-1');
+  });
+
   test('task subtasks remain backward compatible and typed', () {
     final task = TaskDetails.empty().copyWith(
       subtasks: const [
