@@ -80,8 +80,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error =
-              error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = error.toString().replaceFirst('FormatException: ', ''),
         );
       }
     }
@@ -91,7 +90,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     final query = _query.text.trim();
     setState(() {
       _result = _engine.ask(query, widget.notes);
-      _error = query.isEmpty ? 'Scrivi una domanda o alcune parole chiave.' : null;
+      _error =
+          query.isEmpty ? 'Scrivi una domanda o alcune parole chiave.' : null;
     });
   }
 
@@ -214,8 +214,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
       } catch (error) {
         if (mounted) {
           setState(
-            () => _error =
-                error.toString().replaceFirst('FormatException: ', ''),
+            () =>
+                _error = error.toString().replaceFirst('FormatException: ', ''),
           );
         }
       }
@@ -290,7 +290,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                   const SizedBox(height: 8),
                   Text(
                     _error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -408,7 +409,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                                     );
                                     if (mounted) Navigator.pop(context);
                                   } else if (value == 'delete') {
-                                    await widget.derivativeStore.delete(item.id);
+                                    await widget.derivativeStore
+                                        .delete(item.id);
                                     await _loadDerivatives();
                                   }
                                 },
