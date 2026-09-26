@@ -107,5 +107,4 @@ void main() {
     expect(decoded.completedSubtasks, 1);
     expect(decoded.subtasks.last.title, 'Seconda');
   });
-
 }
