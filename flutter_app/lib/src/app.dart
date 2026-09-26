@@ -47,6 +47,7 @@ import 'sync/github_sync_service.dart';
 import 'theme/notes_theme.dart';
 import 'widgets/editorial.dart';
 import 'widgets/quick_switcher_sheet.dart';
+import 'widgets/intelligence_sheet.dart';
 
 class NotesEcosistemaApp extends ConsumerStatefulWidget {
   const NotesEcosistemaApp({super.key});
@@ -858,6 +859,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         title: EditorialAppTitle(section == 'Home' ? 'Il tuo spazio' : section),
         actions: [
           IconButton(
+            tooltip: 'Knowledge Search',
+            onPressed: () => _knowledgeSearch(personalNotes),
+            icon: const Icon(Icons.auto_awesome_outlined),
+          ),
+          IconButton(
             tooltip: 'Quick Switcher',
             onPressed: () => _quickSwitcher(personalNotes),
             icon: const Icon(Icons.bolt_outlined),
@@ -897,6 +903,15 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           NavigationDestination(icon: Icon(Icons.search), label: 'Cerca'),
         ],
       ),
+    );
+  }
+
+  Future<void> _knowledgeSearch(List<Note> notes) async {
+    await showIntelligenceSheet(
+      context: context,
+      notes: notes,
+      derivativeStore: ref.read(derivativeStoreProvider),
+      onOpenNote: (note) => _openEditor(note),
     );
   }
 
@@ -1370,6 +1385,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(workspaceProvider.notifier).deleteForever(id);
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
+    await ref.read(derivativeStoreProvider).deleteForNote(id);
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
       await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
