@@ -1,4 +1,4 @@
-# Notes — Ecosistema 0.32.0
+# Notes — Ecosistema 0.33.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
@@ -6,7 +6,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.32.0+41**
+- Versione Flutter: **0.33.0+42**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
@@ -29,6 +29,18 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - GitHub Sync con allegati e tile Quick Settings.
 - Backup JSON v6 compatibile con la linea Kotlin e backup ZIP completo con allegati.
 - Export/condivisione PNG per Sketch e Whiteboard.
+
+## 0.33 — Universal Properties + Adaptive Editor
+
+- proprietà universali tipizzate: testo, numero, data, select, multi-select, checkbox e stato;
+- definizioni riutilizzabili a livello workspace;
+- valori persistiti in un database SQLite sidecar `notes-metadata.db`, senza alterare `notes.db` v8;
+- purge lifecycle integrato: l'eliminazione definitiva rimuove anche i valori sidecar;
+- editor adattivo con livelli Completo, Leggero ed Essenziale;
+- sui documenti grandi il parsing live dei blocchi e i knowledge tools live vengono sospesi prima di compromettere fluidità o salvataggio;
+- il Markdown resta sempre la sorgente canonica del contenuto; i `content_blocks` restano derivati ricostruibili.
+
+Dettagli: `flutter_app/PROPERTIES_ADAPTIVE_0_33.md`.
 
 ## Shared Spaces
 
@@ -108,10 +120,9 @@ Non usare quella branch per nuovo sviluppo.
 
 ## Direzione successiva
 
-Dopo la chiusura dei gate 0.32:
+Dopo la fondazione 0.33:
 
-1. Universal Properties + Adaptive Editor foundation.
-2. Daily Work Briefing / Today come aggregatore del workspace.
-3. Task avanzati, Inbox/Triage e Quick Switcher.
-4. Interoperabilità Markdown e Research Workspace.
-5. AI opzionale sopra un core completamente funzionante senza AI.
+1. Daily Work Briefing / Today come aggregatore del workspace.
+2. Task avanzati, Inbox/Triage, Voice Capture e Quick Switcher.
+3. Interoperabilità Markdown, Research Workspace, Relations/Rollups e Synced Blocks.
+4. Intelligence opzionale sopra un core completamente funzionante senza AI.

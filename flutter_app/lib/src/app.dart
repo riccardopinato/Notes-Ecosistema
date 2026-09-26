@@ -1133,6 +1133,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
 
     await ref.read(workspaceProvider.notifier).deleteForever(id);
+    await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
       await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
@@ -1333,7 +1334,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   },
                 ),
                 const ListTile(
-                  title: Text('Notes · Flutter 0.32.0'),
+                  title: Text('Notes · Flutter 0.33.0'),
                   subtitle: Text(
                     'Shared Spaces selettivi · database locale ancora compatibile con Room v8.',
                   ),

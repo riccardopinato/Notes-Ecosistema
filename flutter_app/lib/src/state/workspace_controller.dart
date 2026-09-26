@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
+import '../data/property_store.dart';
 import '../domain/backup.dart';
 import '../domain/library.dart';
 import '../domain/note.dart';
@@ -11,6 +12,12 @@ final databaseProvider = Provider<LegacyNotesDatabase>((ref) {
   final database = LegacyNotesDatabase();
   ref.onDispose(database.close);
   return database;
+});
+
+final propertyStoreProvider = Provider<PropertyStore>((ref) {
+  final store = PropertyStore();
+  ref.onDispose(store.close);
+  return store;
 });
 
 class WorkspaceState {
