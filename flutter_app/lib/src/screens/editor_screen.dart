@@ -43,6 +43,7 @@ class EditorScreen extends ConsumerStatefulWidget {
     this.note,
     this.allNotes = const [],
     this.readOnly = false,
+    this.autoRecord = false,
     super.key,
   });
 
@@ -50,6 +51,7 @@ class EditorScreen extends ConsumerStatefulWidget {
   final List<NoteCollection> collections;
   final List<Note> allNotes;
   final bool readOnly;
+  final bool autoRecord;
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -81,6 +83,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   List<PropertyDefinition> _propertyDefinitions = const [];
   Map<String, Object?> _propertyValues = {};
   bool _propertiesLoaded = false;
+  bool _focusEditor = false;
+  bool _autoRecordStarted = false;
 
   bool get _readOnlyVisual => widget.note?.isVisual == true;
   bool get _readOnly => widget.readOnly || _readOnlyVisual;
@@ -103,6 +107,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_restoreDraft());
       unawaited(_loadProperties());
+      if (widget.autoRecord && !_autoRecordStarted && !_readOnly) {
+        _autoRecordStarted = true;
+        unawaited(_toggleRecording());
+      }
     });
   }
 
@@ -1520,11 +1528,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ),
           actions: [
             IconButton(
+              onPressed: _saving
+                  ? null
+                  : () => setState(() => _focusEditor = !_focusEditor),
+              tooltip: _focusEditor ? 'Esci da Focus editor' : 'Focus editor',
+              icon: Icon(
+                _focusEditor ? Icons.fullscreen_exit : Icons.center_focus_strong,
+              ),
+            ),
+            if (!_focusEditor)
+              IconButton(
               onPressed: _saving ? null : _saveAsTemplate,
               tooltip: 'Salva come modello',
               icon: const Icon(Icons.dashboard_customize),
             ),
-            IconButton(
+            if (!_focusEditor)
+              IconButton(
               onPressed: _saving ? null : _history,
               tooltip: 'Cronologia',
               icon: const Icon(Icons.history),
@@ -1569,7 +1588,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ),
                       maxLines: null,
                     ),
-                    Wrap(
+                    if (!_focusEditor)
+                      Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
@@ -1639,7 +1659,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    Wrap(
+                    if (!_focusEditor)
+                      Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -1712,7 +1733,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    Wrap(
+                    if (!_focusEditor)
+                      Wrap(
                       spacing: 8,
                       children: [
                         ChoiceChip(
@@ -1747,13 +1769,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    if (_mode == _EditorMode.text) ...[
-                      _MarkdownToolbar(
-                        enabled: !_saving,
-                        onAction: _applyMarkdown,
-                        onLink: _insertLink,
-                      ),
-                      if (_adaptive.liveKnowledgeRefresh)
+                    if (_focusEditor || _mode == _EditorMode.text) ...[
+                      if (!_focusEditor)
+                        _MarkdownToolbar(
+                          enabled: !_saving,
+                          onAction: _applyMarkdown,
+                          onLink: _insertLink,
+                        ),
+                      if (!_focusEditor && _adaptive.liveKnowledgeRefresh)
                         KnowledgeToolsBar(
                           text: _body.text,
                           selection: _body.selection,
@@ -1763,7 +1786,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                           onEdit: _applyKnowledgeEdit,
                           onOpenNote: _openLinkedNote,
                         )
-                      else
+                      else if (!_focusEditor)
                         Text(
                           'Knowledge tools live sospesi: il documento è grande. '
                           'Salvataggio e testo restano prioritari.',
