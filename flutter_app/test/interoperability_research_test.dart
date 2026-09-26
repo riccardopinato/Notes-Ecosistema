@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/markdown_interop.dart';
+import 'package:notes_ecosistema/src/domain/derivatives.dart';
 import 'package:notes_ecosistema/src/domain/markdown_folder_mirror.dart';
 import 'package:notes_ecosistema/src/domain/note.dart';
+import 'package:notes_ecosistema/src/domain/planner.dart';
 import 'package:notes_ecosistema/src/domain/research.dart';
 
 void main() {
@@ -59,8 +61,8 @@ void main() {
       updatedAt: 1,
     );
     expect(
-      source.footnote(2),
-      '[^src2]: Autore — Paper — 2026 — https://example.com/paper',
+      source.footnote(),
+      '[^src-source]: Autore — Paper — 2026 — https://example.com/paper',
     );
   });
 
@@ -121,7 +123,8 @@ void main() {
       tags: [],
     );
 
-    await MarkdownFolderMirror.sync(directory.path, [initial]);
+    final first = await MarkdownFolderMirror.sync(directory.path, [initial]);
+    await MarkdownFolderMirror.finalize(directory.path, first);
     final files = directory
         .listSync()
         .whereType<File>()
@@ -134,6 +137,47 @@ void main() {
     final result = await MarkdownFolderMirror.sync(directory.path, [dirty]);
     expect(result.conflicts, 1);
     expect(result.updatedNotes.single.body, contains('Local'));
-    expect(result.updatedNotes.single.body, contains('External'));
+    expec
+
+  test('portable Markdown materializes synced blocks and restores task metadata',
+      () {
+    const blockId = '22222222-2222-4222-8222-222222222222';
+    const block = SyncedBlock(
+      id: blockId,
+      markdown: '**Blocco portabile**',
+      updatedAt: 1,
+    );
+    final task = Note(
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'Task export',
+      body: 'Prima {{notes-synced:$blockId}} Dopo',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 2,
+      pinned: false,
+      archived: false,
+      tags: const ['alpha', 'work'],
+      taskJson: TaskDetails.empty().encode(),
+    );
+
+    final bytes = MarkdownWorkspaceBundle.encode(
+      [task],
+      syncedBlocks: const {blockId: block},
+    );
+    final decoded = MarkdownWorkspaceBundle.decode(bytes).single;
+    expect(decoded.body, contains('**Blocco portabile**'));
+    expect(decoded.body, isNot(contains('{{notes-synced:')));
+    expect(decoded.tags, containsAll(['alpha', 'work']));
+    expect(decoded.isTask, isTrue);
+    expect(() => TaskDetails.decode(decoded.taskJson!), returnsNormally);
+  });
+
+  test('completed checkboxes are not reopened as extracted tasks', () {
+    final tasks = LocalDerivation.extractTasks(
+      '- [x] Fatto\n- [ ] Da fare',
+    );
+    expect(tasks, ['Da fare']);
+  });
+t(result.updatedNotes.single.body, contains('External'));
   });
 }
