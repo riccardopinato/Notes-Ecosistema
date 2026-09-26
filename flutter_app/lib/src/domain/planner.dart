@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'calendar_locale.dart';
 import 'note.dart';
 
 const _unset = Object();
@@ -579,16 +580,11 @@ abstract final class PlannerPro {
     return result;
   }
 
-  static List<DateTime> weekDays(DateTime date) {
-    final start = dateOnly(date).subtract(Duration(days: date.weekday - 1));
-    return List.generate(7, (index) => start.add(Duration(days: index)));
-  }
+  static List<DateTime> weekDays(DateTime date) =>
+      appCalendar.weekDays(date);
 
-  static List<DateTime> monthGrid(DateTime month) {
-    final first = DateTime(month.year, month.month, 1);
-    final start = first.subtract(Duration(days: first.weekday - 1));
-    return List.generate(42, (index) => start.add(Duration(days: index)));
-  }
+  static List<DateTime> monthGrid(DateTime month) =>
+      appCalendar.monthGrid(month);
 }
 
 DateTime dateOnly(DateTime value) =>
