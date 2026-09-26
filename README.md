@@ -1,4 +1,4 @@
-# Notes — Ecosistema 0.36.1
+# Notes — Ecosistema 0.37.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
@@ -6,7 +6,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.36.1+46**
+- Versione Flutter: **0.37.0+47**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
@@ -27,8 +27,23 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - Quick Capture Android, shortcut, widget Home e share target.
 - Promemoria Android con apertura e snooze.
 - GitHub Sync con allegati e tile Quick Settings.
-- Backup JSON v6 compatibile con la linea Kotlin e backup ZIP v2 completo con allegati, Universal Properties, Research/Relations/Synced Blocks e derivati; lettura retrocompatibile ZIP v1.
+- Backup JSON v6 compatibile con la linea Kotlin e backup ZIP v3 completo con allegati, Universal Properties, Research/Relations/Synced Blocks, derivati e Project Workspace; lettura retrocompatibile ZIP v1/v2.
 - Export/condivisione PNG per Sketch e Whiteboard.
+
+## 0.37 — Project Workspace & Universal Work Views
+
+- Project Workspace local-first in `notes-projects.db`, senza duplicare note, task o Planner Pro;
+- progetti personali basati su link agli oggetti canonici;
+- progetti team collegabili a Shared Spaces, che resta fonte canonica per membri, ruoli e membership dei contenuti;
+- cinque viste sullo stesso dataset: Lista, Board, Tabella, Calendario e Timeline;
+- Board basata sullo `stage` già presente in `TaskDetails`;
+- creazione di note/task dal progetto, aggiunta di contenuti esistenti, ricerca e filtro completati;
+- lifecycle progetto con archivio, cestino, ripristino ed eliminazione definitiva non distruttiva sui contenuti;
+- Quick Switcher e Home integrati con i progetti;
+- Media Bundle v3 con `projects.json` e import con remapping degli ID nota;
+- purge di una nota integrato con cleanup dei link progetto.
+
+Dettagli: `flutter_app/PROJECT_WORKSPACE_0_37.md`.
 
 ## 0.36.1 — Light Theme Contrast Polish
 
@@ -177,12 +192,13 @@ Non usare quella branch per nuovo sviluppo.
 
 ## Direzione successiva
 
-Roadmap riconciliata P0–P4:
+Roadmap riconciliata P0–P5:
 
 - P0 Production Truth & Data Lifecycle: completato.
 - P1 Universal Properties + Adaptive Editor: completato.
 - P2 Daily Work & Capture: completato.
 - P3 Interoperability & Research: completato.
 - P4 Optional Intelligence: completato.
+- P5 Project Workspace & Universal Work Views: completato funzionalmente in 0.37.0; gate FULL richiesto prima del merge.
 
 Le release restano soggette ai gate FAST/FULL/CERTIFIED: roadmap funzionale completata non equivale automaticamente a certificazione hardware.
