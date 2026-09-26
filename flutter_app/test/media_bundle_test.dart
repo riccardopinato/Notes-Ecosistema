@@ -87,4 +87,36 @@ void main() {
     final decoded = MediaBundle.decode(zip);
     expect(decoded.snapshot.drafts.single.id, 'd1');
   });
+
+  test('media bundle v2 preserves complete sidecar payloads', () {
+    final snapshot = BackupSnapshot(
+      notes: [note(id: 'n1', title: 'Sidecar', body: 'Body')],
+      collections: const [],
+      drafts: const [],
+    );
+    final zip = MediaBundle.encodeLoaded(
+      snapshot,
+      const {},
+      properties: const {
+        'version': 1,
+        'definitions': [],
+        'values': [],
+      },
+      knowledge: const {
+        'version': 1,
+        'sources': [],
+        'relations': [],
+        'syncedBlocks': [],
+      },
+      derivatives: const {
+        'version': 1,
+        'derivatives': [],
+      },
+    );
+    final preview = MediaBundle.decode(zip);
+    expect(preview.properties['version'], 1);
+    expect(preview.knowledge['version'], 1);
+    expect(preview.derivatives['version'], 1);
+  });
+
 }
