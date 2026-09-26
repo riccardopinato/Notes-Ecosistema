@@ -95,4 +95,17 @@ void main() {
     );
     expect(results.first.id, 'alpha');
   });
+  test('task subtasks remain backward compatible and typed', () {
+    final task = TaskDetails.empty().copyWith(
+      subtasks: const [
+        TaskSubtask(id: 'a', title: 'Prima', completed: true),
+        TaskSubtask(id: 'b', title: 'Seconda', completed: false),
+      ],
+    );
+    final decoded = TaskDetails.decode(task.encode());
+    expect(decoded.subtasks, hasLength(2));
+    expect(decoded.completedSubtasks, 1);
+    expect(decoded.subtasks.last.title, 'Seconda');
+  });
+
 }
