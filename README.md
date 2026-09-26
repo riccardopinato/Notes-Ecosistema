@@ -199,6 +199,6 @@ Roadmap riconciliata P0–P5:
 - P2 Daily Work & Capture: completato.
 - P3 Interoperability & Research: completato.
 - P4 Optional Intelligence: completato.
-- P5 Project Workspace & Universal Work Views: completato funzionalmente in 0.37.0; gate FULL richiesto prima del merge.
+- P5 Project Workspace & Universal Work Views: completato in 0.37.0.
 
 Le release restano soggette ai gate FAST/FULL/CERTIFIED: roadmap funzionale completata non equivale automaticamente a certificazione hardware.
