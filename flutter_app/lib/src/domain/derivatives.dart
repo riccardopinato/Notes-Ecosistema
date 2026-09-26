@@ -136,30 +136,3 @@ abstract final class LocalDerivation {
 
   static String encodePayload(Object value) => jsonEncode(value);
 }
-).firstMatch(line);
-      final action = RegExp(
-        r'^(?:todo|task|azione|da fare|ricordati|ricordare)\s*[:\-]\s*(.+)$',
-        caseSensitive: false,
-      ).firstMatch(line);
-      final value = checkbox?.group(1) ?? action?.group(1);
-      if (value == null) continue;
-      final normalized = value.trim();
-      if (normalized.isEmpty || !seen.add(normalized.toLowerCase())) continue;
-      result.add(normalized);
-      if (result.length >= 50) break;
-    }
-    return result;
-  }
-
-  static List<String> _words(String text) => text
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
-      .split(RegExp(r'\s+'))
-      .where((word) => word.length >= 3)
-      .toList(growable: false);
-
-  static String tasksAsMarkdown(List<String> tasks) =>
-      tasks.map((task) => '- [ ] $task').join('\n');
-
-  static String encodePayload(Object value) => jsonEncode(value);
-}
