@@ -93,8 +93,7 @@ abstract final class MarkdownWorkspaceBundle {
         '---',
         'notes_source_id: ${note.id}',
         'notes_kind: ${note.isTask ? 'task' : 'note'}',
-        if (note.tags.isNotEmpty)
-          'tags: ${jsonEncode(note.tags)}',
+        if (note.tags.isNotEmpty) 'tags: ${jsonEncode(note.tags)}',
         '---',
         '',
         '# ${note.title.trim().isEmpty ? 'Senza titolo' : note.title.trim()}',
@@ -171,14 +170,13 @@ abstract final class MarkdownWorkspaceBundle {
       if (text.startsWith('\uFEFF')) text = text.substring(1);
       final parsed = _parseFrontMatter(text);
       final body = parsed.body;
-      final titleMatch = RegExp(r'^#\s+(.+)$', multiLine: true).firstMatch(body);
+      final titleMatch =
+          RegExp(r'^#\s+(.+)$', multiLine: true).firstMatch(body);
       final title = titleMatch?.group(1)?.trim() ??
           entry.name.split('/').last.replaceFirst(RegExp(r'\.(md|txt)$'), '');
       final cleanBody = titleMatch == null
           ? body.trim()
-          : body
-              .replaceRange(titleMatch.start, titleMatch.end, '')
-              .trim();
+          : body.replaceRange(titleMatch.start, titleMatch.end, '').trim();
       result.add(
         MarkdownPortableDocument(
           fileName: entry.name,
@@ -199,9 +197,10 @@ abstract final class MarkdownWorkspaceBundle {
     final end = text.indexOf('\n---\n', 4);
     if (end < 0 || end > 10000) return (body: text, sourceId: null);
     final header = text.substring(4, end);
-    final match =
-        RegExp(r'^notes_source_id:\s*(\S+)\s*$', multiLine: true)
-            .firstMatch(header);
+    final match = RegExp(
+      r'^notes_source_id:\s*(\S+)\s*$',
+      multiLine: true,
+    ).firstMatch(header);
     return (
       body: text.substring(end + 5),
       sourceId: match?.group(1),
