@@ -146,8 +146,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error =
-              error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = error.toString().replaceFirst('FormatException: ', ''),
         );
       }
     } finally {
@@ -196,8 +195,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error =
-              error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = error.toString().replaceFirst('FormatException: ', ''),
         );
       }
     }
@@ -241,8 +239,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error =
-              error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = error.toString().replaceFirst('FormatException: ', ''),
         );
       }
     } finally {
@@ -284,8 +281,8 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
       } catch (error) {
         if (mounted) {
           setState(
-            () => _error =
-                error.toString().replaceFirst('FormatException: ', ''),
+            () =>
+                _error = error.toString().replaceFirst('FormatException: ', ''),
           );
         }
       }
@@ -298,7 +295,9 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
         ? relation.targetId
         : relation.sourceId;
     final note = widget.notes.where((item) => item.id == other).firstOrNull;
-    return note?.title.trim().isNotEmpty == true ? note!.title : 'Nota collegata';
+    return note?.title.trim().isNotEmpty == true
+        ? note!.title
+        : 'Nota collegata';
   }
 
   @override
