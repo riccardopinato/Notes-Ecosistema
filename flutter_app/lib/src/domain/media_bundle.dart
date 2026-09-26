@@ -272,7 +272,7 @@ abstract final class MediaBundle {
           throw const FormatException('Manifest backup non valido.');
         }
         bundleVersion = (root['version'] as num).toInt();
-        if (bundleVersion! >= 2) {
+        if (bundleVersion >= 2) {
           if (root['sidecars'] is! List) {
             throw const FormatException('Sidecar backup mancanti.');
           }
@@ -304,7 +304,7 @@ abstract final class MediaBundle {
     if (backupText == null || manifest == null || bundleVersion == null) {
       throw const FormatException('backup.json o bundle.json mancante.');
     }
-    if (bundleVersion! >= 2) {
+    if (bundleVersion >= 2) {
       const required = {
         'properties.json',
         'knowledge.json',
