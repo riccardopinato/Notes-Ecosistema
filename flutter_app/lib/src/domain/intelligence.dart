@@ -49,7 +49,8 @@ class LocalKnowledgeRetrieval implements KnowledgeRetrievalEngine {
     }
     final hits = <KnowledgeHit>[];
     for (final note in _eligible(notes)) {
-      final score = _cosine(queryVector, _vector('${note.title}\n${note.body}'));
+      final score =
+          _cosine(queryVector, _vector('${note.title}\n${note.body}'));
       if (score <= 0) continue;
       hits.add(
         KnowledgeHit(
@@ -81,7 +82,8 @@ class LocalKnowledgeRetrieval implements KnowledgeRetrievalEngine {
     final hits = <KnowledgeHit>[];
     for (final note in _eligible(notes)) {
       if (note.id == source.id) continue;
-      final score = _cosine(sourceVector, _vector('${note.title}\n${note.body}'));
+      final score =
+          _cosine(sourceVector, _vector('${note.title}\n${note.body}'));
       if (score < .08) continue;
       hits.add(
         KnowledgeHit(
