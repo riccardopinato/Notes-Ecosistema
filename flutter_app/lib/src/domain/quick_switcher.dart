@@ -74,8 +74,9 @@ abstract final class QuickSwitcher {
     ];
 
     int score(QuickSwitcherEntry entry) {
-      if (needle.isEmpty)
+      if (needle.isEmpty) {
         return entry.kind == QuickSwitcherKind.command ? 3 : 1;
+      }
       final label = _normalize(entry.label);
       final subtitle = _normalize(entry.subtitle ?? '');
       if (label == needle) return 100;
