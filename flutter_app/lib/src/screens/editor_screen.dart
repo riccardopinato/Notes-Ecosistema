@@ -1533,21 +1533,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   : () => setState(() => _focusEditor = !_focusEditor),
               tooltip: _focusEditor ? 'Esci da Focus editor' : 'Focus editor',
               icon: Icon(
-                _focusEditor ? Icons.fullscreen_exit : Icons.center_focus_strong,
+                _focusEditor
+                    ? Icons.fullscreen_exit
+                    : Icons.center_focus_strong,
               ),
             ),
             if (!_focusEditor)
               IconButton(
-              onPressed: _saving ? null : _saveAsTemplate,
-              tooltip: 'Salva come modello',
-              icon: const Icon(Icons.dashboard_customize),
-            ),
+                onPressed: _saving ? null : _saveAsTemplate,
+                tooltip: 'Salva come modello',
+                icon: const Icon(Icons.dashboard_customize),
+              ),
             if (!_focusEditor)
               IconButton(
-              onPressed: _saving ? null : _history,
-              tooltip: 'Cronologia',
-              icon: const Icon(Icons.history),
-            ),
+                onPressed: _saving ? null : _history,
+                tooltip: 'Cronologia',
+                icon: const Icon(Icons.history),
+              ),
             FilledButton(
               onPressed: _saving || _recording ? null : _save,
               child: Text(_saving ? 'Salvataggio…' : 'Salva'),
@@ -1590,58 +1592,58 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     ),
                     if (!_focusEditor)
                       Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ActionChip(
-                          avatar: const Icon(Icons.folder, size: 18),
-                          label: Text(collectionName ?? 'Inbox'),
-                          onPressed: _saving ? null : _chooseCollection,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ActionChip(
+                            avatar: const Icon(Icons.folder, size: 18),
+                            label: Text(collectionName ?? 'Inbox'),
+                            onPressed: _saving ? null : _chooseCollection,
                         ),
-                        ActionChip(
-                          avatar: const Icon(Icons.sell, size: 18),
-                          label: Text(
+                          ActionChip(
+                            avatar: const Icon(Icons.sell, size: 18),
+                            label: Text(
                             visibleTags.isEmpty
                                 ? 'Aggiungi tag'
                                 : 'Tag (${visibleTags.length})',
                           ),
-                          onPressed: _saving ? null : _editTags,
+                            onPressed: _saving ? null : _editTags,
                         ),
-                        ActionChip(
-                          avatar: const Icon(Icons.calendar_today, size: 18),
-                          label: Text(
+                          ActionChip(
+                            avatar: const Icon(Icons.calendar_today, size: 18),
+                            label: Text(
                             _diaryDate == null
                                 ? 'Giorno'
                                 : dateKey(_diaryDate!),
                           ),
-                          onPressed: _saving ? null : _chooseDiaryDate,
+                            onPressed: _saving ? null : _chooseDiaryDate,
                         ),
-                        ActionChip(
-                          avatar: const Icon(Icons.tune, size: 18),
-                          label: Text(
+                          ActionChip(
+                            avatar: const Icon(Icons.tune, size: 18),
+                            label: Text(
                             _propertyValues.isEmpty
                                 ? 'Proprietà'
                                 : 'Proprietà (${_propertyValues.length})',
                           ),
-                          onPressed: _saving || !_propertiesLoaded
+                            onPressed: _saving || !_propertiesLoaded
                               ? null
                               : _editProperties,
                         ),
-                        if (_adaptive.degraded)
-                          Chip(
+                          if (_adaptive.degraded)
+                            Chip(
                             avatar: const Icon(Icons.speed, size: 18),
                             label: Text(
                               'Editor adattivo · ${_adaptive.label}',
                             ),
                           ),
-                        if (_diaryDate != null)
-                          IconButton(
+                          if (_diaryDate != null)
+                            IconButton(
                             onPressed: _saving ? null : _removeDiaryDate,
                             tooltip: 'Rimuovi dal Diario',
                             icon: const Icon(Icons.event_busy),
                           ),
-                      ],
-                    ),
+                        ],
+                      ),
                     if (visibleTags.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -1661,51 +1663,51 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     const SizedBox(height: 12),
                     if (!_focusEditor)
                       Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed:
-                              _saving || _recording ? null : _attachFiles,
-                          icon: const Icon(Icons.attach_file),
-                          label: const Text('Allega'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _saving || _recording ? null : _takePhoto,
-                          icon: const Icon(Icons.photo_camera_outlined),
-                          label: const Text('Foto'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _saving ? null : _toggleRecording,
-                          icon: Icon(
-                            _recording ? Icons.stop_circle : Icons.mic_none,
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed:
+                                _saving || _recording ? null : _attachFiles,
+                            icon: const Icon(Icons.attach_file),
+                            label: const Text('Allega'),
                           ),
-                          label: Text(
-                            _recording ? 'Termina' : 'Registra',
+                          OutlinedButton.icon(
+                            onPressed: _saving || _recording ? null : _takePhoto,
+                            icon: const Icon(Icons.photo_camera_outlined),
+                            label: const Text('Foto'),
                           ),
-                        ),
-                        FilledButton.tonalIcon(
-                          onPressed:
-                              _saving || _recording ? null : _smartCapture,
-                          icon: const Icon(Icons.document_scanner),
-                          label: const Text('Smart Capture'),
-                        ),
-                        Text(
-                          '${Attachments.refs(_body.text).length}/20 allegati',
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                        if (_recording)
+                          OutlinedButton.icon(
+                            onPressed: _saving ? null : _toggleRecording,
+                            icon: Icon(
+                              _recording ? Icons.stop_circle : Icons.mic_none,
+                            ),
+                            label: Text(
+                              _recording ? 'Termina' : 'Registra',
+                            ),
+                          ),
+                          FilledButton.tonalIcon(
+                            onPressed:
+                                _saving || _recording ? null : _smartCapture,
+                            icon: const Icon(Icons.document_scanner),
+                            label: const Text('Smart Capture'),
+                          ),
                           Text(
-                            'Registrazione in corso · massimo 5 minuti',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
+                            '${Attachments.refs(_body.text).length}/20 allegati',
+                            style: Theme.of(context).textTheme.labelMedium,
                           ),
-                      ],
+                          if (_recording)
+                            Text(
+                              'Registrazione in corso · massimo 5 minuti',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                            ),
+                        ],
                     ),
                     if (Attachments.refs(_body.text).isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -1735,38 +1737,38 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     const SizedBox(height: 12),
                     if (!_focusEditor)
                       Wrap(
-                      spacing: 8,
-                      children: [
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.text,
-                          onSelected: _saving
-                              ? null
-                              : (_) => setState(() => _mode = _EditorMode.text),
-                          label: const Text('Testo'),
-                        ),
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.preview,
-                          onSelected: _saving
-                              ? null
-                              : (_) =>
-                                  setState(() => _mode = _EditorMode.preview),
-                          label: const Text('Anteprima'),
-                        ),
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.blocks,
-                          onSelected: _saving ? null : (_) => _enableBlocks(),
-                          label: const Text('Blocchi'),
-                        ),
-                        ChoiceChip(
-                          selected: _mode == _EditorMode.checklist,
-                          onSelected: _saving
-                              ? null
-                              : (_) => setState(
-                                    () => _mode = _EditorMode.checklist,
-                                  ),
-                          label: Text('Checklist (${checklist.length})'),
-                        ),
-                      ],
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.text,
+                            onSelected: _saving
+                                ? null
+                                : (_) => setState(() => _mode = _EditorMode.text),
+                            label: const Text('Testo'),
+                          ),
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.preview,
+                            onSelected: _saving
+                                ? null
+                                : (_) =>
+                                    setState(() => _mode = _EditorMode.preview),
+                            label: const Text('Anteprima'),
+                          ),
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.blocks,
+                            onSelected: _saving ? null : (_) => _enableBlocks(),
+                            label: const Text('Blocchi'),
+                          ),
+                          ChoiceChip(
+                            selected: _mode == _EditorMode.checklist,
+                            onSelected: _saving
+                                ? null
+                                : (_) => setState(
+                                      () => _mode = _EditorMode.checklist,
+                                    ),
+                            label: Text('Checklist (${checklist.length})'),
+                          ),
+                        ],
                     ),
                     const SizedBox(height: 10),
                     if (_focusEditor || _mode == _EditorMode.text) ...[
