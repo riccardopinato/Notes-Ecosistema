@@ -17,6 +17,8 @@ class NotesScreen extends StatefulWidget {
     required this.onPin,
     required this.onArchive,
     required this.onTrash,
+    required this.onRestore,
+    required this.onDeleteForever,
     required this.onBulkEdit,
     required this.onRenameCollection,
     required this.onDeleteCollection,
@@ -34,6 +36,8 @@ class NotesScreen extends StatefulWidget {
   final void Function(String id, bool value) onPin;
   final void Function(String id, bool value) onArchive;
   final ValueChanged<String> onTrash;
+  final Future<void> Function(String id) onRestore;
+  final Future<void> Function(String id) onDeleteForever;
   final Future<int> Function(List<Note>, BulkChange) onBulkEdit;
   final Future<void> Function(NoteCollection, String) onRenameCollection;
   final Future<void> Function(NoteCollection) onDeleteCollection;
@@ -578,6 +582,31 @@ class _NotesScreenState extends State<NotesScreen> {
     });
   }
 
+  Future<void> _confirmDeleteForever(Note note) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminare definitivamente?'),
+        content: Text(
+          '“${note.title.trim().isEmpty ? 'Senza titolo' : note.title.trim()}” '
+          'verrà rimosso dal dispositivo e non potrà essere ripristinato dal cestino.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Elimina definitivamente'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _run(() => widget.onDeleteForever(note.id));
+  }
+
   Future<void> _collections() async {
     final choice = await showModalBottomSheet<Object>(
       context: context,
@@ -815,6 +844,8 @@ class _NotesScreenState extends State<NotesScreen> {
         onPin: () => widget.onPin(note.id, !note.pinned),
         onArchive: () => widget.onArchive(note.id, !note.archived),
         onTrash: () => widget.onTrash(note.id),
+        onRestore: () => _run(() => widget.onRestore(note.id)),
+        onDeleteForever: () => _confirmDeleteForever(note),
       );
 }
 
@@ -830,6 +861,8 @@ class _NoteCard extends StatelessWidget {
     required this.onPin,
     required this.onArchive,
     required this.onTrash,
+    required this.onRestore,
+    required this.onDeleteForever,
   });
 
   final Note note;
@@ -842,6 +875,8 @@ class _NoteCard extends StatelessWidget {
   final VoidCallback onPin;
   final VoidCallback onArchive;
   final VoidCallback onTrash;
+  final Future<void> Function() onRestore;
+  final Future<void> Function() onDeleteForever;
 
   @override
   Widget build(BuildContext context) {
@@ -850,7 +885,11 @@ class _NoteCard extends StatelessWidget {
     return Card(
       color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
       child: InkWell(
-        onTap: selecting ? onSelect : onOpen,
+        onTap: selecting
+            ? onSelect
+            : note.isDeleted
+                ? null
+                : onOpen,
         onLongPress: onSelect,
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -874,39 +913,55 @@ class _NoteCard extends StatelessWidget {
                   if (note.favorite) const Icon(Icons.star, size: 16),
                   if (!selecting)
                     PopupMenuButton<String>(
-                      onSelected: (v) {
+                      onSelected: (v) async {
                         if (v == 'favorite') onFavorite();
                         if (v == 'pin') onPin();
                         if (v == 'archive') onArchive();
                         if (v == 'trash') onTrash();
+                        if (v == 'restore') await onRestore();
+                        if (v == 'deleteForever') await onDeleteForever();
                       },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: 'favorite',
-                          child: Text(
-                            note.favorite
-                                ? 'Rimuovi dai preferiti'
-                                : 'Aggiungi ai preferiti',
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'pin',
-                          child: Text(
-                            note.pinned ? 'Non fissare più' : 'Fissa in alto',
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'archive',
-                          child: Text(
-                            note.archived ? 'Riporta nelle note' : 'Archivia',
-                          ),
-                        ),
-                        if (!note.isDeleted)
-                          const PopupMenuItem(
-                            value: 'trash',
-                            child: Text('Sposta nel cestino'),
-                          ),
-                      ],
+                      itemBuilder: (_) => note.isDeleted
+                          ? const [
+                              PopupMenuItem(
+                                value: 'restore',
+                                child: Text('Ripristina'),
+                              ),
+                              PopupMenuItem(
+                                value: 'deleteForever',
+                                child: Text('Elimina definitivamente'),
+                              ),
+                            ]
+                          : [
+                              PopupMenuItem(
+                                value: 'favorite',
+                                child: Text(
+                                  note.favorite
+                                      ? 'Rimuovi dai preferiti'
+                                      : 'Aggiungi ai preferiti',
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'pin',
+                                child: Text(
+                                  note.pinned
+                                      ? 'Non fissare più'
+                                      : 'Fissa in alto',
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'archive',
+                                child: Text(
+                                  note.archived
+                                      ? 'Riporta nelle note'
+                                      : 'Archivia',
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'trash',
+                                child: Text('Sposta nel cestino'),
+                              ),
+                            ],
                     ),
                 ],
               ),
