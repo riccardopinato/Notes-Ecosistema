@@ -2,14 +2,14 @@
 
 ## Stato corrente
 
-- Versione: **0.36.1+46**
+- Versione: **0.37.0+47**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
 - Validazione: FAST / FULL / CERTIFIED
-- Roadmap riconciliata P0–P4: **funzionalmente completata**
+- Roadmap riconciliata P0–P5: **P0–P4 completati; P5 implementato, gate FULL in validazione**
 - UI polish 0.36.1: contrasto light theme corretto, dark theme preservato.
-- Gate FULL v0.36: obbligatorio sull'head finale prima del merge
+- Gate FULL v0.37: obbligatorio sull'head finale prima del merge
 
 ## P0 — Production Truth & Data Lifecycle
 
@@ -85,9 +85,32 @@
 - derivati persistibili solo da una fonte già salvata;
 - nessuna dipendenza core da AI, rete o account.
 
+## P5 — Project Workspace & Universal Work Views
+
+**Implementato in 0.37.0 — merge subordinato al gate FULL**
+
+- sidecar `notes-projects.db` per metadati e link dei progetti personali;
+- nessuna duplicazione di note/task: Project Workspace proietta gli oggetti canonici;
+- progetti team basati su Shared Spaces, senza secondo sistema di membri/permessi/sync;
+- viste universali Lista, Board, Tabella, Calendario e Timeline;
+- Board sullo `stage` canonico di Planner Pro;
+- creazione e aggiunta di contenuti dal progetto;
+- Quick Switcher e Home integrati;
+- lifecycle completo: archivio, cestino, ripristino, eliminazione definitiva;
+- eliminare un progetto non elimina i contenuti;
+- purge nota → cleanup link progetto;
+- Media Bundle v3 con `projects.json`, retrocompatibile v1/v2;
+- test dedicati per proiezioni, ricerca, lifecycle, Quick Switcher e backup.
+
+**Scelte intenzionali P5:**
+- la configurazione locale del wrapper progetto non introduce un nuovo protocollo cloud;
+- nei progetti team, membership e contenuto vengono derivati dallo Shared Space;
+- Document Workspace/PDF avanzato, graph/wiki, forms/dashboard e ulteriori moduli
+  restano fuori da P5 salvo approvazione esplicita futura.
+
 ## Gate finale roadmap
 
-La roadmap P0–P4 è **funzionalmente completa** con la v0.36.
+La roadmap P0–P5 è **funzionalmente implementata** con la v0.37; P5 diventa completato solo dopo il gate FULL dell'head finale.
 
 Il merge della release finale è consentito solo da un head che supera il gate FULL corrente:
 
