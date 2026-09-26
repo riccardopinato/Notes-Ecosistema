@@ -1,4 +1,4 @@
-# Notes — Ecosistema 0.34.0
+# Notes — Ecosistema 0.35.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
@@ -6,7 +6,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.34.0+43**
+- Versione Flutter: **0.35.0+44**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
@@ -29,6 +29,19 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - GitHub Sync con allegati e tile Quick Settings.
 - Backup JSON v6 compatibile con la linea Kotlin e backup ZIP completo con allegati.
 - Export/condivisione PNG per Sketch e Whiteboard.
+
+## 0.35 — Interoperability & Research
+
+- export/import workspace Markdown in file `.md` portabili;
+- cartella Markdown mirror selezionabile dall'utente con manifest locale e merge a tre vie;
+- modifiche esterne non sovrascrivono mai testo locale dirty: i conflitti preservano entrambe le versioni;
+- Research Workspace per fonti, URL, autore, estratti e footnote Markdown;
+- relazioni note↔note persistenti e rollup deterministici;
+- Synced Blocks canonici in sidecar: lo stesso blocco può essere inserito in più note e aggiornato in un punto;
+- purge lifecycle rimuove fonti e relazioni della nota;
+- metadati P3 in `notes-knowledge.db`, separati da `notes.db` v8.
+
+Dettagli: `flutter_app/INTEROPERABILITY_RESEARCH_0_35.md`.
 
 ## 0.34 — Daily Work & Capture
 
@@ -133,7 +146,6 @@ Non usare quella branch per nuovo sviluppo.
 
 ## Direzione successiva
 
-Dopo Daily Work & Capture 0.34:
+Dopo Interoperability & Research 0.35:
 
-1. Interoperabilità Markdown, Research Workspace, Relations/Rollups e Synced Blocks.
-2. Intelligence opzionale sopra un core completamente funzionante senza AI.
+1. Intelligence opzionale sopra un core completamente funzionante senza AI.
