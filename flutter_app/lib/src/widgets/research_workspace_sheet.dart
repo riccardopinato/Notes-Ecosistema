@@ -472,7 +472,6 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
   }
 }
 
-
 class _RelationSearchDelegate extends SearchDelegate<Note> {
   _RelationSearchDelegate(this.notes);
 
