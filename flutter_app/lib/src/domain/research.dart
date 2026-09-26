@@ -135,8 +135,7 @@ class SyncedBlock {
 }
 
 abstract final class SyncedBlockCodec {
-  static final marker =
-      RegExp(r'\{\{notes-synced:([0-9a-fA-F-]{36})\}\}');
+  static final marker = RegExp(r'\{\{notes-synced:([0-9a-fA-F-]{36})\}\}');
 
   static String reference(String id) {
     if (!RegExp(
