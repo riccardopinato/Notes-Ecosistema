@@ -304,10 +304,7 @@ abstract final class MediaBundle {
     if (backupText == null || manifest == null || bundleVersion == null) {
       throw const FormatException('backup.json o bundle.json mancante.');
     }
-    if (bundleVersion! >= 2 &&
-        (properties.isEmpty && knowledge.isEmpty && derivatives.isEmpty)) {
-      // Empty maps are valid individually, but all three files must have been
-      // present as declared. Presence is guaranteed by the ZIP seen-set below.
+    if (bundleVersion! >= 2) {
       const required = {
         'properties.json',
         'knowledge.json',
