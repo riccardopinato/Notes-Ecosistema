@@ -23,14 +23,20 @@ class ResearchSource {
   final int createdAt;
   final int updatedAt;
 
-  String footnote(int index) {
+  String get footnoteLabel {
+    final compact = id.toLowerCase().replaceAll('-', '');
+    final safe = compact.length >= 12 ? compact.substring(0, 12) : compact;
+    return 'src-$safe';
+  }
+
+  String footnote() {
     final parts = <String>[
       if (author?.trim().isNotEmpty == true) author!.trim(),
       title.trim(),
       if (publishedAt?.trim().isNotEmpty == true) publishedAt!.trim(),
       if (url?.trim().isNotEmpty == true) url!.trim(),
     ];
-    return '[^src$index]: ${parts.join(' — ')}';
+    return '[^$footnoteLabel]: ${parts.join(' — ')}';
   }
 
   Map<String, Object?> toMap() => {
