@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 import 'note.dart';
+import 'planner.dart';
+import 'research.dart';
 
 class MarkdownPortableDocument {
   const MarkdownPortableDocument({
@@ -11,12 +13,18 @@ class MarkdownPortableDocument {
     required this.title,
     required this.body,
     this.sourceId,
+    this.tags = const [],
+    this.taskJson,
   });
 
   final String fileName;
   final String title;
   final String body;
   final String? sourceId;
+  final List<String> tags;
+  final String? taskJson;
+
+  bool get isTask => taskJson != null && taskJson!.trim().isNotEmpty;
 }
 
 enum ExternalChangeDecision {
@@ -69,11 +77,18 @@ abstract final class MarkdownWorkspaceBundle {
   static const maxBytes = 32 * 1024 * 1024;
   static const maxDocuments = 10000;
 
-  static Uint8List encode(List<Note> notes) {
+  static Uint8List encode(
+    List<Note> notes, {
+    Map<String, SyncedBlock> syncedBlocks = const {},
+  }) {
     final portable = notes
         .where((note) => !note.isDeleted && !note.isVisual)
-        .take(maxDocuments)
         .toList(growable: false);
+    if (portable.length > maxDocuments) {
+      throw const FormatException(
+        'Il workspace supera il limite di 10.000 documenti Markdown.',
+      );
+    }
     final archive = Archive();
     final manifest = <Map<String, Object?>>[];
     final used = <String>{};
@@ -89,16 +104,25 @@ abstract final class MarkdownWorkspaceBundle {
         name = '$base-$suffix.md';
         suffix++;
       }
+      final materializedBody =
+          SyncedBlockCodec.resolve(note.body, syncedBlocks);
+      if (SyncedBlockCodec.marker.hasMatch(materializedBody)) {
+        throw FormatException(
+          'La nota "${note.title}" contiene un Synced Block non disponibile.',
+        );
+      }
       final text = [
         '---',
         'notes_source_id: ${note.id}',
         'notes_kind: ${note.isTask ? 'task' : 'note'}',
         if (note.tags.isNotEmpty) 'tags: ${jsonEncode(note.tags)}',
+        if (note.taskJson?.trim().isNotEmpty == true)
+          'notes_task_json_b64: ${base64Url.encode(utf8.encode(note.taskJson!))}',
         '---',
         '',
         '# ${note.title.trim().isEmpty ? 'Senza titolo' : note.title.trim()}',
         '',
-        note.body,
+        materializedBody,
       ].join('\n');
       archive.add(ArchiveFile.string('notes/$name', text));
       manifest.add({
@@ -183,6 +207,8 @@ abstract final class MarkdownWorkspaceBundle {
           title: title,
           body: cleanBody,
           sourceId: parsed.sourceId,
+          tags: parsed.tags,
+          taskJson: parsed.taskJson,
         ),
       );
       if (result.length > maxDocuments) {
@@ -192,18 +218,65 @@ abstract final class MarkdownWorkspaceBundle {
     return result;
   }
 
-  static ({String body, String? sourceId}) _parseFrontMatter(String text) {
-    if (!text.startsWith('---\n')) return (body: text, sourceId: null);
+  static ({
+    String body,
+    String? sourceId,
+    List<String> tags,
+    String? taskJson,
+  }) _parseFrontMatter(String text) {
+    if (!text.startsWith('---\n')) {
+      return (body: text, sourceId: null, tags: const [], taskJson: null);
+    }
     final end = text.indexOf('\n---\n', 4);
-    if (end < 0 || end > 10000) return (body: text, sourceId: null);
+    if (end < 0 || end > 10000) {
+      return (body: text, sourceId: null, tags: const [], taskJson: null);
+    }
     final header = text.substring(4, end);
-    final match = RegExp(
-      r'^notes_source_id:\s*(\S+)\s*$',
-      multiLine: true,
-    ).firstMatch(header);
+    String? field(String name) => RegExp(
+          '^${RegExp.escape(name)}:\\s*(.+?)\\s*\$',
+          multiLine: true,
+        ).firstMatch(header)?.group(1);
+
+    final sourceId = field('notes_source_id');
+    final kind = field('notes_kind')?.trim().toLowerCase();
+    var tags = const <String>[];
+    final tagsRaw = field('tags');
+    if (tagsRaw != null) {
+      try {
+        final decoded = jsonDecode(tagsRaw);
+        if (decoded is! List) {
+          throw const FormatException('Tag Markdown non validi.');
+        }
+        tags = decoded
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList(growable: false);
+      } catch (_) {
+        throw const FormatException('Tag Markdown non validi.');
+      }
+    }
+
+    String? taskJson;
+    final taskRaw = field('notes_task_json_b64');
+    if (kind == 'task') {
+      if (taskRaw != null && taskRaw.isNotEmpty) {
+        try {
+          taskJson = utf8.decode(base64Url.decode(taskRaw));
+          TaskDetails.decode(taskJson);
+        } catch (_) {
+          throw const FormatException('Metadati attività Markdown non validi.');
+        }
+      } else {
+        taskJson = TaskDetails.empty().encode();
+      }
+    }
+
     return (
       body: text.substring(end + 5),
-      sourceId: match?.group(1),
+      sourceId: sourceId,
+      tags: tags,
+      taskJson: taskJson,
     );
   }
 

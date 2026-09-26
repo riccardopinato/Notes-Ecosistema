@@ -34,6 +34,7 @@ import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
 import '../widgets/properties_sheet.dart';
 import '../widgets/research_workspace_sheet.dart';
+import '../widgets/intelligence_sheet.dart';
 import '../widgets/smart_capture_sheet.dart';
 import '../widgets/universal_block_editor.dart';
 
@@ -230,6 +231,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       selection: TextSelection.collapsed(offset: start + markdown.length),
     );
     _bodyChanged();
+  }
+
+  Future<void> _intelligenceWorkspace() async {
+    final source = widget.note;
+    if (source == null || _dirty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Salva prima la nota: i derivati vengono creati solo da una fonte persistita.',
+          ),
+        ),
+      );
+      return;
+    }
+    await showIntelligenceSheet(
+      context: context,
+      notes: widget.allNotes,
+      derivativeStore: ref.read(derivativeStoreProvider),
+      currentNote: source,
+      onOpenNote: (note) => _openLinkedNote(note.id),
+      onInsertMarkdown: _insertResearchMarkdown,
+    );
   }
 
   Future<void> _researchWorkspace() async {
@@ -1568,6 +1592,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           actions: [
             if (!_focusEditor)
               IconButton(
+                onPressed: _saving ? null : _intelligenceWorkspace,
+                tooltip: 'Knowledge Intelligence',
+                icon: const Icon(Icons.auto_awesome_outlined),
+              ),
+            if (!_focusEditor)
+              IconButton(
                 onPressed: _saving ? null : _researchWorkspace,
                 tooltip: 'Research Workspace',
                 icon: const Icon(Icons.hub_outlined),
@@ -1868,7 +1898,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         )
                       else
                         MarkdownBody(
-                          data: _body.text,
+                          data: SyncedBlockCodec.resolve(
+                            _body.text,
+                            _syncedBlocks,
+                          ),
                           selectable: true,
                           onTapLink: (text, href, title) {
                             if (href == null) return;

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
 
 import 'markdown_interop.dart';
 import 'note.dart';
@@ -11,16 +12,34 @@ class MarkdownMirrorResult {
     required this.updatedNotes,
     required this.writtenFiles,
     required this.conflicts,
+    required this.manifestPayload,
   });
 
   final List<Note> updatedNotes;
   final int writtenFiles;
   final int conflicts;
+
+  /// Pending manifest. It must be finalized only after [updatedNotes] have
+  /// been committed to the canonical Notes database.
+  final String manifestPayload;
+}
+
+class _MirrorPlan {
+  const _MirrorPlan({
+    required this.file,
+    required this.text,
+    required this.needsWrite,
+  });
+
+  final File file;
+  final String text;
+  final bool needsWrite;
 }
 
 abstract final class MarkdownFolderMirror {
   static const manifestName = '.notes-ecosistema-sync.json';
   static const manifestVersion = 1;
+  static const maxManifestBytes = 8 * 1024 * 1024;
 
   static Future<MarkdownMirrorResult> sync(
     String directoryPath,
@@ -31,7 +50,8 @@ abstract final class MarkdownFolderMirror {
       throw const FormatException('Cartella Markdown non accessibile.');
     }
 
-    final manifestFile = File('${directory.path}/$manifestName');
+    final manifestFile = File(p.join(directory.path, manifestName));
+    final manifestExists = await manifestFile.exists();
     final manifest = await _loadManifest(manifestFile);
     final entries = <String, Map<String, Object?>>{
       for (final raw in (manifest['entries'] as List? ?? const []))
@@ -42,7 +62,7 @@ abstract final class MarkdownFolderMirror {
     };
 
     final updated = <Note>[];
-    var written = 0;
+    final plans = <_MirrorPlan>[];
     var conflicts = 0;
     final nextEntries = <Map<String, Object?>>[];
 
@@ -51,17 +71,48 @@ abstract final class MarkdownFolderMirror {
     )) {
       final previous = entries[note.id];
       final fileName = previous?['file']?.toString() ?? _fileName(note);
-      final file = File('${directory.path}/$fileName');
+      final file = _safeTarget(directory, fileName);
       final local = _documentText(note);
-      final base = previous?['base']?.toString() ?? local;
-      final external =
-          await file.exists() ? await file.readAsString(encoding: utf8) : base;
+      final exists = await file.exists();
+      final external = exists ? await file.readAsString(encoding: utf8) : local;
 
-      final resolved = ExternalChangeResolver.resolve(
-        base: base,
-        local: local,
-        external: external,
-      );
+      late final ExternalMergeResult resolved;
+      if (previous == null) {
+        if (exists && external != local) {
+          // Without a trusted merge base neither side may silently win.
+          resolved = ExternalMergeResult(
+            ExternalChangeDecision.conflict,
+            [
+              local.trimRight(),
+              '',
+              '<!-- EXTERNAL CHANGE CONFLICT: local preserved above -->',
+              '',
+              '## Versione esterna preservata',
+              '',
+              external.trimRight(),
+            ].join('\n'),
+          );
+        } else {
+          resolved = ExternalMergeResult(
+            exists
+                ? ExternalChangeDecision.unchanged
+                : ExternalChangeDecision.keepLocal,
+            local,
+          );
+        }
+      } else {
+        final base = previous['base']?.toString();
+        if (base == null) {
+          throw const FormatException(
+            'Manifest Markdown privo della base di merge.',
+          );
+        }
+        resolved = ExternalChangeResolver.resolve(
+          base: base,
+          local: local,
+          external: external,
+        );
+      }
 
       var nextNote = note;
       var nextText = local;
@@ -95,12 +146,13 @@ abstract final class MarkdownFolderMirror {
           break;
       }
 
-      if (!await file.exists() ||
-          await file.readAsString(encoding: utf8) != nextText) {
-        await _atomicWrite(file, nextText);
-        written++;
-      }
-
+      plans.add(
+        _MirrorPlan(
+          file: file,
+          text: nextText,
+          needsWrite: !exists || external != nextText,
+        ),
+      );
       nextEntries.add({
         'id': note.id,
         'file': fileName,
@@ -114,12 +166,47 @@ abstract final class MarkdownFolderMirror {
       'version': manifestVersion,
       'entries': nextEntries,
     });
-    await _atomicWrite(manifestFile, payload);
+    if (utf8.encode(payload).length > maxManifestBytes) {
+      throw const FormatException(
+        'Il workspace è troppo grande per il manifest Markdown sicuro.',
+      );
+    }
+
+    var written = 0;
+    for (final plan in plans) {
+      if (!plan.needsWrite) continue;
+      await _atomicWrite(plan.file, plan.text);
+      written++;
+    }
+
+    // A missing manifest with pre-existing files is intentionally not trusted.
+    // Conflicts above preserve both sides before a new base can be finalized.
+    if (!manifestExists && conflicts > 0) {
+      // No-op marker: the returned payload becomes trusted only in finalize().
+    }
 
     return MarkdownMirrorResult(
       updatedNotes: updated,
       writtenFiles: written,
       conflicts: conflicts,
+      manifestPayload: payload,
+    );
+  }
+
+  static Future<void> finalize(
+    String directoryPath,
+    MarkdownMirrorResult result,
+  ) async {
+    final directory = Directory(directoryPath);
+    if (!await directory.exists()) {
+      throw const FormatException('Cartella Markdown non accessibile.');
+    }
+    if (utf8.encode(result.manifestPayload).length > maxManifestBytes) {
+      throw const FormatException('Manifest Markdown troppo grande.');
+    }
+    await _atomicWrite(
+      File(p.join(directory.path, manifestName)),
+      result.manifestPayload,
     );
   }
 
@@ -129,7 +216,7 @@ abstract final class MarkdownFolderMirror {
     }
     try {
       final text = await file.readAsString(encoding: utf8);
-      if (utf8.encode(text).length > 8 * 1024 * 1024) {
+      if (utf8.encode(text).length > maxManifestBytes) {
         throw const FormatException('Manifest Markdown troppo grande.');
       }
       final decoded = jsonDecode(text);
@@ -139,11 +226,41 @@ abstract final class MarkdownFolderMirror {
           decoded['entries'] is! List) {
         throw const FormatException('Manifest Markdown non valido.');
       }
+      for (final raw in decoded['entries'] as List) {
+        if (raw is! Map || raw['id'] == null || raw['file'] == null) {
+          throw const FormatException('Voce manifest Markdown non valida.');
+        }
+        _validateFileName(raw['file'].toString());
+        if (raw['base'] is! String) {
+          throw const FormatException('Base manifest Markdown non valida.');
+        }
+      }
       return decoded.map((key, value) => MapEntry(key.toString(), value));
     } on FormatException {
       rethrow;
     } catch (_) {
       throw const FormatException('Manifest Markdown non leggibile.');
+    }
+  }
+
+  static File _safeTarget(Directory directory, String fileName) {
+    _validateFileName(fileName);
+    final root = p.normalize(p.absolute(directory.path));
+    final target = p.normalize(p.absolute(p.join(root, fileName)));
+    if (!p.isWithin(root, target)) {
+      throw const FormatException('Percorso Markdown fuori dalla cartella.');
+    }
+    return File(target);
+  }
+
+  static void _validateFileName(String fileName) {
+    if (fileName.isEmpty ||
+        fileName != p.basename(fileName) ||
+        fileName == manifestName ||
+        fileName.contains('/') ||
+        fileName.contains('\\') ||
+        !fileName.toLowerCase().endsWith('.md')) {
+      throw const FormatException('Nome file Markdown non sicuro.');
     }
   }
 
@@ -177,10 +294,32 @@ abstract final class MarkdownFolderMirror {
 
   static Future<void> _atomicWrite(File target, String text) async {
     final temp = File('${target.path}.tmp');
+    final backup = File('${target.path}.bak');
+    if (await temp.exists()) await temp.delete();
     await temp.writeAsString(text, encoding: utf8, flush: true);
-    if (await target.exists()) {
-      await target.delete();
+
+    if (!await target.exists()) {
+      await temp.rename(target.path);
+      return;
     }
-    await temp.rename(target.path);
+
+    // Atomic replace succeeds on platforms that support rename-over-existing.
+    try {
+      await temp.rename(target.path);
+      return;
+    } catch (_) {
+      // Fall through to rollback-safe replacement.
+    }
+
+    if (await backup.exists()) await backup.delete();
+    await target.rename(backup.path);
+    try {
+      await temp.rename(target.path);
+      await backup.delete();
+    } catch (_) {
+      if (await target.exists()) await target.delete();
+      if (await backup.exists()) await backup.rename(target.path);
+      rethrow;
+    }
   }
 }

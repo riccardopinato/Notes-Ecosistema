@@ -18,6 +18,7 @@ import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
 import 'domain/planner.dart';
+import 'domain/research.dart';
 import 'domain/shared_space_bundle.dart';
 import 'domain/shared_spaces.dart';
 import 'domain/sync.dart';
@@ -47,6 +48,7 @@ import 'sync/github_sync_service.dart';
 import 'theme/notes_theme.dart';
 import 'widgets/editorial.dart';
 import 'widgets/quick_switcher_sheet.dart';
+import 'widgets/intelligence_sheet.dart';
 
 class NotesEcosistemaApp extends ConsumerStatefulWidget {
   const NotesEcosistemaApp({super.key});
@@ -858,6 +860,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         title: EditorialAppTitle(section == 'Home' ? 'Il tuo spazio' : section),
         actions: [
           IconButton(
+            tooltip: 'Knowledge Search',
+            onPressed: () => _knowledgeSearch(personalNotes),
+            icon: const Icon(Icons.auto_awesome_outlined),
+          ),
+          IconButton(
             tooltip: 'Quick Switcher',
             onPressed: () => _quickSwitcher(personalNotes),
             icon: const Icon(Icons.bolt_outlined),
@@ -897,6 +904,15 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           NavigationDestination(icon: Icon(Icons.search), label: 'Cerca'),
         ],
       ),
+    );
+  }
+
+  Future<void> _knowledgeSearch(List<Note> notes) async {
+    await showIntelligenceSheet(
+      context: context,
+      notes: notes,
+      derivativeStore: ref.read(derivativeStoreProvider),
+      onOpenNote: (note) => _openEditor(note),
     );
   }
 
@@ -1052,13 +1068,44 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         dialogTitle: 'Scegli cartella Markdown',
       );
       if (path == null || path.trim().isEmpty) return;
-      await prefs.setString('markdown_mirror_path', path);
 
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
-      final result = await MarkdownFolderMirror.sync(path, snapshot.notes);
+      final shared = ref.read(sharedSpacesProvider);
+      final blockedSharedIds = <String>{};
+      final identity = shared.identity;
+      for (final space in shared.spaces) {
+        final role = identity == null ? null : space.roleFor(identity.id);
+        if (role == null || !role.canEdit) {
+          blockedSharedIds.addAll(space.contentIds);
+        }
+      }
+      final eligible = snapshot.notes
+          .where((note) => !blockedSharedIds.contains(note.id))
+          .toList(growable: false);
+
+      final result = await MarkdownFolderMirror.sync(path, eligible);
+
+      // Re-check collaboration permissions immediately before persistence.
+      final latestShared = ref.read(sharedSpacesProvider);
+      final latestIdentity = latestShared.identity;
       for (final note in result.updatedNotes) {
+        for (final space in latestShared.spaces) {
+          if (!space.contentIds.contains(note.id)) continue;
+          final role =
+              latestIdentity == null ? null : space.roleFor(latestIdentity.id);
+          if (role == null || !role.canEdit) {
+            throw const FormatException(
+              'La cartella Markdown non può modificare un contenuto Shared Space in sola lettura.',
+            );
+          }
+        }
         await ref.read(workspaceProvider.notifier).save(note);
       }
+
+      // The merge base becomes trusted only after DB writes have succeeded.
+      await MarkdownFolderMirror.finalize(path, result);
+      await prefs.setString('markdown_mirror_path', path);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1083,6 +1130,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           content: Text(
             error.toString().replaceFirst('FormatException: ', ''),
           ),
+          action: SnackBarAction(
+            label: 'Cambia cartella',
+            onPressed: () async {
+              final settings = await SharedPreferences.getInstance();
+              await settings.remove('markdown_mirror_path');
+            },
+          ),
         ),
       );
     }
@@ -1091,7 +1145,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   Future<void> _exportMarkdownWorkspace() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
-      final bytes = MarkdownWorkspaceBundle.encode(snapshot.notes);
+      final syncedBlocks =
+          await ref.read(knowledgeStoreProvider).syncedBlocks();
+      final bytes = MarkdownWorkspaceBundle.encode(
+        snapshot.notes,
+        syncedBlocks: syncedBlocks,
+      );
       final now = DateTime.now();
       final stamp = '${now.year.toString().padLeft(4, '0')}-'
           '${now.month.toString().padLeft(2, '0')}-'
@@ -1171,7 +1230,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             updatedAt: stamp,
             pinned: false,
             archived: false,
-            tags: const ['import-markdown'],
+            tags: {
+              ...document.tags,
+              'import-markdown',
+            }.toList(growable: false),
+            taskJson: document.taskJson,
           ),
         );
         stamp++;
@@ -1198,7 +1261,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
       final store = await AttachmentStore.open();
-      final bytes = await MediaBundle.encode(snapshot, store);
+      final properties = await ref.read(propertyStoreProvider).exportBackup();
+      final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
+      final derivatives =
+          await ref.read(derivativeStoreProvider).exportBackup();
+      final bytes = await MediaBundle.encode(
+        snapshot,
+        store,
+        properties: properties,
+        knowledge: knowledge,
+        derivatives: derivatives,
+      );
       final now = DateTime.now();
       final stamp =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -1310,14 +1383,63 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         final store = await AttachmentStore.open();
         await MediaBundle.installAssets(bundle, store);
       }
-      await ref.read(workspaceProvider.notifier).importCopies(snapshot);
+      final plan =
+          await ref.read(workspaceProvider.notifier).importCopies(snapshot);
+      if (bundle != null) {
+        await ref.read(propertyStoreProvider).importBackup(
+              bundle.properties,
+              noteIdMap: plan.noteIdMap,
+            );
+        final blockMap = await ref.read(knowledgeStoreProvider).importBackup(
+              bundle.knowledge,
+              noteIdMap: plan.noteIdMap,
+            );
+        await ref.read(derivativeStoreProvider).importBackup(
+              bundle.derivatives,
+              noteIdMap: plan.noteIdMap,
+            );
+
+        if (blockMap.isNotEmpty) {
+          final notifier = ref.read(workspaceProvider.notifier);
+          for (final note in plan.notes) {
+            if (note.isVisual) continue;
+            final body = SyncedBlockCodec.remapReferences(note.body, blockMap);
+            if (body != note.body) {
+              await notifier.save(
+                note.copyWith(
+                  body: body,
+                  updatedAt: DateTime.now().millisecondsSinceEpoch,
+                ),
+              );
+            }
+          }
+          final database = ref.read(databaseProvider);
+          for (final draft in plan.drafts) {
+            final body = SyncedBlockCodec.remapReferences(
+              draft.body,
+              blockMap,
+            );
+            if (body == draft.body) continue;
+            await database.saveDraft(
+              BackupDraft(
+                id: draft.id,
+                title: draft.title,
+                body: body,
+                collectionId: draft.collectionId,
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+                tags: draft.tags,
+              ),
+            );
+          }
+        }
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             bundle == null
                 ? 'Backup JSON importato come copie.'
-                : 'Backup completo importato con allegati.',
+                : 'Backup completo importato con allegati e metadati sidecar.',
           ),
         ),
       );
@@ -1369,6 +1491,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(workspaceProvider.notifier).deleteForever(id);
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
+    await ref.read(derivativeStoreProvider).deleteForNote(id);
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
       await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
@@ -1602,7 +1725,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   },
                 ),
                 const ListTile(
-                  title: Text('Notes · Flutter 0.35.0'),
+                  title: Text('Notes · Flutter 0.36.0'),
                   subtitle: Text(
                     'Shared Spaces selettivi · database locale ancora compatibile con Room v8.',
                   ),

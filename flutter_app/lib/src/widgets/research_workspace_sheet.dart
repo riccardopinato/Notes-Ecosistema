@@ -168,22 +168,9 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
         )
         .toList(growable: false)
       ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-    final selected = await showDialog<Note>(
+    final selected = await showSearch<Note?>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Collega una nota'),
-        children: candidates
-            .take(100)
-            .map(
-              (note) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, note),
-                child: Text(
-                  note.title.trim().isEmpty ? 'Senza titolo' : note.title,
-                ),
-              ),
-            )
-            .toList(growable: false),
-      ),
+      delegate: _RelationSearchDelegate(candidates),
     );
     if (selected == null || !mounted) return;
     try {
@@ -372,15 +359,17 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
                               contentPadding: EdgeInsets.zero,
                               title: Text('Nessuna fonte collegata.'),
                             ),
-                          ..._sources.indexed.map(
-                            (row) => ListTile(
+                          ..._sources.map(
+                            (source) => ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: const Icon(Icons.menu_book_outlined),
-                              title: Text(row.$2.title),
+                              title: Text(source.title),
                               subtitle: Text(
                                 [
-                                  if (row.$2.author != null) row.$2.author!,
-                                  if (row.$2.url != null) row.$2.url!,
+                                  if (source.author != null) source.author!,
+                                  if (source.url != null) source.url!,
+                                  if (source.quote?.trim().isNotEmpty == true)
+                                    '“${source.quote!.trim()}”',
                                 ].join(' · '),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -389,11 +378,11 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
                                 onSelected: (value) async {
                                   if (value == 'footnote') {
                                     widget.onInsertMarkdown(
-                                      '\n\n${row.$2.footnote(row.$1 + 1)}',
+                                      '\n\n${source.footnote()}',
                                     );
                                     if (mounted) Navigator.pop(context);
                                   } else if (value == 'delete') {
-                                    await widget.store.deleteSource(row.$2.id);
+                                    await widget.store.deleteSource(source.id);
                                     await _reload();
                                   }
                                 },
@@ -479,6 +468,69 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RelationSearchDelegate extends SearchDelegate<Note?> {
+  _RelationSearchDelegate(this.notes);
+
+  final List<Note> notes;
+
+  Iterable<Note> get _matches {
+    final needle = query.trim().toLowerCase();
+    if (needle.isEmpty) return notes;
+    return notes.where((note) {
+      return note.title.toLowerCase().contains(needle) ||
+          note.body.toLowerCase().contains(needle) ||
+          note.tags.any((tag) => tag.toLowerCase().contains(needle));
+    });
+  }
+
+  @override
+  String get searchFieldLabel => 'Cerca nota da collegare';
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+        if (query.isNotEmpty)
+          IconButton(
+            tooltip: 'Cancella',
+            onPressed: () => query = '',
+            icon: const Icon(Icons.clear),
+          ),
+      ];
+
+  @override
+  Widget buildLeading(BuildContext context) => IconButton(
+        tooltip: 'Indietro',
+        onPressed: () => close(context, null),
+        icon: const Icon(Icons.arrow_back),
+      );
+
+  @override
+  Widget buildResults(BuildContext context) => _results();
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _results();
+
+  Widget _results() {
+    final matches = _matches.toList(growable: false);
+    if (matches.isEmpty) {
+      return const Center(child: Text('Nessuna nota trovata.'));
+    }
+    return ListView.builder(
+      itemCount: matches.length,
+      itemBuilder: (context, index) {
+        final note = matches[index];
+        return ListTile(
+          leading: const Icon(Icons.description_outlined),
+          title: Text(
+            note.title.trim().isEmpty ? 'Senza titolo' : note.title,
+          ),
+          subtitle: note.tags.isEmpty ? null : Text(note.tags.join(' · ')),
+          onTap: () => close(context, note),
+        );
+      },
     );
   }
 }

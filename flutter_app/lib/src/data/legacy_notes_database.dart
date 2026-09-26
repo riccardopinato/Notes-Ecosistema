@@ -473,7 +473,7 @@ class LegacyNotesDatabase {
     return id;
   }
 
-  Future<void> importCopies(BackupSnapshot snapshot) async {
+  Future<BackupImportPlan> importCopies(BackupSnapshot snapshot) async {
     final db = await database;
     final existing = await loadCollections();
     final plan = BackupImport.asCopies(
@@ -514,6 +514,7 @@ class LegacyNotesDatabase {
       }
       await batch.commit(noResult: true);
     });
+    return plan;
   }
 
   Future<void> createCollection(NoteCollection collection) async {

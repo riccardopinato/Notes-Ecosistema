@@ -1,4 +1,4 @@
-# Notes — Ecosistema 0.35.0
+# Notes — Ecosistema 0.36.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
@@ -6,7 +6,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.35.0+44**
+- Versione Flutter: **0.36.0+45**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
@@ -27,13 +27,31 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - Quick Capture Android, shortcut, widget Home e share target.
 - Promemoria Android con apertura e snooze.
 - GitHub Sync con allegati e tile Quick Settings.
-- Backup JSON v6 compatibile con la linea Kotlin e backup ZIP completo con allegati.
+- Backup JSON v6 compatibile con la linea Kotlin e backup ZIP v2 completo con allegati, Universal Properties, Research/Relations/Synced Blocks e derivati; lettura retrocompatibile ZIP v1.
 - Export/condivisione PNG per Sketch e Whiteboard.
+
+## 0.36 — Optional Intelligence
+
+- Knowledge Search locale e citabile su note personali, senza provider obbligatorio;
+- note correlate determinate localmente con ranking trasparente;
+- “Chiedi alle mie note” restituisce fonti/esatti documenti, non risposte inventate;
+- modello **Originale → Derivato** in `notes-derivatives.db`;
+- trascrizione grezza conservata separatamente;
+- pulizia transcript, riassunto estrattivo e task extraction deterministici;
+- ogni derivato può essere eliminato o rigenerato senza modificare audio/testo originale;
+- i derivati vengono creati solo da una nota già salvata, mai da testo dirty poi scartabile;
+- backup completo v2 include `notes-metadata.db`, `notes-knowledge.db` e `notes-derivatives.db` in forma portabile/remappabile;
+- lifecycle purge elimina i derivati collegati alla nota;
+- nessuna funzione core richiede AI, rete o account.
+
+Dettagli: `flutter_app/OPTIONAL_INTELLIGENCE_0_36.md`.
 
 ## 0.35 — Interoperability & Research
 
-- export/import workspace Markdown in file `.md` portabili;
-- cartella Markdown mirror selezionabile dall'utente con manifest locale e merge a tre vie;
+- export/import workspace Markdown in file `.md` portabili, con tag/task preservati e Synced Blocks materializzati;
+- cartella Markdown mirror selezionabile dall'utente con manifest locale, percorsi confinati e merge a tre vie;
+- il manifest viene finalizzato solo dopo il commit SQLite e non autorizza overwrite quando la base manca;
+- contenuti Shared Spaces read-only sono esclusi dal mirror;
 - modifiche esterne non sovrascrivono mai testo locale dirty: i conflitti preservano entrambe le versioni;
 - Research Workspace per fonti, URL, autore, estratti e footnote Markdown;
 - relazioni note↔note persistenti e rollup deterministici;
@@ -46,6 +64,7 @@ Dettagli: `flutter_app/INTEROPERABILITY_RESEARCH_0_35.md`.
 ## 0.34 — Daily Work & Capture
 
 - Home promossa a **Daily Work Briefing / Oggi**, vista deterministica e non nuova entità;
+- calendario locale-aware centralizzato, default italiano/europeo Monday-first **L M M G V S D**;
 - aggregazione di blocchi pianificati, task in scadenza, arretrati e novità Shared Spaces;
 - Inbox/Triage: le note senza raccolta emergono nel briefing e si smistano usando raccolte/tag già esistenti;
 - Quick Switcher globale per note, attività, raccolte e comandi;
@@ -129,7 +148,7 @@ Una build non è dichiarata stabile solo perché compila.
 
 - database compatibile con la linea Room v8;
 - backup JSON v6;
-- backup ZIP con allegati e restore verificato;
+- backup ZIP v2 con allegati + sidecar e restore con remapping ID; decoder retrocompatibile v1;
 - allegati con chiavi SHA-256;
 - Shared Space bundle portabile come fallback;
 - nessun reset distruttivo richiesto dalla 0.32.
@@ -146,6 +165,12 @@ Non usare quella branch per nuovo sviluppo.
 
 ## Direzione successiva
 
-Dopo Interoperability & Research 0.35:
+Roadmap riconciliata P0–P4:
 
-1. Intelligence opzionale sopra un core completamente funzionante senza AI.
+- P0 Production Truth & Data Lifecycle: completato.
+- P1 Universal Properties + Adaptive Editor: completato.
+- P2 Daily Work & Capture: completato.
+- P3 Interoperability & Research: completato.
+- P4 Optional Intelligence: completato.
+
+Le release restano soggette ai gate FAST/FULL/CERTIFIED: roadmap funzionale completata non equivale automaticamente a certificazione hardware.

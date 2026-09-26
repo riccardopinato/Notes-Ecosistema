@@ -210,6 +210,111 @@ class PropertyStore {
     );
   }
 
+  Future<Map<String, Object?>> exportBackup() async {
+    final snapshot = await this.snapshot();
+    return {
+      'version': 1,
+      'definitions': snapshot.definitions
+          .map((item) => item.toMap())
+          .toList(growable: false),
+      'values':
+          snapshot.values.map((item) => item.toMap()).toList(growable: false),
+    };
+  }
+
+  Future<void> importBackup(
+    Map<String, Object?> payload, {
+    required Map<String, String> noteIdMap,
+  }) async {
+    if (payload.isEmpty) return;
+    if (payload['version'] != 1 ||
+        payload['definitions'] is! List ||
+        payload['values'] is! List) {
+      throw const FormatException('Backup proprietà non valido.');
+    }
+    final rawDefinitions = payload['definitions'] as List;
+    final rawValues = payload['values'] as List;
+    if (rawDefinitions.length > PropertyRules.maxDefinitions ||
+        rawValues.length > 200000) {
+      throw const FormatException('Backup proprietà troppo grande.');
+    }
+
+    final sourceDefinitions = rawDefinitions.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Definizione proprietà non valida.');
+      }
+      return PropertyDefinition.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }).toList(growable: false);
+
+    final definitionMap = <String, String>{};
+    var current = await loadDefinitions();
+    for (final source in sourceDefinitions) {
+      final compatible = current.where(
+        (item) =>
+            item.name.toLowerCase() == source.name.toLowerCase() &&
+            item.type == source.type &&
+            item.options.join('\u0000') == source.options.join('\u0000'),
+      );
+      if (compatible.isNotEmpty) {
+        definitionMap[source.id] = compatible.first.id;
+        continue;
+      }
+
+      var name = source.name;
+      var suffix = 1;
+      while (current.any(
+        (item) => item.name.toLowerCase() == name.toLowerCase(),
+      )) {
+        name = '${source.name} (importata $suffix)';
+        suffix++;
+      }
+      final created = await createDefinition(
+        name: name,
+        type: source.type,
+        options: source.options,
+      );
+      definitionMap[source.id] = created.id;
+      current = [...current, created];
+    }
+
+    final targetDefinitions = {
+      for (final definition in await loadDefinitions())
+        definition.id: definition,
+    };
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final raw in rawValues) {
+        if (raw is! Map) {
+          throw const FormatException('Valore proprietà non valido.');
+        }
+        final source = NotePropertyValue.fromMap(
+          raw.map((key, value) => MapEntry(key.toString(), value)),
+        );
+        final noteId = noteIdMap[source.noteId];
+        final definitionId = definitionMap[source.definitionId];
+        if (noteId == null || definitionId == null) continue;
+        final definition = targetDefinitions[definitionId];
+        if (definition == null) {
+          throw const FormatException(
+              'Definizione proprietà importata mancante.');
+        }
+        PropertyRules.decodeValue(definition, source.valueJson);
+        await txn.insert(
+          'property_values',
+          NotePropertyValue(
+            noteId: noteId,
+            definitionId: definitionId,
+            valueJson: source.valueJson,
+            updatedAt: source.updatedAt,
+          ).toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
+
   Future<void> close() async {
     final db = _db;
     _db = null;

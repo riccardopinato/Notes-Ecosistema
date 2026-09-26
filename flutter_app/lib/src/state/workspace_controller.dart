@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../data/legacy_notes_database.dart';
 import '../data/property_store.dart';
 import '../data/knowledge_store.dart';
+import '../data/derivative_store.dart';
 import '../domain/backup.dart';
 import '../domain/library.dart';
 import '../domain/note.dart';
@@ -23,6 +24,12 @@ final propertyStoreProvider = Provider<PropertyStore>((ref) {
 
 final knowledgeStoreProvider = Provider<KnowledgeStore>((ref) {
   final store = KnowledgeStore();
+  ref.onDispose(store.close);
+  return store;
+});
+
+final derivativeStoreProvider = Provider<DerivativeStore>((ref) {
+  final store = DerivativeStore();
   ref.onDispose(store.close);
   return store;
 });
@@ -138,9 +145,10 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
 
   Future<BackupSnapshot> snapshot() => _database.snapshot();
 
-  Future<void> importCopies(BackupSnapshot snapshot) async {
-    await _database.importCopies(snapshot);
+  Future<BackupImportPlan> importCopies(BackupSnapshot snapshot) async {
+    final plan = await _database.importCopies(snapshot);
     await refresh();
+    return plan;
   }
 
   Future<void> createCollection(String name) async {
