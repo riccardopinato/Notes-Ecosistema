@@ -23,6 +23,7 @@ import '../domain/knowledge.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
+import '../domain/research.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
 import '../platform/attachment_bridge.dart';
@@ -32,6 +33,7 @@ import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
 import '../widgets/properties_sheet.dart';
+import '../widgets/research_workspace_sheet.dart';
 import '../widgets/smart_capture_sheet.dart';
 import '../widgets/universal_block_editor.dart';
 
@@ -85,6 +87,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _propertiesLoaded = false;
   bool _focusEditor = false;
   bool _autoRecordStarted = false;
+  Map<String, SyncedBlock> _syncedBlocks = const {};
 
   bool get _readOnlyVisual => widget.note?.isVisual == true;
   bool get _readOnly => widget.readOnly || _readOnlyVisual;
@@ -107,6 +110,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_restoreDraft());
       unawaited(_loadProperties());
+      unawaited(_loadSyncedBlocks());
       if (widget.autoRecord && !_autoRecordStarted && !_readOnly) {
         _autoRecordStarted = true;
         unawaited(_toggleRecording());
@@ -202,6 +206,41 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         _error = 'Impossibile recuperare la bozza locale.';
       });
     }
+  }
+
+  Future<void> _loadSyncedBlocks() async {
+    try {
+      final blocks = await ref.read(knowledgeStoreProvider).syncedBlocks();
+      if (!mounted) return;
+      setState(() => _syncedBlocks = blocks);
+    } catch (_) {
+      // Canonical Markdown remains editable if optional metadata is unavailable.
+    }
+  }
+
+  void _insertResearchMarkdown(String markdown) {
+    final selection = _body.selection;
+    final rawStart = selection.isValid ? selection.start : _body.text.length;
+    final rawEnd = selection.isValid ? selection.end : rawStart;
+    final start = rawStart.clamp(0, _body.text.length);
+    final end = rawEnd.clamp(start, _body.text.length);
+    final next = _body.text.replaceRange(start, end, markdown);
+    _body.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: start + markdown.length),
+    );
+    _bodyChanged();
+  }
+
+  Future<void> _researchWorkspace() async {
+    await showResearchWorkspace(
+      context: context,
+      noteId: _id,
+      notes: widget.allNotes,
+      store: ref.read(knowledgeStoreProvider),
+      onInsertMarkdown: _insertResearchMarkdown,
+    );
+    await _loadSyncedBlocks();
   }
 
   Future<void> _loadProperties() async {
@@ -1461,7 +1500,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               const Text('Nessun contenuto.')
             else
               MarkdownBody(
-                data: _body.text,
+                data: SyncedBlockCodec.resolve(_body.text, _syncedBlocks),
                 selectable: true,
                 onTapLink: (text, href, title) {
                   if (href == null) return;
@@ -1527,6 +1566,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             eyebrow: 'IL TUO TACCUINO',
           ),
           actions: [
+            if (!_focusEditor)
+              IconButton(
+                onPressed: _saving ? null : _researchWorkspace,
+                tooltip: 'Research Workspace',
+                icon: const Icon(Icons.hub_outlined),
+              ),
             IconButton(
               onPressed: _saving
                   ? null
