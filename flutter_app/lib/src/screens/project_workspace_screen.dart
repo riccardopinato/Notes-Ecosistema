@@ -459,7 +459,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
     final identity = shared.identity;
     final role =
         identity == null || space == null ? null : space.roleFor(identity.id);
-    final canEdit = !project.isDeleted &&
+    final canEdit = project.isActive &&
         (project.sharedSpaceId == null || (role?.canEdit ?? false));
     final links = _effectiveLinks(project, space);
     final allItems = ProjectWorkViews.project(
@@ -617,7 +617,6 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
             _WorkView(
               type: project.preferredView,
               items: items,
-              canEdit: canEdit,
               onOpen: (item) => widget.onOpenItem(item.note, !canEdit),
               onRemove: canEdit
                   ? (item) => _remove(project, space, item.note.id)
@@ -999,7 +998,6 @@ class _WorkView extends StatelessWidget {
   const _WorkView({
     required this.type,
     required this.items,
-    required this.canEdit,
     required this.onOpen,
     this.onRemove,
     this.onStage,
@@ -1007,7 +1005,6 @@ class _WorkView extends StatelessWidget {
 
   final ProjectWorkViewType type;
   final List<ProjectWorkItem> items;
-  final bool canEdit;
   final ValueChanged<ProjectWorkItem> onOpen;
   final ValueChanged<ProjectWorkItem>? onRemove;
   final void Function(ProjectWorkItem item, String stage)? onStage;
