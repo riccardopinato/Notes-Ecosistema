@@ -191,7 +191,9 @@ class _ProjectWorkspaceScreenState
                                     style:
                                         Theme.of(context).textTheme.titleLarge,
                                   ),
-                                  if (project.description.trim().isNotEmpty) ...[
+                                  if (project.description
+                                      .trim()
+                                      .isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       project.description,
@@ -610,7 +612,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
             const _InfoCard(
               icon: Icons.inbox_outlined,
               title: 'Progetto vuoto',
-              detail: 'Aggiungi una nota, un’attività o un contenuto esistente. '
+              detail:
+                  'Aggiungi una nota, un’attività o un contenuto esistente. '
                   'Le viste cambiano, i dati restano gli stessi.',
             )
           else
@@ -700,9 +703,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
     SharedSpace? space,
   ) async {
     final workspace = ref.read(workspaceProvider);
-    final currentIds = _effectiveLinks(project, space)
-        .map((link) => link.noteId)
-        .toSet();
+    final currentIds =
+        _effectiveLinks(project, space).map((link) => link.noteId).toSet();
     final candidates = workspace.notes
         .where((note) => !note.isDeleted && !currentIds.contains(note.id))
         .toList()
@@ -938,12 +940,15 @@ class _ExistingItemDialogState extends State<_ExistingItemDialog> {
   @override
   Widget build(BuildContext context) {
     final needle = _query.trim().toLowerCase();
-    final filtered = widget.notes.where((note) {
-      if (needle.isEmpty) return true;
-      return note.title.toLowerCase().contains(needle) ||
-          (!note.isVisual && note.body.toLowerCase().contains(needle)) ||
-          note.tags.any((tag) => tag.toLowerCase().contains(needle));
-    }).take(250).toList(growable: false);
+    final filtered = widget.notes
+        .where((note) {
+          if (needle.isEmpty) return true;
+          return note.title.toLowerCase().contains(needle) ||
+              (!note.isVisual && note.body.toLowerCase().contains(needle)) ||
+              note.tags.any((tag) => tag.toLowerCase().contains(needle));
+        })
+        .take(250)
+        .toList(growable: false);
 
     return AlertDialog(
       title: const Text('Aggiungi esistente'),
@@ -1118,8 +1123,7 @@ class _WorkView extends StatelessWidget {
                                                     ),
                                                     PopupMenuItem(
                                                       value: 'DOING',
-                                                      child:
-                                                          Text('In corso'),
+                                                      child: Text('In corso'),
                                                     ),
                                                     PopupMenuItem(
                                                       value: 'DONE',
@@ -1179,7 +1183,8 @@ class _WorkView extends StatelessWidget {
                       DataCell(Text(_kindLabel(item.kind))),
                       DataCell(Text(_laneLabel(item.stage))),
                       DataCell(Text(item.effectiveDate ?? '—')),
-                      DataCell(Text(item.priority == 0 ? '—' : '${item.priority}')),
+                      DataCell(
+                          Text(item.priority == 0 ? '—' : '${item.priority}')),
                     ],
                   ),
                 )
