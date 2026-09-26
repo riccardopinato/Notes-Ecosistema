@@ -91,6 +91,64 @@ class DerivativeStore {
     );
   }
 
+  Future<Map<String, Object?>> exportBackup() async {
+    final db = await database;
+    return {
+      'version': 1,
+      'derivatives': await db.query(
+        'derivatives',
+        orderBy: 'createdAt ASC, id ASC',
+      ),
+    };
+  }
+
+  Future<void> importBackup(
+    Map<String, Object?> payload, {
+    required Map<String, String> noteIdMap,
+  }) async {
+    if (payload.isEmpty) return;
+    if (payload['version'] != 1 || payload['derivatives'] is! List) {
+      throw const FormatException('Backup derivati non valido.');
+    }
+    final rawItems = payload['derivatives'] as List;
+    if (rawItems.length > 100000) {
+      throw const FormatException('Backup derivati troppo grande.');
+    }
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final raw in rawItems) {
+        if (raw is! Map) {
+          throw const FormatException('Derivato importato non valido.');
+        }
+        final source = SourceDerivative.fromMap(
+          raw.map((key, value) => MapEntry(key.toString(), value)),
+        );
+        final noteId = noteIdMap[source.sourceNoteId];
+        if (noteId == null) continue;
+        if (source.content.trim().isEmpty ||
+            source.content.length > 500000 ||
+            source.sourceFingerprint.trim().isEmpty ||
+            source.engine.trim().isEmpty) {
+          throw const FormatException('Derivato importato non valido.');
+        }
+        await txn.insert(
+          'derivatives',
+          SourceDerivative(
+            id: const Uuid().v4(),
+            sourceNoteId: noteId,
+            sourceAssetKey: source.sourceAssetKey,
+            kind: source.kind,
+            content: source.content,
+            sourceFingerprint: source.sourceFingerprint,
+            createdAt: source.createdAt,
+            engine: source.engine,
+          ).toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> close() async {
     final db = _db;
     _db = null;
