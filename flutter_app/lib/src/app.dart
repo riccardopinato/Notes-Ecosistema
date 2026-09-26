@@ -1093,8 +1093,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
       final bytes = MarkdownWorkspaceBundle.encode(snapshot.notes);
       final now = DateTime.now();
-      final stamp =
-          '${now.year.toString().padLeft(4, '0')}-'
+      final stamp = '${now.year.toString().padLeft(4, '0')}-'
           '${now.month.toString().padLeft(2, '0')}-'
           '${now.day.toString().padLeft(2, '0')}';
       await FilePicker.platform.saveFile(
