@@ -64,9 +64,8 @@ abstract final class QuickSwitcher {
             (project) => QuickSwitcherEntry(
               id: project.id,
               label: project.name,
-              subtitle: project.sharedSpaceId == null
-                  ? 'Progetto'
-                  : 'Progetto team',
+              subtitle:
+                  project.sharedSpaceId == null ? 'Progetto' : 'Progetto team',
               kind: QuickSwitcherKind.project,
             ),
           ),
