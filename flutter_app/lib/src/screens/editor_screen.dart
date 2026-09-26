@@ -1599,49 +1599,49 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             avatar: const Icon(Icons.folder, size: 18),
                             label: Text(collectionName ?? 'Inbox'),
                             onPressed: _saving ? null : _chooseCollection,
-                        ),
+                          ),
                           ActionChip(
                             avatar: const Icon(Icons.sell, size: 18),
                             label: Text(
-                            visibleTags.isEmpty
-                                ? 'Aggiungi tag'
-                                : 'Tag (${visibleTags.length})',
-                          ),
+                              visibleTags.isEmpty
+                                  ? 'Aggiungi tag'
+                                  : 'Tag (${visibleTags.length})',
+                            ),
                             onPressed: _saving ? null : _editTags,
-                        ),
+                          ),
                           ActionChip(
                             avatar: const Icon(Icons.calendar_today, size: 18),
                             label: Text(
-                            _diaryDate == null
-                                ? 'Giorno'
-                                : dateKey(_diaryDate!),
-                          ),
+                              _diaryDate == null
+                                  ? 'Giorno'
+                                  : dateKey(_diaryDate!),
+                            ),
                             onPressed: _saving ? null : _chooseDiaryDate,
-                        ),
+                          ),
                           ActionChip(
                             avatar: const Icon(Icons.tune, size: 18),
                             label: Text(
-                            _propertyValues.isEmpty
-                                ? 'Proprietà'
-                                : 'Proprietà (${_propertyValues.length})',
-                          ),
+                              _propertyValues.isEmpty
+                                  ? 'Proprietà'
+                                  : 'Proprietà (${_propertyValues.length})',
+                            ),
                             onPressed: _saving || !_propertiesLoaded
-                              ? null
-                              : _editProperties,
-                        ),
+                                ? null
+                                : _editProperties,
+                          ),
                           if (_adaptive.degraded)
                             Chip(
-                            avatar: const Icon(Icons.speed, size: 18),
-                            label: Text(
-                              'Editor adattivo · ${_adaptive.label}',
+                              avatar: const Icon(Icons.speed, size: 18),
+                              label: Text(
+                                'Editor adattivo · ${_adaptive.label}',
+                              ),
                             ),
-                          ),
                           if (_diaryDate != null)
                             IconButton(
-                            onPressed: _saving ? null : _removeDiaryDate,
-                            tooltip: 'Rimuovi dal Diario',
-                            icon: const Icon(Icons.event_busy),
-                          ),
+                              onPressed: _saving ? null : _removeDiaryDate,
+                              tooltip: 'Rimuovi dal Diario',
+                              icon: const Icon(Icons.event_busy),
+                            ),
                         ],
                       ),
                     if (visibleTags.isNotEmpty) ...[
@@ -1674,7 +1674,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             label: const Text('Allega'),
                           ),
                           OutlinedButton.icon(
-                            onPressed: _saving || _recording ? null : _takePhoto,
+                            onPressed:
+                                _saving || _recording ? null : _takePhoto,
                             icon: const Icon(Icons.photo_camera_outlined),
                             label: const Text('Foto'),
                           ),
@@ -1708,7 +1709,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                                   ),
                             ),
                         ],
-                    ),
+                      ),
                     if (Attachments.refs(_body.text).isNotEmpty) ...[
                       const SizedBox(height: 8),
                       ...Attachments.refs(_body.text).map(
@@ -1743,7 +1744,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             selected: _mode == _EditorMode.text,
                             onSelected: _saving
                                 ? null
-                                : (_) => setState(() => _mode = _EditorMode.text),
+                                : (_) =>
+                                    setState(() => _mode = _EditorMode.text),
                             label: const Text('Testo'),
                           ),
                           ChoiceChip(
@@ -1769,7 +1771,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             label: Text('Checklist (${checklist.length})'),
                           ),
                         ],
-                    ),
+                      ),
                     const SizedBox(height: 10),
                     if (_focusEditor || _mode == _EditorMode.text) ...[
                       if (!_focusEditor)
