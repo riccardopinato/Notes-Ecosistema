@@ -211,7 +211,8 @@ abstract final class PropertyRules {
         }
         return text.isEmpty ? null : text;
       case NotePropertyType.number:
-        final number = value is num ? value.toDouble() : double.tryParse('$value');
+        final number =
+            value is num ? value.toDouble() : double.tryParse('$value');
         if (number == null || !number.isFinite) {
           throw const FormatException('Numero proprietà non valido.');
         }
