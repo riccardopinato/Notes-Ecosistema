@@ -14,6 +14,7 @@ import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/media_bundle.dart';
+import 'domain/markdown_interop.dart';
 import 'domain/note.dart';
 import 'domain/planner.dart';
 import 'domain/shared_space_bundle.dart';
@@ -1042,6 +1043,113 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     );
   }
 
+  Future<void> _exportMarkdownWorkspace() async {
+    try {
+      final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final bytes = MarkdownWorkspaceBundle.encode(snapshot.notes);
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')}';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Esporta workspace Markdown',
+        fileName: 'notes-markdown-$stamp.zip',
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Workspace Markdown esportato senza lock-in.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importMarkdownWorkspace() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.single.bytes;
+      if (bytes == null) {
+        throw const FormatException('Impossibile leggere l’archivio Markdown.');
+      }
+      final documents = MarkdownWorkspaceBundle.decode(
+        Uint8List.fromList(bytes),
+      );
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Importare Markdown?'),
+          content: Text(
+            'Verranno create ${documents.length} copie locali. '
+            'Nessuna nota esistente verrà sovrascritta.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Importa copie'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final notifier = ref.read(workspaceProvider.notifier);
+      var stamp = DateTime.now().millisecondsSinceEpoch;
+      for (final document in documents) {
+        await notifier.save(
+          Note(
+            id: const Uuid().v4(),
+            title: document.title,
+            body: document.body,
+            favorite: false,
+            createdAt: stamp,
+            updatedAt: stamp,
+            pinned: false,
+            archived: false,
+            tags: const ['import-markdown'],
+          ),
+        );
+        stamp++;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${documents.length} documenti Markdown importati.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString().replaceFirst('FormatException: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _exportBackup() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
@@ -1216,6 +1324,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
     await ref.read(workspaceProvider.notifier).deleteForever(id);
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
+    await ref.read(knowledgeStoreProvider).deleteForNote(id);
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
       await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
@@ -1299,6 +1408,28 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   onTap: () {
                     Navigator.pop(context);
                     _importBackup();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.text_snippet_outlined),
+                  title: const Text('Esporta workspace Markdown'),
+                  subtitle: const Text(
+                    'ZIP con file .md leggibili anche fuori da Notes.',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exportMarkdownWorkspace();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.drive_folder_upload_outlined),
+                  title: const Text('Importa Markdown'),
+                  subtitle: const Text(
+                    'Importa un export Markdown come copie, senza sovrascrivere.',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _importMarkdownWorkspace();
                   },
                 ),
                 ListTile(
