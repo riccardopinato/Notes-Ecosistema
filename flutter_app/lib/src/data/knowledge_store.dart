@@ -128,10 +128,14 @@ class KnowledgeStore {
         label.length > 80) {
       throw const FormatException('Relazione non valida.');
     }
+    final normalizedSource =
+        sourceId.compareTo(targetId) <= 0 ? sourceId : targetId;
+    final normalizedTarget =
+        sourceId.compareTo(targetId) <= 0 ? targetId : sourceId;
     final relation = NoteRelation(
       id: const Uuid().v4(),
-      sourceId: sourceId,
-      targetId: targetId,
+      sourceId: normalizedSource,
+      targetId: normalizedTarget,
       label: label.trim(),
       updatedAt: DateTime.now().millisecondsSinceEpoch,
     );
