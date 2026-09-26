@@ -60,6 +60,7 @@ Dettagli: `flutter_app/INTEROPERABILITY_RESEARCH_0_35.md`.
 ## 0.34 — Daily Work & Capture
 
 - Home promossa a **Daily Work Briefing / Oggi**, vista deterministica e non nuova entità;
+- calendario locale-aware centralizzato, default italiano/europeo Monday-first **L M M G V S D**;
 - aggregazione di blocchi pianificati, task in scadenza, arretrati e novità Shared Spaces;
 - Inbox/Triage: le note senza raccolta emergono nel briefing e si smistano usando raccolte/tag già esistenti;
 - Quick Switcher globale per note, attività, raccolte e comandi;
