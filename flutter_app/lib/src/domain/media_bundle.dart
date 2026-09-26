@@ -11,10 +11,16 @@ class MediaBundlePreview {
   const MediaBundlePreview({
     required this.snapshot,
     required this.assets,
+    this.properties = const {},
+    this.knowledge = const {},
+    this.derivatives = const {},
   });
 
   final BackupSnapshot snapshot;
   final Map<String, Uint8List> assets;
+  final Map<String, Object?> properties;
+  final Map<String, Object?> knowledge;
+  final Map<String, Object?> derivatives;
 
   int get assetBytes =>
       assets.values.fold<int>(0, (sum, bytes) => sum + bytes.length);
@@ -24,24 +30,37 @@ abstract final class MediaBundle {
   static const maxArchiveBytes = 80 * 1024 * 1024;
   static const maxAssetBatchBytes = 64 * 1024 * 1024;
   static const format = 'notes-ecosystem-media';
-  static const version = 1;
+  static const version = 2;
+  static const maxSidecarBytes = 8 * 1024 * 1024;
 
   static Future<Uint8List> encode(
     BackupSnapshot snapshot,
-    AttachmentStore store,
-  ) async {
+    AttachmentStore store, {
+    Map<String, Object?> properties = const {},
+    Map<String, Object?> knowledge = const {},
+    Map<String, Object?> derivatives = const {},
+  }) async {
     final keys = referencedKeys(snapshot).toList()..sort();
     final assets = <String, Uint8List>{};
     for (final key in keys) {
       assets[key] = await store.read(key);
     }
-    return encodeLoaded(snapshot, assets);
+    return encodeLoaded(
+      snapshot,
+      assets,
+      properties: properties,
+      knowledge: knowledge,
+      derivatives: derivatives,
+    );
   }
 
   static Uint8List encodeLoaded(
     BackupSnapshot snapshot,
-    Map<String, Uint8List> assets,
-  ) {
+    Map<String, Uint8List> assets, {
+    Map<String, Object?> properties = const {},
+    Map<String, Object?> knowledge = const {},
+    Map<String, Object?> derivatives = const {},
+  }) {
     BackupCodec.validate(snapshot);
     final keys = referencedKeys(snapshot).toList()..sort();
     if (keys.length > Attachments.maxFiles ||
@@ -66,10 +85,26 @@ abstract final class MediaBundle {
           'format': format,
           'version': version,
           'assets': keys,
+          'sidecars': const [
+            'properties.json',
+            'knowledge.json',
+            'derivatives.json',
+          ],
         }),
       ),
     );
     archive.add(ArchiveFile.string('backup.json', backup));
+    for (final entry in <String, Map<String, Object?>>{
+      'properties.json': properties,
+      'knowledge.json': knowledge,
+      'derivatives.json': derivatives,
+    }.entries) {
+      final encoded = jsonEncode(entry.value);
+      if (utf8.encode(encoded).length > maxSidecarBytes) {
+        throw FormatException('${entry.key} supera 8 MiB.');
+      }
+      archive.add(ArchiveFile.string(entry.key, encoded));
+    }
 
     var assetBytes = 0;
     for (final key in keys) {
@@ -121,10 +156,11 @@ abstract final class MediaBundle {
     archive.add(
       ArchiveFile.string(
         'LEGGIMI.txt',
-        'Backup completo Notes 0.25.1+. '
-            'backup.json contiene note e metadati; assets contiene gli originali '
-            'verificati SHA-256. Ricerche salvate, revisioni locali e timer Focus '
-            'attivo non sono inclusi. Archivio non cifrato.',
+        'Backup completo Notes 0.36+. '
+            'backup.json contiene il workspace canonico; assets contiene gli originali '
+            'verificati SHA-256; properties/knowledge/derivatives contengono i sidecar '
+            'portabili. Ricerche salvate, revisioni locali e timer Focus attivo non '
+            'sono inclusi. Archivio non cifrato.',
       ),
     );
 
@@ -148,6 +184,11 @@ abstract final class MediaBundle {
     final seen = <String>{};
     String? backupText;
     Set<String>? manifest;
+    int? bundleVersion;
+    Set<String> declaredSidecars = const {};
+    Map<String, Object?> properties = const {};
+    Map<String, Object?> knowledge = const {};
+    Map<String, Object?> derivatives = const {};
     final assets = <String, Uint8List>{};
     var expandedBytes = 0;
     var assetBytes = 0;
@@ -162,6 +203,9 @@ abstract final class MediaBundle {
       final allowed = isAsset && Attachments.validKey(assetKey) ||
           name == 'bundle.json' ||
           name == 'backup.json' ||
+          name == 'properties.json' ||
+          name == 'knowledge.json' ||
+          name == 'derivatives.json' ||
           name == 'LEGGIMI.txt' ||
           RegExp(r'^note/[0-9]+\.md$').hasMatch(name) ||
           RegExp(r'^disegni/[0-9]+\.sketch\.json$').hasMatch(name) ||
@@ -199,6 +243,21 @@ abstract final class MediaBundle {
           throw const FormatException('backup.json supera 5 MiB.');
         }
         backupText = utf8.decode(data, allowMalformed: false);
+      } else if (name == 'properties.json' ||
+          name == 'knowledge.json' ||
+          name == 'derivatives.json') {
+        if (data.length > maxSidecarBytes) {
+          throw FormatException('$name supera 8 MiB.');
+        }
+        final decoded = jsonDecode(utf8.decode(data, allowMalformed: false));
+        if (decoded is! Map) {
+          throw FormatException('$name non valido.');
+        }
+        final mapped =
+            decoded.map((key, value) => MapEntry(key.toString(), value));
+        if (name == 'properties.json') properties = mapped;
+        if (name == 'knowledge.json') knowledge = mapped;
+        if (name == 'derivatives.json') derivatives = mapped;
       } else if (name == 'bundle.json') {
         if (data.length > 100000) {
           throw const FormatException('Manifest backup troppo grande.');
@@ -206,9 +265,29 @@ abstract final class MediaBundle {
         final root = jsonDecode(utf8.decode(data, allowMalformed: false));
         if (root is! Map ||
             root['format'] != format ||
-            root['version'] != version ||
+            root['version'] is! num ||
+            (root['version'] as num).toInt() < 1 ||
+            (root['version'] as num).toInt() > version ||
             root['assets'] is! List) {
           throw const FormatException('Manifest backup non valido.');
+        }
+        bundleVersion = (root['version'] as num).toInt();
+        if (bundleVersion! >= 2) {
+          if (root['sidecars'] is! List) {
+            throw const FormatException('Sidecar backup mancanti.');
+          }
+          declaredSidecars = (root['sidecars'] as List)
+              .map((value) => value.toString())
+              .toSet();
+          const required = {
+            'properties.json',
+            'knowledge.json',
+            'derivatives.json',
+          };
+          if (!declaredSidecars.containsAll(required) ||
+              declaredSidecars.length != required.length) {
+            throw const FormatException('Elenco sidecar backup non valido.');
+          }
         }
         final list = (root['assets'] as List)
             .map((value) => value.toString())
@@ -222,8 +301,18 @@ abstract final class MediaBundle {
       }
     }
 
-    if (backupText == null || manifest == null) {
+    if (backupText == null || manifest == null || bundleVersion == null) {
       throw const FormatException('backup.json o bundle.json mancante.');
+    }
+    if (bundleVersion! >= 2) {
+      const required = {
+        'properties.json',
+        'knowledge.json',
+        'derivatives.json',
+      };
+      if (!seen.containsAll(required)) {
+        throw const FormatException('Sidecar backup dichiarati ma mancanti.');
+      }
     }
     final snapshot = BackupCodec.decode(backupText);
     final referenced = referencedKeys(snapshot);
@@ -237,7 +326,13 @@ abstract final class MediaBundle {
       );
     }
 
-    return MediaBundlePreview(snapshot: snapshot, assets: assets);
+    return MediaBundlePreview(
+      snapshot: snapshot,
+      assets: assets,
+      properties: properties,
+      knowledge: knowledge,
+      derivatives: derivatives,
+    );
   }
 
   static Future<void> installAssets(
