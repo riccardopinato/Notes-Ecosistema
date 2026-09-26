@@ -1,4 +1,4 @@
-# Notes — Ecosistema 0.36.0
+# Notes — Ecosistema 0.36.1
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
@@ -6,7 +6,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.36.0+45**
+- Versione Flutter: **0.36.1+46**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
@@ -29,6 +29,18 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - GitHub Sync con allegati e tile Quick Settings.
 - Backup JSON v6 compatibile con la linea Kotlin e backup ZIP v2 completo con allegati, Universal Properties, Research/Relations/Synced Blocks e derivati; lettura retrocompatibile ZIP v1.
 - Export/condivisione PNG per Sketch e Whiteboard.
+
+## 0.36.1 — Light Theme Contrast Polish
+
+- corretta la gerarchia cromatica del tema chiaro: headline editoriali in blu brand `#3559E0`;
+- titoli/card text su superfici chiare riportati a `onSurface`;
+- descrizioni, helper ed empty state su `onSurfaceVariant`;
+- titolo di sezione nell'AppBar esplicitamente blu nel tema chiaro;
+- il bianco resta riservato alle superfici blu/primary e agli elementi ad alto contrasto;
+- dark theme invariato nella direzione visiva;
+- aggiunti test automatici per impedire regressioni di contrasto.
+
+Dettagli: `flutter_app/LIGHT_THEME_CONTRAST_0_36_1.md`.
 
 ## 0.36 — Optional Intelligence
 

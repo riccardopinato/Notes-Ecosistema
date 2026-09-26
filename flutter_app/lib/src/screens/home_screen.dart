@@ -282,7 +282,10 @@ class _NotebookCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const EditorialEyebrow('IL TUO TACCUINO'),
+              EditorialEyebrow(
+                'IL TUO TACCUINO',
+                color: colors.onPrimary,
+              ),
               const SizedBox(height: 8),
               Text('Scrivi. Disegna.\nDai forma alle idee.',
                   style: Theme.of(context)

@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class EditorialEyebrow extends StatelessWidget {
-  const EditorialEyebrow(this.text, {super.key});
+  const EditorialEyebrow(this.text, {this.color, super.key});
+
   final String text;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Text(
         text.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
+              color: color ?? Theme.of(context).colorScheme.primary,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.25,
             ),
@@ -29,13 +31,17 @@ class EditorialAppTitle extends StatelessWidget {
         children: [
           if (MediaQuery.textScalerOf(context).scale(1) <= 1.3)
             EditorialEyebrow(eyebrow),
-          Text(title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontFamily: 'serif')),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontFamily: 'serif',
+                  color: Theme.of(context).brightness == Brightness.light
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+          ),
         ],
       );
 }

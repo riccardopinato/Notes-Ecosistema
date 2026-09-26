@@ -1725,7 +1725,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   },
                 ),
                 const ListTile(
-                  title: Text('Notes · Flutter 0.36.0'),
+                  title: Text('Notes · Flutter 0.36.1'),
                   subtitle: Text(
                     'Shared Spaces selettivi · database locale ancora compatibile con Room v8.',
                   ),

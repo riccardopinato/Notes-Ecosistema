@@ -2,12 +2,13 @@
 
 ## Stato corrente
 
-- Versione: **0.36.0+45**
+- Versione: **0.36.1+46**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
 - Validazione: FAST / FULL / CERTIFIED
 - Roadmap riconciliata P0–P4: **funzionalmente completata**
+- UI polish 0.36.1: contrasto light theme corretto, dark theme preservato.
 - Gate FULL v0.36: obbligatorio sull'head finale prima del merge
 
 ## P0 — Production Truth & Data Lifecycle
