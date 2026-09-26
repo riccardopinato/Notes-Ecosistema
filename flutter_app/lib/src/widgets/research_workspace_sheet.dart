@@ -44,6 +44,7 @@ class _ResearchWorkspaceSheet extends StatefulWidget {
 class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
   List<ResearchSource> _sources = const [];
   List<NoteRelation> _relations = const [];
+  Map<String, SyncedBlock> _blocks = const {};
   bool _loading = true;
   String? _error;
 
@@ -57,10 +58,12 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     try {
       final sources = await widget.store.sourcesFor(widget.noteId);
       final relations = await widget.store.relationsFor(widget.noteId);
+      final blocks = await widget.store.syncedBlocks();
       if (!mounted) return;
       setState(() {
         _sources = sources;
         _relations = relations;
+        _blocks = blocks;
         _loading = false;
         _error = null;
       });
@@ -247,6 +250,49 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     }
   }
 
+  Future<void> _editSyncedBlock(SyncedBlock block) async {
+    final text = TextEditingController(text: block.markdown);
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modifica blocco sincronizzato'),
+        content: TextField(
+          controller: text,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 10,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Aggiorna ovunque'),
+          ),
+        ],
+      ),
+    );
+    if (accepted == true && mounted) {
+      try {
+        await widget.store.upsertSyncedBlock(
+          id: block.id,
+          markdown: text.text,
+        );
+        await _reload();
+      } catch (error) {
+        if (mounted) {
+          setState(
+            () => _error =
+                error.toString().replaceFirst('FormatException: ', ''),
+          );
+        }
+      }
+    }
+    text.dispose();
+  }
+
   String _relationTitle(NoteRelation relation) {
     final other = relation.sourceId == widget.noteId
         ? relation.targetId
@@ -388,6 +434,42 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
                                       .deleteRelation(relation.id);
                                   await _reload();
                                 },
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 24),
+                          Text(
+                            'Synced blocks',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (_blocks.isEmpty)
+                            const ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'Nessun blocco sincronizzato. Creane uno e inseriscilo in più note.',
+                              ),
+                            ),
+                          ..._blocks.values.map(
+                            (block) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.sync_alt),
+                              title: Text(
+                                block.markdown.replaceAll('\n', ' '),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: const Text(
+                                'Tocca per inserire · modifica aggiorna ogni riferimento',
+                              ),
+                              onTap: () {
+                                widget.onInsertMarkdown(
+                                  SyncedBlockCodec.reference(block.id),
+                                );
+                                Navigator.pop(context);
+                              },
+                              trailing: IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                onPressed: () => _editSyncedBlock(block),
                               ),
                             ),
                           ),
