@@ -270,7 +270,8 @@ class KnowledgeStore {
       );
       final sourceId = noteIdMap[relation.sourceId];
       final targetId = noteIdMap[relation.targetId];
-      if (sourceId == null || targetId == null || sourceId == targetId) continue;
+      if (sourceId == null || targetId == null || sourceId == targetId)
+        continue;
       try {
         await addRelation(
           sourceId: sourceId,
