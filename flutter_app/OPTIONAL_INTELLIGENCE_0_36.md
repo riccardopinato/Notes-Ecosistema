@@ -54,7 +54,7 @@ Tipi:
 - summary;
 - extractedTasks.
 
-L'originale non viene mai sovrascritto.
+L'originale non viene mai sovrascritto. I derivati persistenti possono essere creati solo da una nota già salvata: modifiche dirty poi scartate non lasciano sidecar orfani.
 
 Per Voice Capture:
 
@@ -101,6 +101,8 @@ embedding/LLM, ma ogni provider dovrà:
 
 Il purge definitivo di una nota elimina anche i suoi derivati.
 
+Il backup ZIP v2 include proprietà universali, knowledge sidecar e derivati; durante l'import come copie gli ID delle note e dei Synced Blocks vengono rimappati senza alterare gli originali.
+
 Eliminare un derivato non elimina né modifica la nota, l'audio o altre fonti.
 
 ## Test
@@ -112,7 +114,9 @@ Eliminare un derivato non elimina né modifica la nota, l'audio o altre fonti.
 - immutabilità dell'input durante cleanup;
 - summary bounded/estrattivo;
 - task extraction esplicita;
-- separazione metadata derivato/sorgente.
+- separazione metadata derivato/sorgente;
+- checkbox completate escluse dalla task extraction;
+- roundtrip backup sidecar e interoperabilità Markdown protetti dalla suite dedicata.
 
 La roadmap P0–P4 è funzionalmente completa solo dopo FULL verde della 0.36.
 La certificazione hardware resta un gate separato.
