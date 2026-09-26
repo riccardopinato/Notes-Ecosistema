@@ -308,11 +308,13 @@ class BackupImportPlan {
     required this.collections,
     required this.notes,
     required this.drafts,
+    required this.noteIdMap,
   });
 
   final List<NoteCollection> collections;
   final List<Note> notes;
   final List<BackupDraft> drafts;
+  final Map<String, String> noteIdMap;
 }
 
 abstract final class BackupImport {
@@ -423,6 +425,7 @@ abstract final class BackupImport {
       collections: collections,
       notes: notes,
       drafts: drafts,
+      noteIdMap: Map.unmodifiable(noteMap),
     );
   }
 }
