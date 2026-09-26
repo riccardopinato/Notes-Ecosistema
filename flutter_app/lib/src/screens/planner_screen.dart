@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/calendar_locale.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
@@ -386,7 +387,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(DateFormat('EEE d', 'it_IT').format(day),
+                          Text(DateFormat('EEE d', appCalendar.locale).format(day),
                               style: Theme.of(context).textTheme.titleSmall),
                           const SizedBox(height: 6),
                           Text('${planned.length} pianificate'),
@@ -417,7 +418,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        Text('Dettaglio ${DateFormat('EEE d MMM', 'it_IT').format(_selected)}',
+        Text('Dettaglio ${DateFormat('EEE d MMM', appCalendar.locale).format(_selected)}',
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         _day(index),
@@ -434,7 +435,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: const ['L', 'M', 'M', 'G', 'V', 'S', 'D']
+          children: appCalendar.weekdayNarrow
               .map((label) => Expanded(child: Center(child: Text(label))))
               .toList(),
         ),
@@ -495,7 +496,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
         const Divider(height: 28),
         Text(
-            'Attività per ${DateFormat('EEE d MMM', 'it_IT').format(_selected)}',
+            'Attività per ${DateFormat('EEE d MMM', appCalendar.locale).format(_selected)}',
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (planned.isEmpty && due.isEmpty)
@@ -1238,11 +1239,11 @@ class _DateNavigator extends StatelessWidget {
     }
 
     final label = view == PlannerView.month
-        ? DateFormat('MMMM yyyy', 'it_IT').format(selected)
+        ? DateFormat('MMMM yyyy', appCalendar.locale).format(selected)
         : view == PlannerView.week
-            ? '${DateFormat('d MMM', 'it_IT').format(PlannerPro.weekDays(selected).first)} – '
-                '${DateFormat('d MMM yyyy', 'it_IT').format(PlannerPro.weekDays(selected).last)}'
-            : DateFormat('EEEE d MMMM yyyy', 'it_IT').format(selected);
+            ? '${DateFormat('d MMM', appCalendar.locale).format(PlannerPro.weekDays(selected).first)} – '
+                '${DateFormat('d MMM yyyy', appCalendar.locale).format(PlannerPro.weekDays(selected).last)}'
+            : DateFormat('EEEE d MMMM yyyy', appCalendar.locale).format(selected);
 
     return Row(
       children: [
