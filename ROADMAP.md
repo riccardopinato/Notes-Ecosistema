@@ -8,7 +8,7 @@
 - Strategia: local-first, private-by-default, REUSE-FIRST
 - Validazione: FAST / FULL / CERTIFIED
 - Roadmap riconciliata P0–P4: **funzionalmente completata**
-- Gate FULL v0.36: **PASS**
+- Gate FULL v0.36: obbligatorio sull'head finale prima del merge
 
 ## P0 — Production Truth & Data Lifecycle
 
@@ -41,6 +41,7 @@
 **Completato in 0.34.0**
 
 - Daily Work Briefing / Oggi come vista aggregata, non nuova entità;
+- convenzione calendario centralizzata e locale-aware, default italiano/europeo Monday-first **L M M G V S D**;
 - task in scadenza, arretrati, pianificazione e novità Shared Spaces;
 - Inbox/Triage;
 - Quick Switcher;
@@ -83,21 +84,21 @@
 
 ## Gate finale roadmap
 
-**FULL PASS sulla v0.36**
+La roadmap P0–P4 è **funzionalmente completa** con la v0.36.
 
-Verificato in CI:
+Il merge della release finale è consentito solo da un head che supera il gate FULL corrente:
 
-- Dart format: PASS;
-- Flutter analyze: PASS;
-- suite test completa: **92 test PASS**;
-- APK debug: PASS;
-- APK release split-per-ABI: PASS;
-- R8/resource shrinking: PASS;
-- size gate ARM64: PASS (**33.213.742 byte / 39.845.888 byte**);
-- Evidence Bundle: PASS;
-- SHA-256 APK ARM64: `7d9b358dcc5e3669185022cc7d22c8bb724810a9cfc0354f0506db6e933710f1`.
+- Dart format;
+- Flutter analyze;
+- suite test completa, inclusi i test calendario locale-aware;
+- APK debug;
+- APK release split-per-ABI;
+- R8/resource shrinking;
+- size gate;
+- Evidence Bundle;
+- SHA-256 dell'artefatto release.
 
-La roadmap P0–P4 è quindi **chiusa funzionalmente**.
+L'hash e la dimensione dell'APK appartengono all'Evidence Bundle generato dall'esatto head validato e non vengono hardcodati qui, per evitare documentazione stale dopo commit successivi.
 
 La chiusura funzionale della roadmap **non equivale** alla certificazione hardware. Il verdetto CERTIFIED richiede inoltre i test real-device previsti dal Master Prompt corrente per le funzioni native critiche.
 
