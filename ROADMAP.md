@@ -8,6 +8,7 @@
 - Strategia: local-first, private-by-default, REUSE-FIRST
 - Validazione: FAST / FULL / CERTIFIED
 - Roadmap riconciliata P0–P4: **funzionalmente completata**
+- Gate FULL v0.36: **PASS**
 
 ## P0 — Production Truth & Data Lifecycle
 
@@ -66,7 +67,7 @@
 
 ## P4 — Optional Intelligence
 
-**Completato funzionalmente in 0.36.0; merge subordinato a FULL verde**
+**Completato in 0.36.0**
 
 - Knowledge Search locale con fonti;
 - related notes;
@@ -82,17 +83,21 @@
 
 ## Gate finale roadmap
 
-La roadmap P0–P4 è considerata chiusa solo quando la 0.36 supera:
+**FULL PASS sulla v0.36**
 
-- Dart format;
-- Flutter analyze;
-- suite test completa;
-- APK debug;
-- APK release split-per-ABI;
-- R8/resource shrinking;
-- size gate;
-- Evidence Bundle;
-- hash SHA-256 dell'artefatto release.
+Verificato in CI:
+
+- Dart format: PASS;
+- Flutter analyze: PASS;
+- suite test completa: **92 test PASS**;
+- APK debug: PASS;
+- APK release split-per-ABI: PASS;
+- R8/resource shrinking: PASS;
+- size gate ARM64: PASS (**33.213.742 byte / 39.845.888 byte**);
+- Evidence Bundle: PASS;
+- SHA-256 APK ARM64: `7d9b358dcc5e3669185022cc7d22c8bb724810a9cfc0354f0506db6e933710f1`.
+
+La roadmap P0–P4 è quindi **chiusa funzionalmente**.
 
 La chiusura funzionale della roadmap **non equivale** alla certificazione hardware. Il verdetto CERTIFIED richiede inoltre i test real-device previsti dal Master Prompt corrente per le funzioni native critiche.
 
