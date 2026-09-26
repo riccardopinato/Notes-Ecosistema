@@ -1145,7 +1145,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   Future<void> _exportMarkdownWorkspace() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
-      final syncedBlocks = await ref.read(knowledgeStoreProvider).syncedBlocks();
+      final syncedBlocks =
+          await ref.read(knowledgeStoreProvider).syncedBlocks();
       final bytes = MarkdownWorkspaceBundle.encode(
         snapshot.notes,
         syncedBlocks: syncedBlocks,
@@ -1262,7 +1263,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final store = await AttachmentStore.open();
       final properties = await ref.read(propertyStoreProvider).exportBackup();
       final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
-      final derivatives = await ref.read(derivativeStoreProvider).exportBackup();
+      final derivatives =
+          await ref.read(derivativeStoreProvider).exportBackup();
       final bytes = await MediaBundle.encode(
         snapshot,
         store,
