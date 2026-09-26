@@ -118,5 +118,4 @@ void main() {
     expect(preview.knowledge['version'], 1);
     expect(preview.derivatives['version'], 1);
   });
-
 }
