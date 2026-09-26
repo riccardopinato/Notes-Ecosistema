@@ -1,4 +1,4 @@
-# Notes — Ecosistema 0.33.0
+# Notes — Ecosistema 0.34.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
@@ -6,7 +6,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.33.0+42**
+- Versione Flutter: **0.34.0+43**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
@@ -29,6 +29,19 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - GitHub Sync con allegati e tile Quick Settings.
 - Backup JSON v6 compatibile con la linea Kotlin e backup ZIP completo con allegati.
 - Export/condivisione PNG per Sketch e Whiteboard.
+
+## 0.34 — Daily Work & Capture
+
+- Home promossa a **Daily Work Briefing / Oggi**, vista deterministica e non nuova entità;
+- aggregazione di blocchi pianificati, task in scadenza, arretrati e novità Shared Spaces;
+- Inbox/Triage: le note senza raccolta emergono nel briefing e si smistano usando raccolte/tag già esistenti;
+- Quick Switcher globale per note, attività, raccolte e comandi;
+- sotto-attività backward-compatible dentro `TaskDetails`;
+- Focus editor: nasconde controlli secondari senza creare un editor parallelo;
+- Nota vocale: avvia la registrazione già esistente e conserva l'audio originale come allegato source-of-truth;
+- nessuna funzione P2 dipende dall'AI.
+
+Dettagli: `flutter_app/DAILY_WORK_CAPTURE_0_34.md`.
 
 ## 0.33 — Universal Properties + Adaptive Editor
 
@@ -120,9 +133,7 @@ Non usare quella branch per nuovo sviluppo.
 
 ## Direzione successiva
 
-Dopo la fondazione 0.33:
+Dopo Daily Work & Capture 0.34:
 
-1. Daily Work Briefing / Today come aggregatore del workspace.
-2. Task avanzati, Inbox/Triage, Voice Capture e Quick Switcher.
-3. Interoperabilità Markdown, Research Workspace, Relations/Rollups e Synced Blocks.
-4. Intelligence opzionale sopra un core completamente funzionante senza AI.
+1. Interoperabilità Markdown, Research Workspace, Relations/Rollups e Synced Blocks.
+2. Intelligence opzionale sopra un core completamente funzionante senza AI.
