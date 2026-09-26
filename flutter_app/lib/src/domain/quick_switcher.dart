@@ -1,6 +1,7 @@
 import 'note.dart';
+import 'project_workspace.dart';
 
-enum QuickSwitcherKind { note, task, collection, command }
+enum QuickSwitcherKind { note, task, collection, project, command }
 
 class QuickSwitcherEntry {
   const QuickSwitcherEntry({
@@ -21,6 +22,7 @@ abstract final class QuickSwitcher {
     required String query,
     required List<Note> notes,
     required List<NoteCollection> collections,
+    List<ProjectWorkspace> projects = const [],
     int limit = 20,
   }) {
     final needle = _normalize(query);
@@ -47,11 +49,27 @@ abstract final class QuickSwitcher {
         kind: QuickSwitcherKind.command,
       ),
       const QuickSwitcherEntry(
+        id: 'projects',
+        label: 'Progetti',
+        subtitle: 'Project Workspace',
+        kind: QuickSwitcherKind.command,
+      ),
+      const QuickSwitcherEntry(
         id: 'search',
         label: 'Cerca',
         subtitle: 'Ricerca completa',
         kind: QuickSwitcherKind.command,
       ),
+      ...projects.where((project) => project.isActive).map(
+            (project) => QuickSwitcherEntry(
+              id: project.id,
+              label: project.name,
+              subtitle: project.sharedSpaceId == null
+                  ? 'Progetto'
+                  : 'Progetto team',
+              kind: QuickSwitcherKind.project,
+            ),
+          ),
       ...collections.map(
         (collection) => QuickSwitcherEntry(
           id: collection.id,
