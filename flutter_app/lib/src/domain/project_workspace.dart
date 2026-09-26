@@ -181,7 +181,8 @@ class ProjectWorkItem {
   final String? plannedTime;
   final int plannedMinutes;
 
-  String get title => note.title.trim().isEmpty ? 'Senza titolo' : note.title.trim();
+  String get title =>
+      note.title.trim().isEmpty ? 'Senza titolo' : note.title.trim();
   String? get effectiveDate => plannedDate ?? due;
 
   factory ProjectWorkItem.from(Note note, ProjectItemLink link) {
@@ -247,9 +248,7 @@ abstract final class ProjectWorkspaceRules {
     if (link.projectId.trim().isEmpty || link.noteId.trim().isEmpty) {
       throw const FormatException('Collegamento progetto non valido.');
     }
-    if (link.position < 0 ||
-        link.addedAt < 0 ||
-        link.updatedAt < 0) {
+    if (link.position < 0 || link.addedAt < 0 || link.updatedAt < 0) {
       throw const FormatException('Posizione o data collegamento non valida.');
     }
   }
