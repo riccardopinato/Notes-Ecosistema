@@ -61,8 +61,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
       await action();
     } catch (error) {
       if (mounted) {
-        setState(
-            () => _error = userErrorText(error));
+        setState(() => _error = userErrorText(error));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
