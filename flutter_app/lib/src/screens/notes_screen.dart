@@ -96,8 +96,7 @@ class _NotesScreenState extends State<NotesScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(
-            () => _error = userErrorText(e));
+        setState(() => _error = userErrorText(e));
       }
     }
   }
@@ -136,8 +135,7 @@ class _NotesScreenState extends State<NotesScreen> {
       await action();
     } catch (e) {
       if (mounted) {
-        setState(
-            () => _error = userErrorText(e));
+        setState(() => _error = userErrorText(e));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -308,8 +306,7 @@ class _NotesScreenState extends State<NotesScreen> {
         _options = result.options;
       });
     } catch (e) {
-      setState(
-          () => _error = userErrorText(e));
+      setState(() => _error = userErrorText(e));
     }
   }
 
