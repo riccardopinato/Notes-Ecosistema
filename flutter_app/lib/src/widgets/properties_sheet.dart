@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../domain/properties.dart';
+import 'ui_resilience.dart';
 
 Future<Map<String, Object?>?> showPropertiesSheet({
   required BuildContext context,
@@ -12,10 +13,9 @@ Future<Map<String, Object?>?> showPropertiesSheet({
     List<String> options,
   ) onCreateDefinition,
 }) =>
-    showModalBottomSheet<Map<String, Object?>>(
+    showNotesBottomSheet<Map<String, Object?>>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+      expand: true,
       builder: (_) => PropertiesSheet(
         definitions: definitions,
         values: values,
@@ -151,7 +151,7 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
                   } catch (e) {
                     local(
                       () => error =
-                          e.toString().replaceFirst('FormatException: ', ''),
+                          userErrorText(e),
                     );
                   }
                 },
@@ -184,7 +184,7 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
     } catch (e) {
       if (mounted) {
         setState(
-          () => _error = e.toString().replaceFirst('FormatException: ', ''),
+          () => _error = userErrorText(e),
         );
       }
     } finally {
@@ -353,7 +353,7 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
           });
         } catch (e) {
           setState(
-            () => _error = e.toString().replaceFirst('FormatException: ', ''),
+            () => _error = userErrorText(e),
           );
         }
         return;
@@ -377,8 +377,7 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
             20,
             MediaQuery.viewInsetsOf(context).bottom + 20,
           ),
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * .72,
+          child: SizedBox.expand(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
