@@ -66,8 +66,7 @@ String userErrorText(
       lower.contains('r8-map-id') ||
       lower.contains('stack trace') ||
       lower.contains('stacktrace') ||
-      RegExp(r'\bat\s+[a-z0-9_.$<>]+\(', caseSensitive: false)
-          .hasMatch(raw);
+      RegExp(r'\bat\s+[a-z0-9_.$<>]+\(', caseSensitive: false).hasMatch(raw);
 
   if (looksTechnical || raw.length > 320) return fallback;
   return raw;
