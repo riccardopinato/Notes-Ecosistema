@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/library.dart';
+import '../widgets/ui_resilience.dart';
 import '../domain/note.dart';
 import '../widgets/editorial.dart';
 
@@ -96,7 +97,7 @@ class _NotesScreenState extends State<NotesScreen> {
     } catch (e) {
       if (mounted) {
         setState(
-            () => _error = e.toString().replaceFirst('FormatException: ', ''));
+            () => _error = userErrorText(e));
       }
     }
   }
@@ -136,7 +137,7 @@ class _NotesScreenState extends State<NotesScreen> {
     } catch (e) {
       if (mounted) {
         setState(
-            () => _error = e.toString().replaceFirst('FormatException: ', ''));
+            () => _error = userErrorText(e));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -161,7 +162,7 @@ class _NotesScreenState extends State<NotesScreen> {
     var allTags = _options.allTags;
     final tags = TextEditingController(text: _options.tags.join(', '));
 
-    final result = await showModalBottomSheet<_FilterState>(
+    final result = await showNotesBottomSheet<_FilterState>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -308,12 +309,12 @@ class _NotesScreenState extends State<NotesScreen> {
       });
     } catch (e) {
       setState(
-          () => _error = e.toString().replaceFirst('FormatException: ', ''));
+          () => _error = userErrorText(e));
     }
   }
 
   Future<void> _savedSearches() async {
-    final choice = await showModalBottomSheet<Object>(
+    final choice = await showNotesBottomSheet<Object>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
@@ -480,7 +481,7 @@ class _NotesScreenState extends State<NotesScreen> {
         widget.notes.where((note) => _selected.contains(note.id)).toList();
     if (rows.isEmpty) return;
 
-    final action = await showModalBottomSheet<BulkAction>(
+    final action = await showNotesBottomSheet<BulkAction>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
@@ -608,7 +609,7 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _collections() async {
-    final choice = await showModalBottomSheet<Object>(
+    final choice = await showNotesBottomSheet<Object>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
