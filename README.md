@@ -10,6 +10,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
+- Gate FULL v0.37.0: **PASS** sull'implementazione P5; 108 test, analyze pulito, APK debug/release, size gate ed Evidence Bundle verificati.
 - Core: offline/local-first; account e cloud non sono requisiti del workspace personale
 
 ## Core prodotto
@@ -201,4 +202,6 @@ Roadmap riconciliata P0–P5:
 - P4 Optional Intelligence: completato.
 - P5 Project Workspace & Universal Work Views: completato in 0.37.0.
 
-Le release restano soggette ai gate FAST/FULL/CERTIFIED: roadmap funzionale completata non equivale automaticamente a certificazione hardware.
+Il gate **FULL** della v0.37.0 P5 è stato superato sul commit funzionale `17794574ca8db470a3a9501718032e885ff192f7`: 108 test, analyze pulito, APK debug/release, size gate ed Evidence Bundle. L'APK ARM64 release misura 33.345.458 byte, entro il budget di 38 MiB, con SHA-256 `febcf7fe6df02d47e969697cd486bef34e4d53e9a9e3c234481b63946f67cfbe`.
+
+La certificazione **CERTIFIED** resta separata e richiede i test real-device previsti per le funzioni native critiche.
