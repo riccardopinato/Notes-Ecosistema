@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../domain/knowledge.dart';
 import '../domain/note.dart';
+import '../domain/reference_lifecycle.dart';
 
 class KnowledgeToolsBar extends StatelessWidget {
   const KnowledgeToolsBar({
@@ -321,28 +322,33 @@ class KnowledgeToolsBar extends StatelessWidget {
                 )
               else
                 ...outgoing.map((link) {
-                  Note? target;
-                  for (final note in _textNotes) {
-                    if (note.id.toLowerCase() == link.id) {
-                      target = note;
-                      break;
-                    }
-                  }
+                  final resolution =
+                      ReferenceLifecycle.internalLink(link, notes);
+                  final target = resolution.value;
+                  final canOpen = resolution.canOpen &&
+                      target != null &&
+                      !target.isTask &&
+                      !target.isVisual;
                   return ListTile(
                     title: Text(
                       target?.title.isNotEmpty == true
                           ? target!.title
                           : link.label,
                     ),
-                    subtitle: target == null
-                        ? const Text('Nota non disponibile')
-                        : null,
-                    enabled: target != null,
-                    onTap: target == null
+                    subtitle:
+                        resolution.state == ReferenceLifecycleState.resolved
+                            ? null
+                            : Text(
+                                ReferenceLifecycle.userLabel(
+                                  resolution.state,
+                                ),
+                              ),
+                    enabled: canOpen,
+                    onTap: !canOpen
                         ? null
                         : () {
                             Navigator.pop(context);
-                            onOpenNote(target!.id);
+                            onOpenNote(target.id);
                           },
                   );
                 }),

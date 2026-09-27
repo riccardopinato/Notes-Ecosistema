@@ -23,6 +23,7 @@ import '../domain/knowledge.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
+import '../domain/reference_lifecycle.dart';
 import '../domain/research.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
@@ -1059,17 +1060,32 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _openLinkedNote(String id) async {
-    Note? target;
-    for (final note in widget.allNotes) {
-      if (note.id == id && !note.isDeleted && !note.isTask && !note.isVisual) {
-        target = note;
-        break;
-      }
-    }
-    if (target == null) {
-      setState(() => _error = 'Nota collegata non disponibile.');
+    final resolution = ReferenceLifecycle.noteById(
+      id: id,
+      notes: widget.allNotes,
+      kind: ReferenceKind.internalLink,
+    );
+    final target = resolution.value;
+
+    if (resolution.state == ReferenceLifecycleState.deleted) {
+      setState(
+        () => _error =
+            'La nota collegata è nel cestino. Ripristinala per aprirla.',
+      );
       return;
     }
+    if (!resolution.canOpen ||
+        target == null ||
+        target.isTask ||
+        target.isVisual) {
+      setState(
+        () => _error = resolution.state == ReferenceLifecycleState.ambiguous
+            ? 'Il riferimento collega più elementi e non può essere aperto.'
+            : 'Nota collegata non disponibile.',
+      );
+      return;
+    }
+
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EditorScreen(

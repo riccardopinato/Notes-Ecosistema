@@ -1,5 +1,6 @@
 import 'note.dart';
 import 'planner.dart';
+import 'reference_lifecycle.dart';
 
 const _projectUnset = Object();
 
@@ -263,13 +264,17 @@ abstract final class ProjectWorkViews {
     String query = '',
     bool showCompleted = true,
   }) {
-    final byId = {for (final note in notes) note.id: note};
     final needle = query.trim().toLowerCase();
     final result = <ProjectWorkItem>[];
 
     for (final link in links) {
-      final note = byId[link.noteId];
-      if (note == null || note.isDeleted) continue;
+      final resolution = ReferenceLifecycle.noteById(
+        id: link.noteId,
+        notes: notes,
+        kind: ReferenceKind.projectLink,
+      );
+      if (!resolution.canOpen) continue;
+      final note = resolution.value!;
       final item = ProjectWorkItem.from(note, link);
       if (!showCompleted && item.completed) continue;
       if (needle.isNotEmpty) {

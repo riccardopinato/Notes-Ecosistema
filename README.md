@@ -1,8 +1,19 @@
-# Notes — Ecosistema 0.37.1
+# Notes — Ecosistema 0.38.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.38 — P1.1 Reference Lifecycle Foundation
+
+- introdotto un contratto condiviso e minimale per lo stato dei riferimenti esistenti: `RESOLVED`, `SOURCE_MISSING`, `DELETED`, `STALE`, `AMBIGUOUS`;
+- nessuna nuova source of truth: Note, Knowledge relations, Synced Blocks, ProjectItemLink e Shared Spaces restano canonici nei rispettivi store;
+- internal link basati su ID continuano a sopravvivere ai rename; una source nel cestino è distinta da una source definitivamente assente;
+- relation/backlink conservano il modello attuale: le relazioni sono canoniche, i backlink restano derivati;
+- Project Workspace usa il resolver comune senza cambiare `ProjectItemLink`;
+- Shared Spaces distinguono contenuti nel cestino da contenuti non disponibili e li fanno riapparire dopo restore;
+- Synced Blocks espongono la stessa semantica di risoluzione senza modificare il formato marker o lo storage;
+- nessuna migrazione database e nessuna rigenerazione degli ID.
 
 ## Stabilizzazione 0.37.1 — UI Reliability & Smart Capture Recovery
 
@@ -18,7 +29,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.37.1+48**
+- Versione Flutter: **0.38.0+49**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
