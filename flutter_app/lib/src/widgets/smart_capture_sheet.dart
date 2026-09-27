@@ -65,7 +65,8 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
         setState(() {
           _error = userErrorText(
             error,
-            fallback: 'Smart Capture non è riuscito a completare l’operazione. Riprova oppure usa un altro metodo di acquisizione.',
+            fallback:
+                'Smart Capture non è riuscito a completare l’operazione. Riprova oppure usa un altro metodo di acquisizione.',
           );
         });
       }
@@ -105,90 +106,89 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
       });
 
   Future<void> _consumeScanResult(DocumentScanningResult result) async {
-        final store = await AttachmentStore.open();
-        final ocr = <String>[];
+    final store = await AttachmentStore.open();
+    final ocr = <String>[];
 
-        for (final imagePath in result.images ?? const <String>[]) {
-          final imageFile = _fileFromScannerPath(imagePath);
-          if (!await imageFile.exists()) continue;
-          final recognized = await _recognizer.processImage(
-            InputImage.fromFilePath(imageFile.path),
-          );
-          final clipped = SmartCaptureRules.clipOcr(recognized.text);
-          if (clipped.isNotEmpty) ocr.add(clipped);
-        }
+    for (final imagePath in result.images ?? const <String>[]) {
+      final imageFile = _fileFromScannerPath(imagePath);
+      if (!await imageFile.exists()) continue;
+      final recognized = await _recognizer.processImage(
+        InputImage.fromFilePath(imageFile.path),
+      );
+      final clipped = SmartCaptureRules.clipOcr(recognized.text);
+      if (clipped.isNotEmpty) ocr.add(clipped);
+    }
 
-        var imported = 0;
-        final pdf = result.pdf;
-        if (pdf != null) {
-          final file = _fileFromScannerPath(pdf.uri);
-          if (await file.exists()) {
-            final bytes = await file.readAsBytes();
-            final key = await store.ingest(bytes, AttachmentType.pdf);
-            final before = Attachments.refs(_body).map((e) => e.key).toSet();
-            if (!before.contains(key)) {
-              _setBody(
-                Attachments.append(
-                  _body,
-                  key,
-                  'Scansione.pdf',
-                ),
-              );
-              imported++;
-            }
-          }
-        } else {
-          for (final imagePath in result.images ?? const <String>[]) {
-            final file = _fileFromScannerPath(imagePath);
-            if (!await file.exists()) continue;
-            final bytes = await file.readAsBytes();
-            final type =
-                Attachments.typeFromName(file.path) ?? AttachmentType.jpeg;
-            final key = await store.ingest(bytes, type);
-            final before = Attachments.refs(_body).map((e) => e.key).toSet();
-            if (!before.contains(key)) {
-              _setBody(
-                Attachments.append(
-                  _body,
-                  key,
-                  file.uri.pathSegments.isEmpty
-                      ? 'Scansione.jpg'
-                      : file.uri.pathSegments.last,
-                ),
-              );
-              imported++;
-            }
-          }
-        }
-
-        final combined = ocr.join('\n\n---\n\n').trim();
-        if (combined.isNotEmpty &&
-            !SmartCaptureRules.containsSection(
-              _body,
-              'Testo scannerizzato',
-              combined,
-            )) {
+    var imported = 0;
+    final pdf = result.pdf;
+    if (pdf != null) {
+      final file = _fileFromScannerPath(pdf.uri);
+      if (await file.exists()) {
+        final bytes = await file.readAsBytes();
+        final key = await store.ingest(bytes, AttachmentType.pdf);
+        final before = Attachments.refs(_body).map((e) => e.key).toSet();
+        if (!before.contains(key)) {
           _setBody(
-            SmartCaptureRules.appendSection(
+            Attachments.append(
               _body,
-              'Testo scannerizzato',
-              combined,
+              key,
+              'Scansione.pdf',
             ),
           );
-        }
-
-        if (mounted) {
-          setState(() {
-            _status = imported > 0 && combined.isNotEmpty
-                ? 'Documento acquisito · OCR aggiunto.'
-                : imported > 0
-                    ? 'Documento acquisito.'
-                    : combined.isNotEmpty
-                        ? 'OCR aggiunto.'
-                        : 'Scansione completata.';
-          });
+          imported++;
         }
       }
+    } else {
+      for (final imagePath in result.images ?? const <String>[]) {
+        final file = _fileFromScannerPath(imagePath);
+        if (!await file.exists()) continue;
+        final bytes = await file.readAsBytes();
+        final type = Attachments.typeFromName(file.path) ?? AttachmentType.jpeg;
+        final key = await store.ingest(bytes, type);
+        final before = Attachments.refs(_body).map((e) => e.key).toSet();
+        if (!before.contains(key)) {
+          _setBody(
+            Attachments.append(
+              _body,
+              key,
+              file.uri.pathSegments.isEmpty
+                  ? 'Scansione.jpg'
+                  : file.uri.pathSegments.last,
+            ),
+          );
+          imported++;
+        }
+      }
+    }
+
+    final combined = ocr.join('\n\n---\n\n').trim();
+    if (combined.isNotEmpty &&
+        !SmartCaptureRules.containsSection(
+          _body,
+          'Testo scannerizzato',
+          combined,
+        )) {
+      _setBody(
+        SmartCaptureRules.appendSection(
+          _body,
+          'Testo scannerizzato',
+          combined,
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _status = imported > 0 && combined.isNotEmpty
+            ? 'Documento acquisito · OCR aggiunto.'
+            : imported > 0
+                ? 'Documento acquisito.'
+                : combined.isNotEmpty
+                    ? 'OCR aggiunto.'
+                    : 'Scansione completata.';
+      });
+    }
+  }
 
   void _assertAttachmentCapacity() {
     final count = Attachments.refs(_body).map((ref) => ref.key).toSet().length;
