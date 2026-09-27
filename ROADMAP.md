@@ -1,5 +1,20 @@
 # Notes Ecosistema — Roadmap
 
+## Wave 1 — P1.1 Reference Lifecycle Foundation
+
+**Implementato in 0.38.0+49.**
+
+- contratto lifecycle condiviso e minimale per i reference già esistenti;
+- internal links: rename/edit restano ID-stable, trash = `DELETED`, purge/missing = `SOURCE_MISSING`;
+- Knowledge relations: lifecycle del target leggibile senza duplicare i backlink;
+- Synced Blocks: `RESOLVED` / `SOURCE_MISSING` e supporto `STALE` per adapter version-aware, senza cambiare il marker canonico;
+- Project links: proiezioni esistenti instradate attraverso il resolver comune; il purge continua a fare cleanup dei link;
+- Shared Space references: trash distinto da missing; il purge continua a scollegare il contenuto prima della cancellazione definitiva;
+- `AMBIGUOUS` è difensivo per contesti corrotti/duplicati e non cambia il modello dati valido;
+- nessuna migration, nessun nuovo database, nessun renderer o sync engine parallelo.
+
+Restano fuori da questo step Study, PDF citations, Canvas universale, CRDT, AI, Module Archive e importer generico.
+
 ## Stabilizzazione pre-P6 — 0.37.1+48
 
 Completata prima dell'avvio di P6:
@@ -15,7 +30,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.37.0+47**
+- Versione: **0.38.0+49**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
