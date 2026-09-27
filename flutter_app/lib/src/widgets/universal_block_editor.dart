@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'ui_resilience.dart';
+
 import '../domain/blocks.dart';
 
 class UniversalBlockEditor extends StatelessWidget {
@@ -522,7 +524,7 @@ class _BlockCardState extends State<_BlockCard> {
   }
 
   Future<void> _showAddAfter(BuildContext context) async {
-    final type = await showModalBottomSheet<ContentBlockType>(
+    final type = await showNotesBottomSheet<ContentBlockType>(
       context: context,
       showDragHandle: true,
       builder: (_) => SafeArea(
