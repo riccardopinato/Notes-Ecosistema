@@ -150,8 +150,7 @@ class _PropertiesSheetState extends State<PropertiesSheet> {
                     );
                   } catch (e) {
                     local(
-                      () => error =
-                          userErrorText(e),
+                      () => error = userErrorText(e),
                     );
                   }
                 },
