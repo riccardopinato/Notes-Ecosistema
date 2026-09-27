@@ -133,7 +133,7 @@ class _ProjectWorkspaceScreenState
               _InfoCard(
                 icon: Icons.error_outline,
                 title: 'Progetti non disponibili',
-                detail: userErrorText(state.error),
+                detail: userErrorText(state.error!),
                 action: TextButton(
                   onPressed: () =>
                       ref.read(projectWorkspaceProvider.notifier).refresh(),
