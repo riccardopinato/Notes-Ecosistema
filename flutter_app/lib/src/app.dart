@@ -1846,7 +1846,6 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           ),
         ),
       );
-
 }
 
 class _ErrorState extends StatelessWidget {
