@@ -171,3 +171,21 @@ Il gate FULL resta:
 - Evidence Bundle + SHA-256.
 
 La certificazione hardware resta separata dal completamento funzionale P5.
+
+
+## Validazione FULL conclusiva
+
+La prima validazione FULL dell'implementazione P5 è passata sul commit
+`17794574ca8db470a3a9501718032e885ff192f7`:
+
+- Dart format: PASS;
+- Flutter analyze: PASS, nessuna issue;
+- test: **108 PASS**;
+- APK debug: PASS;
+- APK release split-per-ABI: PASS;
+- ARM64 release: **33.345.458 byte**, budget **39.845.888 byte**;
+- SHA-256 ARM64: `febcf7fe6df02d47e969697cd486bef34e4d53e9a9e3c234481b63946f67cfbe`;
+- Evidence Bundle: pubblicato;
+- symbol bundle: pubblicato.
+
+La certificazione CERTIFIED su dispositivo fisico resta un gate separato.
