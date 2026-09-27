@@ -5,6 +5,7 @@ import '../domain/diary.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../widgets/editorial.dart';
+import '../widgets/ui_resilience.dart';
 
 enum _DiaryMode { calendar, gallery, book }
 
@@ -61,7 +62,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
     } catch (error) {
       if (mounted) {
         setState(
-            () => _error = error.toString().replaceFirst('Exception: ', ''));
+            () => _error = userErrorText(error));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
