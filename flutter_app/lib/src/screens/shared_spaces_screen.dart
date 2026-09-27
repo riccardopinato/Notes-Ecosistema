@@ -10,6 +10,7 @@ import '../domain/shared_activity.dart';
 import '../domain/shared_spaces.dart';
 import '../state/shared_live_sync_controller.dart';
 import '../state/shared_spaces_controller.dart';
+import '../widgets/ui_resilience.dart';
 import '../state/workspace_controller.dart';
 import '../platform/shared_background_bridge.dart';
 import '../sync/shared_spaces_live_sync.dart';
@@ -51,7 +52,7 @@ class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -239,7 +240,7 @@ class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
         if (shared.error != null)
           _InlineError(
             message:
-                shared.error.toString().replaceFirst('FormatException: ', ''),
+                shared.userErrorText(error),
           ),
         _PrivacyCard(
           onJoin: _joinSpace,
@@ -394,7 +395,7 @@ class _SharedSpaceDetailScreenState
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -422,7 +423,7 @@ class _SharedSpaceDetailScreenState
       return;
     }
 
-    final selected = await showModalBottomSheet<Note>(
+    final selected = await showNotesBottomSheet<Note>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
