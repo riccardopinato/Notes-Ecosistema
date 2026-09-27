@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../domain/reference_lifecycle.dart';
 import '../domain/shared_activity.dart';
 import '../domain/shared_spaces.dart';
 import '../state/shared_live_sync_controller.dart';
@@ -222,9 +223,6 @@ class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
     final spaces = shared.spaces
         .where((space) => space.canRead(identity.id))
         .toList(growable: false);
-    final notesById = {
-      for (final note in workspace.notes) note.id: note,
-    };
     final totalUnread = live.totalUnread(identity.id);
 
     return ListView(
@@ -323,10 +321,9 @@ class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
           _EmptySpaces(onCreate: _createSpace, onJoin: _joinSpace)
         else
           ...spaces.map((space) {
-            final content = [
-              for (final id in space.contentIds)
-                if (notesById[id] case final note?) note,
-            ];
+            final projection =
+                _resolveSharedContents(space, workspace.notes);
+            final content = projection.visible;
             final tasks = content.where((note) => note.isTask).length;
             final planned = content.where((note) {
               final task = TaskDetails.tryDecode(note.taskJson);
@@ -635,14 +632,11 @@ class _SharedSpaceDetailScreenState
       );
     }
 
-    final notesById = {
-      for (final note in workspace.notes) note.id: note,
-    };
-    final contents = [
-      for (final id in space.contentIds)
-        if (notesById[id] case final note?) note,
-    ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final missing = space.contentIds.length - contents.length;
+    final projection = _resolveSharedContents(space, workspace.notes);
+    final contents = [...projection.visible]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final missing = projection.missing;
+    final deleted = projection.deleted;
     final canEdit = role.canEdit;
     final canManage = role.canManage;
     final activity = live.activitiesBySpace[space.id] ?? const [];
@@ -739,11 +733,21 @@ class _SharedSpaceDetailScreenState
                   )
                 : null,
           ),
+          if (deleted > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                deleted == 1
+                    ? '1 elemento condiviso è nel cestino. Ripristinalo per renderlo nuovamente disponibile.'
+                    : '$deleted elementi condivisi sono nel cestino. Ripristinali per renderli nuovamente disponibili.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
           if (missing > 0)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                '$missing elementi attendono un aggiornamento importato.',
+                '$missing elementi non sono disponibili su questo dispositivo.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1870,6 +1874,51 @@ class _InlineError extends StatelessWidget {
           child: Text(message),
         ),
       );
+}
+
+class _SharedContentProjection {
+  const _SharedContentProjection({
+    required this.visible,
+    required this.deleted,
+    required this.missing,
+  });
+
+  final List<Note> visible;
+  final int deleted;
+  final int missing;
+}
+
+_SharedContentProjection _resolveSharedContents(
+  SharedSpace space,
+  Iterable<Note> notes,
+) {
+  final visible = <Note>[];
+  var deleted = 0;
+  var missing = 0;
+
+  for (final id in space.contentIds) {
+    final resolution = ReferenceLifecycle.noteById(
+      id: id,
+      notes: notes,
+      kind: ReferenceKind.sharedSpaceContent,
+    );
+    switch (resolution.state) {
+      case ReferenceLifecycleState.resolved:
+      case ReferenceLifecycleState.stale:
+        visible.add(resolution.value!);
+      case ReferenceLifecycleState.deleted:
+        deleted++;
+      case ReferenceLifecycleState.sourceMissing:
+      case ReferenceLifecycleState.ambiguous:
+        missing++;
+    }
+  }
+
+  return _SharedContentProjection(
+    visible: List.unmodifiable(visible),
+    deleted: deleted,
+    missing: missing,
+  );
 }
 
 IconData _noteIcon(Note note) {
