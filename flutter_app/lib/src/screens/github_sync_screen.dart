@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../sync/github_sync_service.dart';
+import '../widgets/ui_resilience.dart';
 
 class GitHubSyncScreen extends StatefulWidget {
   const GitHubSyncScreen({
@@ -51,7 +52,7 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
         _allowPublic = config.allowPublic;
       }
     } catch (error) {
-      _error = error.toString().replaceFirst('FormatException: ', '');
+      _error = userErrorText(error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -78,7 +79,7 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(error);
         });
       }
     } finally {
