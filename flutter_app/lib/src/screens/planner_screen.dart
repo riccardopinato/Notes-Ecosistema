@@ -88,8 +88,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       await action();
     } catch (error) {
       if (mounted) {
-        setState(() =>
-            _error = userErrorText(error));
+        setState(() => _error = userErrorText(error));
       }
     } finally {
       if (mounted) {
@@ -1115,8 +1114,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     _TaskDraft(title.text.trim(), body.text, details),
                   );
                 } catch (e) {
-                  setLocal(() => error =
-                      userErrorText(e));
+                  setLocal(() => error = userErrorText(e));
                 }
               },
               child: const Text('Salva'),
@@ -1197,8 +1195,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     task.schedule(date: day, time: time.text, minutes: minutes),
                   );
                 } catch (e) {
-                  setLocal(() => error =
-                      userErrorText(e));
+                  setLocal(() => error = userErrorText(e));
                 }
               },
               child: const Text('Pianifica'),
