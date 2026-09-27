@@ -214,8 +214,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
       } catch (error) {
         if (mounted) {
           setState(
-            () =>
-                _error = userErrorText(error),
+            () => _error = userErrorText(error),
           );
         }
       }
