@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import '../domain/note.dart';
 import '../domain/visual_documents.dart';
 import '../platform/visual_share_bridge.dart';
+import '../widgets/ui_resilience.dart';
 
 class WhiteboardScreen extends StatefulWidget {
   const WhiteboardScreen({
@@ -48,7 +49,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
           : WhiteboardCodec.decode(widget.note.body);
     } catch (error) {
       _document = WhiteboardOps.empty(WhiteboardMode.freeform);
-      _error = error.toString().replaceFirst('FormatException: ', '');
+      _error = userErrorText(error);
     }
   }
 
@@ -87,7 +88,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(error);
         });
       }
     }
@@ -137,7 +138,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -157,7 +158,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
