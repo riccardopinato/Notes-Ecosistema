@@ -11,6 +11,7 @@ import '../state/shared_live_sync_controller.dart';
 import '../state/shared_spaces_controller.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
+import '../widgets/ui_resilience.dart';
 
 enum _ProjectScope { active, archive, trash }
 
@@ -132,7 +133,7 @@ class _ProjectWorkspaceScreenState
               _InfoCard(
                 icon: Icons.error_outline,
                 title: 'Progetti non disponibili',
-                detail: state.error.toString(),
+                detail: userErrorText(state.error),
                 action: TextButton(
                   onPressed: () =>
                       ref.read(projectWorkspaceProvider.notifier).refresh(),
@@ -386,7 +387,7 @@ class _ProjectWorkspaceScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          error.toString().replaceFirst('FormatException: ', ''),
+          userErrorText(error),
         ),
       ),
     );
@@ -653,7 +654,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
   }
 
   Future<void> _addMenu(ProjectWorkspace project, SharedSpace? space) async {
-    final action = await showModalBottomSheet<String>(
+    final action = await showNotesBottomSheet<String>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
@@ -919,7 +920,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          error.toString().replaceFirst('FormatException: ', ''),
+          userErrorText(error),
         ),
       ),
     );
