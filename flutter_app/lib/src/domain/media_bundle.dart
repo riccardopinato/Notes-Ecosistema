@@ -14,6 +14,7 @@ class MediaBundlePreview {
     this.properties = const {},
     this.knowledge = const {},
     this.derivatives = const {},
+    this.projects = const {},
   });
 
   final BackupSnapshot snapshot;
@@ -21,6 +22,7 @@ class MediaBundlePreview {
   final Map<String, Object?> properties;
   final Map<String, Object?> knowledge;
   final Map<String, Object?> derivatives;
+  final Map<String, Object?> projects;
 
   int get assetBytes =>
       assets.values.fold<int>(0, (sum, bytes) => sum + bytes.length);
@@ -30,7 +32,7 @@ abstract final class MediaBundle {
   static const maxArchiveBytes = 80 * 1024 * 1024;
   static const maxAssetBatchBytes = 64 * 1024 * 1024;
   static const format = 'notes-ecosystem-media';
-  static const version = 2;
+  static const version = 3;
   static const maxSidecarBytes = 8 * 1024 * 1024;
 
   static Future<Uint8List> encode(
@@ -39,6 +41,7 @@ abstract final class MediaBundle {
     Map<String, Object?> properties = const {},
     Map<String, Object?> knowledge = const {},
     Map<String, Object?> derivatives = const {},
+    Map<String, Object?> projects = const {},
   }) async {
     final keys = referencedKeys(snapshot).toList()..sort();
     final assets = <String, Uint8List>{};
@@ -51,6 +54,7 @@ abstract final class MediaBundle {
       properties: properties,
       knowledge: knowledge,
       derivatives: derivatives,
+      projects: projects,
     );
   }
 
@@ -60,6 +64,7 @@ abstract final class MediaBundle {
     Map<String, Object?> properties = const {},
     Map<String, Object?> knowledge = const {},
     Map<String, Object?> derivatives = const {},
+    Map<String, Object?> projects = const {},
   }) {
     BackupCodec.validate(snapshot);
     final keys = referencedKeys(snapshot).toList()..sort();
@@ -89,6 +94,7 @@ abstract final class MediaBundle {
             'properties.json',
             'knowledge.json',
             'derivatives.json',
+            'projects.json',
           ],
         }),
       ),
@@ -98,6 +104,7 @@ abstract final class MediaBundle {
       'properties.json': properties,
       'knowledge.json': knowledge,
       'derivatives.json': derivatives,
+      'projects.json': projects,
     }.entries) {
       final encoded = jsonEncode(entry.value);
       if (utf8.encode(encoded).length > maxSidecarBytes) {
@@ -156,11 +163,11 @@ abstract final class MediaBundle {
     archive.add(
       ArchiveFile.string(
         'LEGGIMI.txt',
-        'Backup completo Notes 0.36+. '
+        'Backup completo Notes 0.37+. '
             'backup.json contiene il workspace canonico; assets contiene gli originali '
-            'verificati SHA-256; properties/knowledge/derivatives contengono i sidecar '
-            'portabili. Ricerche salvate, revisioni locali e timer Focus attivo non '
-            'sono inclusi. Archivio non cifrato.',
+            'verificati SHA-256; properties/knowledge/derivatives/projects contengono '
+            'i sidecar portabili. Ricerche salvate, revisioni locali e timer Focus '
+            'attivo non sono inclusi. Archivio non cifrato.',
       ),
     );
 
@@ -177,7 +184,7 @@ abstract final class MediaBundle {
     }
 
     final archive = ZipDecoder().decodeBytes(bytes, verify: true);
-    if (archive.length > 11005) {
+    if (archive.length > 11006) {
       throw const FormatException('Troppe voci nel backup.');
     }
 
@@ -189,6 +196,7 @@ abstract final class MediaBundle {
     Map<String, Object?> properties = const {};
     Map<String, Object?> knowledge = const {};
     Map<String, Object?> derivatives = const {};
+    Map<String, Object?> projects = const {};
     final assets = <String, Uint8List>{};
     var expandedBytes = 0;
     var assetBytes = 0;
@@ -206,6 +214,7 @@ abstract final class MediaBundle {
           name == 'properties.json' ||
           name == 'knowledge.json' ||
           name == 'derivatives.json' ||
+          name == 'projects.json' ||
           name == 'LEGGIMI.txt' ||
           RegExp(r'^note/[0-9]+\.md$').hasMatch(name) ||
           RegExp(r'^disegni/[0-9]+\.sketch\.json$').hasMatch(name) ||
@@ -245,7 +254,8 @@ abstract final class MediaBundle {
         backupText = utf8.decode(data, allowMalformed: false);
       } else if (name == 'properties.json' ||
           name == 'knowledge.json' ||
-          name == 'derivatives.json') {
+          name == 'derivatives.json' ||
+          name == 'projects.json') {
         if (data.length > maxSidecarBytes) {
           throw FormatException('$name supera 8 MiB.');
         }
@@ -258,6 +268,7 @@ abstract final class MediaBundle {
         if (name == 'properties.json') properties = mapped;
         if (name == 'knowledge.json') knowledge = mapped;
         if (name == 'derivatives.json') derivatives = mapped;
+        if (name == 'projects.json') projects = mapped;
       } else if (name == 'bundle.json') {
         if (data.length > 100000) {
           throw const FormatException('Manifest backup troppo grande.');
@@ -279,11 +290,18 @@ abstract final class MediaBundle {
           declaredSidecars = (root['sidecars'] as List)
               .map((value) => value.toString())
               .toSet();
-          const required = {
-            'properties.json',
-            'knowledge.json',
-            'derivatives.json',
-          };
+          final required = bundleVersion >= 3
+              ? const {
+                  'properties.json',
+                  'knowledge.json',
+                  'derivatives.json',
+                  'projects.json',
+                }
+              : const {
+                  'properties.json',
+                  'knowledge.json',
+                  'derivatives.json',
+                };
           if (!declaredSidecars.containsAll(required) ||
               declaredSidecars.length != required.length) {
             throw const FormatException('Elenco sidecar backup non valido.');
@@ -305,11 +323,18 @@ abstract final class MediaBundle {
       throw const FormatException('backup.json o bundle.json mancante.');
     }
     if (bundleVersion >= 2) {
-      const required = {
-        'properties.json',
-        'knowledge.json',
-        'derivatives.json',
-      };
+      final required = bundleVersion >= 3
+          ? const {
+              'properties.json',
+              'knowledge.json',
+              'derivatives.json',
+              'projects.json',
+            }
+          : const {
+              'properties.json',
+              'knowledge.json',
+              'derivatives.json',
+            };
       if (!seen.containsAll(required)) {
         throw const FormatException('Sidecar backup dichiarati ma mancanti.');
       }
@@ -332,6 +357,7 @@ abstract final class MediaBundle {
       properties: properties,
       knowledge: knowledge,
       derivatives: derivatives,
+      projects: projects,
     );
   }
 

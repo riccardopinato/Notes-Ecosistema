@@ -18,6 +18,7 @@ import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
 import 'domain/planner.dart';
+import 'domain/project_workspace.dart';
 import 'domain/research.dart';
 import 'domain/shared_space_bundle.dart';
 import 'domain/shared_spaces.dart';
@@ -37,10 +38,12 @@ import 'screens/github_sync_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
+import 'screens/project_workspace_screen.dart';
 import 'screens/shared_spaces_screen.dart';
 import 'screens/sketch_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
+import 'state/project_workspace_controller.dart';
 import 'state/shared_live_sync_controller.dart';
 import 'state/shared_spaces_controller.dart';
 import 'state/workspace_controller.dart';
@@ -545,6 +548,98 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<void> _openProjects({String? initialProjectId}) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProjectWorkspaceScreen(
+          initialProjectId: initialProjectId,
+          onOpenItem: _openSharedItem,
+          onCreateNote: _createProjectNote,
+          onCreateTask: _createProjectTask,
+          onSaveTask: _saveProjectTask,
+        ),
+      ),
+    );
+    await ref.read(workspaceProvider.notifier).refresh();
+    await ref.read(projectWorkspaceProvider.notifier).refresh();
+  }
+
+  Future<void> _createProjectNote(ProjectWorkspace project) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = const Uuid().v4();
+    final draft = Note(
+      id: id,
+      title: '',
+      body: '',
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: false,
+      tags: const [],
+    );
+    await _openEditor(draft);
+    final saved = await ref.read(databaseProvider).loadNote(id);
+    if (saved == null) return;
+    await _attachProjectItem(project, id);
+  }
+
+  Future<void> _createProjectTask(ProjectWorkspace project) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final note = Note(
+      id: const Uuid().v4(),
+      title: 'Nuova attività',
+      body: '',
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      archived: false,
+      tags: const [],
+      taskJson: TaskDetails.empty().encode(),
+    );
+    await ref.read(workspaceProvider.notifier).save(note);
+    await _attachProjectItem(project, note.id);
+    final current = await ref.read(databaseProvider).loadNote(note.id);
+    if (current != null && mounted) {
+      await _openSharedItem(current, false);
+    }
+  }
+
+  Future<void> _attachProjectItem(
+    ProjectWorkspace project,
+    String noteId,
+  ) async {
+    final spaceId = project.sharedSpaceId;
+    if (spaceId == null) {
+      await ref
+          .read(projectWorkspaceProvider.notifier)
+          .attach(project.id, noteId);
+      return;
+    }
+
+    final shared = ref.read(sharedSpacesProvider);
+    final identity = shared.identity;
+    final space = shared.byId(spaceId);
+    if (identity == null || space == null || !space.canEdit(identity.id)) {
+      throw const FormatException(
+        'Non hai i permessi per aggiungere contenuti a questo progetto team.',
+      );
+    }
+    await ref.read(sharedSpacesProvider.notifier).linkContent(spaceId, noteId);
+    await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
+  }
+
+  Future<void> _saveProjectTask(
+    ProjectWorkspace project,
+    Note task,
+  ) async {
+    await ref.read(workspaceProvider.notifier).save(task);
+    if (project.sharedSpaceId != null) {
+      await ref.read(sharedLiveSyncProvider.notifier).syncSoon();
+    }
+  }
+
   Future<void> _exportSharedSpaceBundle(SharedSpace space) async {
     try {
       final shared = ref.read(sharedSpacesProvider);
@@ -733,6 +828,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     final live = ref.watch(sharedLiveSyncProvider);
     final workspace = ref.watch(workspaceProvider);
     final shared = ref.watch(sharedSpacesProvider);
+    final projects = ref.watch(projectWorkspaceProvider);
     final section = labels[_index];
 
     final editableSharedIds = <String>{};
@@ -796,6 +892,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           _index = 1;
         }),
         onOpenNote: _openEditor,
+        onProjects: () => _openProjects(),
+        projectCount:
+            projects.projects.where((project) => project.isActive).length,
         sharedUnread: identity == null ? 0 : live.totalUnread(identity.id),
       );
     } else if (_index == 1 || _index == 5) {
@@ -922,6 +1021,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       context: context,
       notes: notes,
       collections: workspace.collections,
+      projects: ref.read(projectWorkspaceProvider).projects,
     );
     if (selected == null || !mounted) return;
 
@@ -942,6 +1042,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           _index = 1;
         });
         break;
+      case QuickSwitcherKind.project:
+        await _openProjects(initialProjectId: selected.id);
+        break;
       case QuickSwitcherKind.command:
         switch (selected.id) {
           case 'today':
@@ -952,6 +1055,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             break;
           case 'tasks':
             setState(() => _index = 3);
+            break;
+          case 'projects':
+            await _openProjects();
             break;
           case 'search':
             setState(() => _index = 5);
@@ -1265,12 +1371,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
       final derivatives =
           await ref.read(derivativeStoreProvider).exportBackup();
+      final projects = await ref.read(projectStoreProvider).exportBackup();
       final bytes = await MediaBundle.encode(
         snapshot,
         store,
         properties: properties,
         knowledge: knowledge,
         derivatives: derivatives,
+        projects: projects,
       );
       final now = DateTime.now();
       final stamp =
@@ -1398,6 +1506,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               bundle.derivatives,
               noteIdMap: plan.noteIdMap,
             );
+        await ref.read(projectStoreProvider).importBackup(
+              bundle.projects,
+              noteIdMap: plan.noteIdMap,
+            );
+        await ref.read(projectWorkspaceProvider.notifier).refresh();
 
         if (blockMap.isNotEmpty) {
           final notifier = ref.read(workspaceProvider.notifier);
@@ -1492,6 +1605,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
     await ref.read(derivativeStoreProvider).deleteForNote(id);
+    await ref.read(projectStoreProvider).deleteLinksForNote(id);
+    await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
       await ref.read(sharedLiveSyncProvider.notifier).syncSoon();

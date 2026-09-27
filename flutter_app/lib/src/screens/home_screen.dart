@@ -18,6 +18,8 @@ class HomeScreen extends StatefulWidget {
     required this.onSketch,
     required this.onCollection,
     required this.onOpenNote,
+    required this.onProjects,
+    required this.projectCount,
     this.sharedUnread = 0,
     super.key,
   });
@@ -31,6 +33,8 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onSketch;
   final ValueChanged<String> onCollection;
   final ValueChanged<Note> onOpenNote;
+  final VoidCallback onProjects;
+  final int projectCount;
   final int sharedUnread;
 
   @override
@@ -92,6 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 16),
         _NotebookCard(onCreate: widget.onCreate, onSketch: widget.onSketch),
+        const SizedBox(height: 16),
+        _ProjectCard(
+          count: widget.projectCount,
+          onTap: widget.onProjects,
+        ),
         const SizedBox(height: 16),
         FutureBuilder<FocusClock?>(
           future: _focus,
@@ -302,6 +311,59 @@ class _NotebookCard extends StatelessWidget {
                       onPressed: onSketch, child: const Text('Sketchbook')),
                 ],
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProjectCard extends StatelessWidget {
+  const _ProjectCard({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: colors.primaryContainer,
+                foregroundColor: colors.onPrimaryContainer,
+                child: const Icon(Icons.work_outline),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Project Workspace',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      count == 0
+                          ? 'Crea il primo progetto'
+                          : '$count progetti attivi · 5 viste universali',
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
             ],
           ),
         ),
