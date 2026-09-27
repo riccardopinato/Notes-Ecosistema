@@ -1,5 +1,18 @@
 # Notes Ecosistema — Roadmap
 
+## Stabilizzazione pre-P6 — 0.37.1+48
+
+Completata prima dell'avvio di P6:
+
+- audit dei bottom sheet e correzione del clipping/azioni non raggiungibili;
+- infrastruttura UI condivisa per sheet scroll-safe e quasi full-height;
+- Smart Capture con acquisizione diretta da fotocamera e galleria + OCR immediato;
+- fallback sicuro per errori nativi del Document Scanner;
+- sanitizzazione centralizzata degli errori tecnici mostrati in UI;
+- regressione automatizzata per bottom sheet lunghi e PlatformException.
+
+P6 resta **non avviata** finché questa release di stabilizzazione non supera il gate FULL.
+
 ## Stato corrente
 
 - Versione: **0.37.0+47**
