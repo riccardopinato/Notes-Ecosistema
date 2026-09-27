@@ -9,7 +9,7 @@
 - Validazione: FAST / FULL / CERTIFIED
 - Roadmap riconciliata P0–P5: **funzionalmente completata**
 - UI polish 0.36.1: contrasto light theme corretto, dark theme preservato.
-- Gate FULL v0.37: obbligatorio sull'head finale prima del merge
+- Gate FULL v0.37 P5: **PASS** sull'implementazione funzionale `17794574ca8db470a3a9501718032e885ff192f7`.
 
 ## P0 — Production Truth & Data Lifecycle
 
@@ -112,7 +112,7 @@
 
 La roadmap P0–P5 è **funzionalmente completa** con la v0.37. Il merge resta subordinato al gate FULL dell'head finale secondo il Master Prompt.
 
-Il merge della release finale è consentito solo da un head che supera il gate FULL corrente:
+Il gate FULL della v0.37.0 è stato eseguito con esito positivo sul commit funzionale P5 `17794574ca8db470a3a9501718032e885ff192f7`:
 
 - Dart format;
 - Flutter analyze;
@@ -124,7 +124,7 @@ Il merge della release finale è consentito solo da un head che supera il gate F
 - Evidence Bundle;
 - SHA-256 dell'artefatto release.
 
-L'hash e la dimensione dell'APK appartengono all'Evidence Bundle generato dall'esatto head validato e non vengono hardcodati qui, per evitare documentazione stale dopo commit successivi.
+Evidenza P5 validata: **108 test passati**, `flutter analyze` senza issue, APK debug generato, APK release split-per-ABI generati, ARM64 = **33.345.458 byte** su budget **39.845.888 byte**, SHA-256 ARM64 = `febcf7fe6df02d47e969697cd486bef34e4d53e9a9e3c234481b63946f67cfbe`, Evidence Bundle pubblicato dalla CI.
 
 La chiusura funzionale della roadmap **non equivale** alla certificazione hardware. Il verdetto CERTIFIED richiede inoltre i test real-device previsti dal Master Prompt corrente per le funzioni native critiche.
 
