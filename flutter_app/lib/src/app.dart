@@ -1663,191 +1663,190 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             children: [
-                const EditorialAppTitle('Impostazioni'),
-                const SizedBox(height: 16),
-                SwitchListTile(
-                  title: const Text('Tema scuro'),
-                  value: widget.dark,
-                  onChanged: widget.onDarkChanged,
+              const EditorialAppTitle('Impostazioni'),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Tema scuro'),
+                value: widget.dark,
+                onChanged: widget.onDarkChanged,
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_upload_outlined),
+                title: const Text('Esporta backup completo'),
+                subtitle: const Text(
+                  'ZIP con note, attività, disegni, lavagne e allegati.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.file_upload_outlined),
-                  title: const Text('Esporta backup completo'),
-                  subtitle: const Text(
-                    'ZIP con note, attività, disegni, lavagne e allegati.',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _exportBackup();
-                  },
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportBackup();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_download_outlined),
+                title: const Text('Importa backup'),
+                subtitle: const Text(
+                    'Importa come copie senza sovrascrivere i dati attuali.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _importBackup();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.sync_outlined),
+                title: const Text('Sincronizza cartella Markdown'),
+                subtitle: const Text(
+                  'Mirror interoperabile con protezione dei cambi esterni e conflitti.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.file_download_outlined),
-                  title: const Text('Importa backup'),
-                  subtitle: const Text(
-                      'Importa come copie senza sovrascrivere i dati attuali.'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _importBackup();
-                  },
+                onTap: () {
+                  Navigator.pop(context);
+                  _syncMarkdownFolder();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.text_snippet_outlined),
+                title: const Text('Esporta workspace Markdown'),
+                subtitle: const Text(
+                  'ZIP con file .md leggibili anche fuori da Notes.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.sync_outlined),
-                  title: const Text('Sincronizza cartella Markdown'),
-                  subtitle: const Text(
-                    'Mirror interoperabile con protezione dei cambi esterni e conflitti.',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _syncMarkdownFolder();
-                  },
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportMarkdownWorkspace();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_folder_upload_outlined),
+                title: const Text('Importa Markdown'),
+                subtitle: const Text(
+                  'Importa un export Markdown come copie, senza sovrascrivere.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.text_snippet_outlined),
-                  title: const Text('Esporta workspace Markdown'),
-                  subtitle: const Text(
-                    'ZIP con file .md leggibili anche fuori da Notes.',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _exportMarkdownWorkspace();
-                  },
+                onTap: () {
+                  Navigator.pop(context);
+                  _importMarkdownWorkspace();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.data_object),
+                title: const Text('Esporta JSON compatibile'),
+                subtitle: const Text(
+                  'Backup v6 senza file multimediali, per compatibilità Kotlin.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.drive_folder_upload_outlined),
-                  title: const Text('Importa Markdown'),
-                  subtitle: const Text(
-                    'Importa un export Markdown come copie, senza sovrascrivere.',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _importMarkdownWorkspace();
-                  },
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportLegacyJson();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cleaning_services_outlined),
+                title: const Text('Pulisci allegati orfani'),
+                subtitle: const Text(
+                  'Rimuove solo file locali non più referenziati da note o bozze.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.data_object),
-                  title: const Text('Esporta JSON compatibile'),
-                  subtitle: const Text(
-                    'Backup v6 senza file multimediali, per compatibilità Kotlin.',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _exportLegacyJson();
-                  },
+                onTap: () {
+                  Navigator.pop(context);
+                  _cleanupAttachments();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_note),
+                title: const Text('Scorciatoia Nuova nota'),
+                subtitle: const Text(
+                  'Aggiunge alla Home un accesso diretto al Quick Capture.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.cleaning_services_outlined),
-                  title: const Text('Pulisci allegati orfani'),
-                  subtitle: const Text(
-                    'Rimuove solo file locali non più referenziati da note o bozze.',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _cleanupAttachments();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.edit_note),
-                  title: const Text('Scorciatoia Nuova nota'),
-                  subtitle: const Text(
-                    'Aggiunge alla Home un accesso diretto al Quick Capture.',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final requested =
-                        await QuickCaptureBridge.pinNoteShortcut();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          requested
-                              ? 'Richiesta scorciatoia inviata alla Home.'
-                              : 'Launcher non compatibile: tieni premuta l’icona di Notes.',
-                        ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final requested = await QuickCaptureBridge.pinNoteShortcut();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        requested
+                            ? 'Richiesta scorciatoia inviata alla Home.'
+                            : 'Launcher non compatibile: tieni premuta l’icona di Notes.',
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.widgets_outlined),
+                title: const Text('Aggiungi widget Quick Capture'),
+                subtitle: const Text(
+                  'Widget Home con Nuova nota e Checklist.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.widgets_outlined),
-                  title: const Text('Aggiungi widget Quick Capture'),
-                  subtitle: const Text(
-                    'Widget Home con Nuova nota e Checklist.',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final requested =
-                        await QuickCaptureBridge.pinCaptureWidget();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          requested
-                              ? 'Richiesta widget inviata alla Home.'
-                              : 'Apri il selettore Widget Android e cerca Notes.',
-                        ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final requested = await QuickCaptureBridge.pinCaptureWidget();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        requested
+                            ? 'Richiesta widget inviata alla Home.'
+                            : 'Apri il selettore Widget Android e cerca Notes.',
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cloud_sync_outlined),
+                title: const Text('GitHub Sync'),
+                subtitle: const Text(
+                  'Sincronizza note e allegati con un repository GitHub.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.cloud_sync_outlined),
-                  title: const Text('GitHub Sync'),
-                  subtitle: const Text(
-                    'Sincronizza note e allegati con un repository GitHub.',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.of(this.context).push(
-                      MaterialPageRoute(
-                        builder: (_) => GitHubSyncScreen(
-                          database: ref.read(databaseProvider),
-                          onLocalChanged: () =>
-                              ref.read(workspaceProvider.notifier).refresh(),
-                        ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(this.context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GitHubSyncScreen(
+                        database: ref.read(databaseProvider),
+                        onLocalChanged: () =>
+                            ref.read(workspaceProvider.notifier).refresh(),
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_outlined),
+                title: const Text('Notifiche promemoria'),
+                subtitle: const Text(
+                  'Abilita le notifiche Android per i promemoria delle attività.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.notifications_outlined),
-                  title: const Text('Notifiche promemoria'),
-                  subtitle: const Text(
-                    'Abilita le notifiche Android per i promemoria delle attività.',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final allowed = await ReminderBridge.requestPermission();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          allowed
-                              ? 'Notifiche promemoria abilitate.'
-                              : 'Notifiche non abilitate. I promemoria restano salvati.',
-                        ),
-                        action: allowed
-                            ? null
-                            : SnackBarAction(
-                                label: 'Impostazioni',
-                                onPressed: () {
-                                  ReminderBridge.openSettings();
-                                },
-                              ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final allowed = await ReminderBridge.requestPermission();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        allowed
+                            ? 'Notifiche promemoria abilitate.'
+                            : 'Notifiche non abilitate. I promemoria restano salvati.',
                       ),
-                    );
-                  },
+                      action: allowed
+                          ? null
+                          : SnackBarAction(
+                              label: 'Impostazioni',
+                              onPressed: () {
+                                ReminderBridge.openSettings();
+                              },
+                            ),
+                    ),
+                  );
+                },
+              ),
+              const ListTile(
+                title: Text('Notes · Flutter 0.37.1'),
+                subtitle: Text(
+                  'Shared Spaces selettivi · database locale ancora compatibile con Room v8.',
                 ),
-                const ListTile(
-                  title: Text('Notes · Flutter 0.37.1'),
-                  subtitle: Text(
-                    'Shared Spaces selettivi · database locale ancora compatibile con Room v8.',
-                  ),
-                ),
-              ],
+              ),
+            ],
           ),
         ),
       );
+
 }
 
 class _ErrorState extends StatelessWidget {
