@@ -321,8 +321,7 @@ class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
           _EmptySpaces(onCreate: _createSpace, onJoin: _joinSpace)
         else
           ...spaces.map((space) {
-            final projection =
-                _resolveSharedContents(space, workspace.notes);
+            final projection = _resolveSharedContents(space, workspace.notes);
             final content = projection.visible;
             final tasks = content.where((note) => note.isTask).length;
             final planned = content.where((note) {
