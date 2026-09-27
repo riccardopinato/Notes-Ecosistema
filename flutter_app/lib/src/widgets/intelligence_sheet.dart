@@ -4,6 +4,7 @@ import '../data/derivative_store.dart';
 import '../domain/derivatives.dart';
 import '../domain/intelligence.dart';
 import '../domain/note.dart';
+import 'ui_resilience.dart';
 
 Future<void> showIntelligenceSheet({
   required BuildContext context,
@@ -13,7 +14,7 @@ Future<void> showIntelligenceSheet({
   ValueChanged<Note>? onOpenNote,
   ValueChanged<String>? onInsertMarkdown,
 }) =>
-    showModalBottomSheet<void>(
+    showNotesBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -80,7 +81,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = userErrorText(error),
         );
       }
     }
@@ -145,7 +146,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = userErrorText(error),
         );
       }
     } finally {
@@ -214,7 +215,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
         if (mounted) {
           setState(
             () =>
-                _error = error.toString().replaceFirst('FormatException: ', ''),
+                _error = userErrorText(error),
           );
         }
       }
@@ -251,8 +252,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
             20,
             MediaQuery.viewInsetsOf(context).bottom + 20,
           ),
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * .82,
+          child: SizedBox.expand(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
