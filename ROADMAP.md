@@ -11,7 +11,7 @@ Completata prima dell'avvio di P6:
 - sanitizzazione centralizzata degli errori tecnici mostrati in UI;
 - regressione automatizzata per bottom sheet lunghi e PlatformException.
 
-P6 resta **non avviata** finché questa release di stabilizzazione non supera il gate FULL.
+P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL automatizzato della v0.37.1 è ora **PASS** sul commit applicativo `3974382c32fa90d4896dbda102ca071a94b96b7f`: 111 test, analyze pulito, APK debug/release, size gate ed Evidence Bundle. Rimane solo la verifica real-device di fotocamera/OCR/Document Scanner prima della certificazione hardware.
 
 ## Stato corrente
 
