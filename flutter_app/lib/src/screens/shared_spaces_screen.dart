@@ -1906,11 +1906,14 @@ _SharedContentProjection _resolveSharedContents(
       case ReferenceLifecycleState.resolved:
       case ReferenceLifecycleState.stale:
         visible.add(resolution.value!);
+        break;
       case ReferenceLifecycleState.deleted:
         deleted++;
+        break;
       case ReferenceLifecycleState.sourceMissing:
       case ReferenceLifecycleState.ambiguous:
         missing++;
+        break;
     }
   }
 
