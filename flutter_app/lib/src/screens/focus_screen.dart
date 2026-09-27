@@ -98,8 +98,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
       if (mounted) setState(() => _clock = next);
     } catch (e) {
       if (mounted) {
-        setState(
-            () => _error = userErrorText(e));
+        setState(() => _error = userErrorText(e));
       }
     }
   }
@@ -175,8 +174,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
       if (mounted) setState(() => _clock = next);
     } catch (e) {
       if (mounted) {
-        setState(
-            () => _error = userErrorText(e));
+        setState(() => _error = userErrorText(e));
       }
     }
   }
