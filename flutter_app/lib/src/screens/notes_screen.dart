@@ -162,8 +162,6 @@ class _NotesScreenState extends State<NotesScreen> {
 
     final result = await showNotesBottomSheet<_FilterState>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) => StatefulBuilder(
         builder: (context, local) => SafeArea(
           child: SingleChildScrollView(
