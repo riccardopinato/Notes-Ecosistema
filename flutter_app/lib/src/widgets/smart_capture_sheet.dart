@@ -1,11 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../domain/attachments.dart';
 import '../domain/smart_capture.dart';
+import 'ui_resilience.dart';
 
 class SmartCaptureSheet extends StatefulWidget {
   const SmartCaptureSheet({
@@ -24,7 +27,7 @@ class SmartCaptureSheet extends StatefulWidget {
 class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
   late String _body;
   late final TextEditingController _url;
-  late final DocumentScanner _scanner;
+  final ImagePicker _picker = ImagePicker();
   late final TextRecognizer _recognizer;
 
   bool _busy = false;
@@ -38,24 +41,12 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
     _url = TextEditingController(
       text: SmartCaptureRules.extractSingleHttpUrl(_body) ?? '',
     );
-    _scanner = DocumentScanner(
-      options: DocumentScannerOptions(
-        documentFormats: const {
-          DocumentFormat.jpeg,
-          DocumentFormat.pdf,
-        },
-        mode: ScannerMode.full,
-        pageLimit: 12,
-        isGalleryImport: true,
-      ),
-    );
     _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
   }
 
   @override
   void dispose() {
     _url.dispose();
-    _scanner.close();
     _recognizer.close();
     super.dispose();
   }
@@ -72,7 +63,10 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(
+            error,
+            fallback: 'Smart Capture non è riuscito a completare l’operazione. Riprova oppure usa un altro metodo di acquisizione.',
+          );
         });
       }
     } finally {
@@ -86,7 +80,31 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
   }
 
   Future<void> _scan() => _run(() async {
-        final result = await _scanner.scanDocument();
+        DocumentScanner? scanner;
+        try {
+          scanner = DocumentScanner(
+            options: DocumentScannerOptions(
+              documentFormats: const {
+                DocumentFormat.jpeg,
+                DocumentFormat.pdf,
+              },
+              mode: ScannerMode.full,
+              pageLimit: 12,
+              isGalleryImport: true,
+            ),
+          );
+          final result = await scanner.scanDocument();
+          await _consumeScanResult(result);
+        } on PlatformException {
+          throw const FormatException(
+            'Lo scanner documenti Android non è disponibile su questo dispositivo. Usa “Scatta e analizza” oppure “Importa e analizza”.',
+          );
+        } finally {
+          scanner?.close();
+        }
+      });
+
+  Future<void> _consumeScanResult(DocumentScanningResult result) async {
         final store = await AttachmentStore.open();
         final ocr = <String>[];
 
@@ -168,6 +186,73 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
                     : combined.isNotEmpty
                         ? 'OCR aggiunto.'
                         : 'Scansione completata.';
+          });
+        }
+      }
+
+  void _assertAttachmentCapacity() {
+    final count = Attachments.refs(_body).map((ref) => ref.key).toSet().length;
+    if (count >= 20) {
+      throw const FormatException(
+        'Puoi aggiungere fino a 20 allegati per nota.',
+      );
+    }
+  }
+
+  Future<void> _captureImage(ImageSource source) => _run(() async {
+        _assertAttachmentCapacity();
+        final image = await _picker.pickImage(
+          source: source,
+          imageQuality: 95,
+          maxWidth: 4096,
+          maxHeight: 4096,
+          requestFullMetadata: false,
+        );
+        if (image == null) return;
+
+        final file = File(image.path);
+        if (!await file.exists()) {
+          throw const FormatException(
+            'La foto acquisita non è più disponibile.',
+          );
+        }
+
+        final store = await AttachmentStore.open();
+        final bytes = await image.readAsBytes();
+        final type =
+            Attachments.typeFromName(image.name) ?? AttachmentType.jpeg;
+        final key = await store.ingest(bytes, type);
+        final label = image.name.trim().isEmpty
+            ? 'Foto ${DateTime.now().toIso8601String().substring(0, 10)}'
+            : image.name;
+        if (!Attachments.refs(_body).any((ref) => ref.key == key)) {
+          _setBody(Attachments.append(_body, key, label));
+        }
+
+        final recognized = await _recognizer.processImage(
+          InputImage.fromFilePath(file.path),
+        );
+        final text = SmartCaptureRules.clipOcr(recognized.text);
+        if (text.isNotEmpty &&
+            !SmartCaptureRules.containsSection(
+              _body,
+              'Testo estratto',
+              text,
+            )) {
+          _setBody(
+            SmartCaptureRules.appendSection(
+              _body,
+              'Testo estratto',
+              text,
+            ),
+          );
+        }
+
+        if (mounted) {
+          setState(() {
+            _status = text.isEmpty
+                ? 'Immagine acquisita · nessun testo riconosciuto.'
+                : 'Immagine acquisita e analizzata · ${text.length} caratteri estratti.';
           });
         }
       });
@@ -295,10 +380,22 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
                 icon: Icons.document_scanner,
                 title: 'Scanner documenti',
                 detail:
-                    'Ritaglio, prospettiva, multipagina, PDF e OCR del testo.',
+                    'Ritaglio, prospettiva, multipagina, PDF e OCR. Se il servizio Android non è disponibile puoi usare Foto + OCR.',
                 button: 'Scansiona',
                 enabled: !_busy,
                 onPressed: _scan,
+              ),
+              const SizedBox(height: 12),
+              _CaptureCard(
+                icon: Icons.camera_alt_outlined,
+                title: 'Foto + OCR immediato',
+                detail:
+                    'Scatta una foto oppure importala dalla galleria: viene allegata e analizzata subito.',
+                button: 'Scatta e analizza',
+                enabled: !_busy,
+                onPressed: () => _captureImage(ImageSource.camera),
+                secondaryButton: 'Importa e analizza',
+                onSecondaryPressed: () => _captureImage(ImageSource.gallery),
               ),
               const SizedBox(height: 12),
               _CaptureCard(
@@ -371,6 +468,8 @@ class _CaptureCard extends StatelessWidget {
     required this.button,
     required this.enabled,
     required this.onPressed,
+    this.secondaryButton,
+    this.onSecondaryPressed,
   });
 
   final IconData icon;
@@ -379,6 +478,8 @@ class _CaptureCard extends StatelessWidget {
   final String button;
   final bool enabled;
   final VoidCallback onPressed;
+  final String? secondaryButton;
+  final VoidCallback? onSecondaryPressed;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -404,6 +505,13 @@ class _CaptureCard extends StatelessWidget {
                 onPressed: enabled ? onPressed : null,
                 child: Text(button),
               ),
+              if (secondaryButton != null) ...[
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: enabled ? onSecondaryPressed : null,
+                  child: Text(secondaryButton!),
+                ),
+              ],
             ],
           ),
         ),
