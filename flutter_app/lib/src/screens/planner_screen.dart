@@ -10,6 +10,7 @@ import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../platform/reminder_bridge.dart';
 import '../widgets/editorial.dart';
+import '../widgets/ui_resilience.dart';
 import 'focus_screen.dart';
 
 class PlannerScreen extends StatefulWidget {
@@ -88,7 +89,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     } catch (error) {
       if (mounted) {
         setState(() =>
-            _error = error.toString().replaceFirst('FormatException: ', ''));
+            _error = userErrorText(error));
       }
     } finally {
       if (mounted) {
@@ -1115,7 +1116,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   );
                 } catch (e) {
                   setLocal(() => error =
-                      e.toString().replaceFirst('FormatException: ', ''));
+                      userErrorText(e));
                 }
               },
               child: const Text('Salva'),
@@ -1197,7 +1198,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   );
                 } catch (e) {
                   setLocal(() => error =
-                      e.toString().replaceFirst('FormatException: ', ''));
+                      userErrorText(e));
                 }
               },
               child: const Text('Pianifica'),
