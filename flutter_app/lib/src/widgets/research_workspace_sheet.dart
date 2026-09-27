@@ -268,8 +268,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
       } catch (error) {
         if (mounted) {
           setState(
-            () =>
-                _error = userErrorText(error),
+            () => _error = userErrorText(error),
           );
         }
       }
