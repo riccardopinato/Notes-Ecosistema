@@ -16,8 +16,7 @@ Future<void> showIntelligenceSheet({
 }) =>
     showNotesBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+      expand: true,
       builder: (_) => _IntelligenceSheet(
         notes: notes,
         derivativeStore: derivativeStore,
