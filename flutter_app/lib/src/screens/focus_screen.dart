@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../widgets/ui_resilience.dart';
 
 class FocusSessionScreen extends StatefulWidget {
   const FocusSessionScreen({
@@ -98,7 +99,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
     } catch (e) {
       if (mounted) {
         setState(
-            () => _error = e.toString().replaceFirst('FormatException: ', ''));
+            () => _error = userErrorText(e));
       }
     }
   }
@@ -151,7 +152,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = e.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(e);
         });
       }
     }
@@ -175,7 +176,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
     } catch (e) {
       if (mounted) {
         setState(
-            () => _error = e.toString().replaceFirst('FormatException: ', ''));
+            () => _error = userErrorText(e));
       }
     }
   }
