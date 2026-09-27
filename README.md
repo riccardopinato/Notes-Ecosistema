@@ -11,7 +11,10 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - Smart Capture aggiunge **Scatta e analizza** e **Importa e analizza**, con OCR immediato e allegato automatico;
 - scanner documenti ML Kit inizializzato solo quando serve e con fallback leggibile se il servizio Android fallisce;
 - errori nativi/PlatformException e stack trace non vengono più mostrati grezzi all'utente;
-- test di regressione aggiunti per error sanitization e bottom sheet scrollabile.
+- test di regressione aggiunti per error sanitization e bottom sheet scrollabile;
+- gate FULL automatizzato: **PASS** sul commit applicativo `3974382c32fa90d4896dbda102ca071a94b96b7f` — 111 test, analyze pulito, APK debug/release, size gate ed Evidence Bundle;
+- APK ARM64 release: **33.411.010 byte**, entro il budget di **39.845.888 byte**; SHA-256 `36b8669a8453cef62dc8e54e579a2184e6c7ff952cb14a0f0cbd5ad8bb80c766`;
+- resta da eseguire la verifica real-device di fotocamera, OCR e Document Scanner prima di considerare la correzione hardware-certificata.
 
 ## Stato corrente
 
