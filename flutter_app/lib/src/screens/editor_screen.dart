@@ -995,7 +995,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                               content: Text(
                                 userErrorText(
                                   error,
-                                  fallback: 'Impossibile condividere l’allegato.',
+                                  fallback:
+                                      'Impossibile condividere l’allegato.',
                                 ),
                               ),
                             ),
