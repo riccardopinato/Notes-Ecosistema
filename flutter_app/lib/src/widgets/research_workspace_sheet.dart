@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/knowledge_store.dart';
 import '../domain/note.dart';
-import 'ui_resilience.dart';
+import '../domain/reference_lifecycle.dart';
 import '../domain/research.dart';
+import 'ui_resilience.dart';
 
 Future<void> showResearchWorkspace({
   required BuildContext context,
@@ -276,14 +277,29 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     text.dispose();
   }
 
+  RelationReferenceResolution _relationResolution(
+    NoteRelation relation,
+  ) =>
+      ReferenceLifecycle.relationOther(
+        relation: relation,
+        currentNoteId: widget.noteId,
+        notes: widget.notes,
+      );
+
   String _relationTitle(NoteRelation relation) {
-    final other = relation.sourceId == widget.noteId
-        ? relation.targetId
-        : relation.sourceId;
-    final note = widget.notes.where((item) => item.id == other).firstOrNull;
-    return note?.title.trim().isNotEmpty == true
-        ? note!.title
+    final target = _relationResolution(relation).target.value;
+    return target?.title.trim().isNotEmpty == true
+        ? target!.title
         : 'Nota collegata';
+  }
+
+  String _relationSubtitle(NoteRelation relation) {
+    final resolution = _relationResolution(relation).target;
+    if (resolution.state == ReferenceLifecycleState.resolved) {
+      return relation.label;
+    }
+    return '${relation.label} · '
+        '${ReferenceLifecycle.userLabel(resolution.state)}';
   }
 
   @override
@@ -412,7 +428,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
                               contentPadding: EdgeInsets.zero,
                               leading: const Icon(Icons.hub_outlined),
                               title: Text(_relationTitle(relation)),
-                              subtitle: Text(relation.label),
+                              subtitle: Text(_relationSubtitle(relation)),
                               trailing: IconButton(
                                 icon: const Icon(Icons.close),
                                 onPressed: () async {
