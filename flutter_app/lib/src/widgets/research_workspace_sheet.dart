@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/knowledge_store.dart';
 import '../domain/note.dart';
+import 'ui_resilience.dart';
 import '../domain/research.dart';
 
 Future<void> showResearchWorkspace({
@@ -11,10 +12,9 @@ Future<void> showResearchWorkspace({
   required KnowledgeStore store,
   required ValueChanged<String> onInsertMarkdown,
 }) =>
-    showModalBottomSheet<void>(
+    showNotesBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+      expand: true,
       builder: (_) => _ResearchWorkspaceSheet(
         noteId: noteId,
         notes: notes,
@@ -71,7 +71,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -146,7 +146,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = userErrorText(error),
         );
       }
     } finally {
@@ -182,7 +182,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = userErrorText(error),
         );
       }
     }
@@ -226,7 +226,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _error = error.toString().replaceFirst('FormatException: ', ''),
+          () => _error = userErrorText(error),
         );
       }
     } finally {
@@ -269,7 +269,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
         if (mounted) {
           setState(
             () =>
-                _error = error.toString().replaceFirst('FormatException: ', ''),
+                _error = userErrorText(error),
           );
         }
       }
@@ -298,8 +298,7 @@ class _ResearchWorkspaceSheetState extends State<_ResearchWorkspaceSheet> {
           20,
           MediaQuery.viewInsetsOf(context).bottom + 20,
         ),
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * .78,
+        child: SizedBox.expand(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
