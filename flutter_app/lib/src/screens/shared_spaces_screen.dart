@@ -239,8 +239,7 @@ class _SharedSpacesScreenState extends ConsumerState<SharedSpacesScreen> {
         if (_error != null) _InlineError(message: _error!),
         if (shared.error != null)
           _InlineError(
-            message:
-                shared.userErrorText(error),
+            message: userErrorText(shared.error!),
           ),
         _PrivacyCard(
           onJoin: _joinSpace,
