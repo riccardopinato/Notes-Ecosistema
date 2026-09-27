@@ -52,6 +52,7 @@ import 'theme/notes_theme.dart';
 import 'widgets/editorial.dart';
 import 'widgets/quick_switcher_sheet.dart';
 import 'widgets/intelligence_sheet.dart';
+import 'widgets/ui_resilience.dart';
 
 class NotesEcosistemaApp extends ConsumerStatefulWidget {
   const NotesEcosistemaApp({super.key});
@@ -249,7 +250,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              error.toString().replaceFirst('FormatException: ', ''),
+              userErrorText(error),
             ),
           ),
         );
@@ -311,7 +312,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -703,7 +704,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -816,7 +817,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -1068,11 +1069,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _createMenu(BuildContext context) async {
-    final action = await showModalBottomSheet<String>(
+    final action = await showNotesBottomSheet<String>(
       context: context,
-      showDragHandle: true,
       builder: (context) => SafeArea(
-        child: Wrap(
+        child: ListView(
+          shrinkWrap: true,
           children: [
             ListTile(
               leading: const Icon(Icons.note_add),
@@ -1234,7 +1235,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
           action: SnackBarAction(
             label: 'Cambia cartella',
@@ -1277,7 +1278,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -1356,7 +1357,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -1399,7 +1400,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -1426,7 +1427,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -1561,7 +1562,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
@@ -1648,22 +1649,20 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().replaceFirst('FormatException: ', ''),
+            userErrorText(error),
           ),
         ),
       );
     }
   }
 
-  Future<void> _settings(BuildContext context) => showModalBottomSheet<void>(
+  Future<void> _settings(BuildContext context) => showNotesBottomSheet<void>(
         context: context,
-        showDragHandle: true,
+        expand: true,
         builder: (context) => SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            children: [
                 const EditorialAppTitle('Impostazioni'),
                 const SizedBox(height: 16),
                 SwitchListTile(
@@ -1840,13 +1839,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   },
                 ),
                 const ListTile(
-                  title: Text('Notes · Flutter 0.36.1'),
+                  title: Text('Notes · Flutter 0.37.1'),
                   subtitle: Text(
                     'Shared Spaces selettivi · database locale ancora compatibile con Room v8.',
                   ),
                 ),
               ],
-            ),
           ),
         ),
       );
