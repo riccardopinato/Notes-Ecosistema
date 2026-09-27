@@ -1,12 +1,21 @@
-# Notes — Ecosistema 0.37.0
+# Notes — Ecosistema 0.37.1
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
 
+## Stabilizzazione 0.37.1 — UI Reliability & Smart Capture Recovery
+
+- bottom sheet lunghi resi scrollabili e autorizzati a usare quasi tutta l'altezza utile dello schermo;
+- Impostazioni e menu di creazione non tagliano più azioni su display compatti;
+- Smart Capture aggiunge **Scatta e analizza** e **Importa e analizza**, con OCR immediato e allegato automatico;
+- scanner documenti ML Kit inizializzato solo quando serve e con fallback leggibile se il servizio Android fallisce;
+- errori nativi/PlatformException e stack trace non vengono più mostrati grezzi all'utente;
+- test di regressione aggiunti per error sanitization e bottom sheet scrollabile.
+
 ## Stato corrente
 
-- Versione Flutter: **0.37.0+47**
+- Versione Flutter: **0.37.1+48**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
