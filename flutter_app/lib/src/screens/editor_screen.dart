@@ -36,6 +36,7 @@ import '../widgets/properties_sheet.dart';
 import '../widgets/research_workspace_sheet.dart';
 import '../widgets/intelligence_sheet.dart';
 import '../widgets/smart_capture_sheet.dart';
+import '../widgets/ui_resilience.dart';
 import '../widgets/universal_block_editor.dart';
 
 enum _EditorMode { text, preview, blocks, checklist }
@@ -364,7 +365,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       if (mounted && token == _draftRevision) {
         setState(() {
           _draftStatus = 'Bozza non memorizzata: premi Salva per riprovare';
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(error);
         });
       }
     }
@@ -436,7 +437,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(error);
         });
       }
     }
@@ -463,7 +464,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -533,7 +534,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(error);
         });
       }
     }
@@ -678,10 +679,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Future<void> _smartCapture() async {
     if (_saving) return;
-    await showModalBottomSheet<void>(
+    await showNotesBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+      expand: true,
       builder: (_) => SmartCaptureSheet(
         body: _body.text,
         onBodyChanged: (body) {
@@ -732,7 +732,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -791,7 +791,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       setState(() {
         _recording = false;
         _recordingPath = null;
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -834,7 +834,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       if (!mounted) return;
       setState(() {
         _recordingPath = null;
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     } finally {
       final cleanup = path ?? fallback;
@@ -896,7 +896,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(error);
         });
       }
     }
@@ -909,12 +909,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final file = store.file(ref.key);
       if (!mounted) return;
 
-      await showModalBottomSheet<void>(
+      await showNotesBottomSheet<void>(
         context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
         builder: (context) => SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -966,10 +964,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                error
-                                    .toString()
-                                    .replaceFirst('PlatformException', '')
-                                    .replaceFirst('FormatException: ', ''),
+                                userErrorText(
+                                  error,
+                                  fallback: 'Impossibile aprire l’allegato.',
+                                ),
                               ),
                             ),
                           );
@@ -993,7 +991,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         } catch (error) {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error.toString())),
+                            SnackBar(
+                              content: Text(
+                                userErrorText(
+                                  error,
+                                  fallback: 'Impossibile condividere l’allegato.',
+                                ),
+                              ),
+                            ),
                           );
                         }
                       },
@@ -1020,7 +1025,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -1093,7 +1098,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = error.toString().replaceFirst('FormatException: ', '');
+          _error = userErrorText(error);
         });
       }
     }
@@ -1121,7 +1126,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       setState(() => _error = null);
     } catch (error) {
       setState(() {
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
@@ -1184,7 +1189,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   );
                 } catch (e) {
                   setLocal(() {
-                    error = e.toString().replaceFirst('FormatException: ', '');
+                    error = userErrorText(e);
                   });
                 }
               },
@@ -1244,7 +1249,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   );
                 } catch (e) {
                   setLocal(() {
-                    error = e.toString().replaceFirst('FormatException: ', '');
+                    error = userErrorText(e);
                   });
                 }
               },
@@ -1318,7 +1323,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _rememberDraft();
     } catch (error) {
       setState(() {
-        _error = error.toString().replaceFirst('FormatException: ', '');
+        _error = userErrorText(error);
       });
     }
   }
