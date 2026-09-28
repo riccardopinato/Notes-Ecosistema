@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../data/property_store.dart';
+import '../data/workflow_automation_store.dart';
 import '../data/knowledge_store.dart';
 import '../data/derivative_store.dart';
 import '../data/import_provenance_store.dart';
