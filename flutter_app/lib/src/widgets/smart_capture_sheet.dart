@@ -183,8 +183,7 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
               assetKey: key,
               page: 1,
               originalText: pageText,
-              sourceFingerprint:
-                  DocumentWorkspaceRules.fingerprintBytes(bytes),
+              sourceFingerprint: DocumentWorkspaceRules.fingerprintBytes(bytes),
               updatedAt: DateTime.now().millisecondsSinceEpoch,
             ),
           );
