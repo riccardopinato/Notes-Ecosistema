@@ -28,8 +28,10 @@ import '../domain/research.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
 import '../platform/attachment_bridge.dart';
+import '../screens/document_workspace_screen.dart';
 import '../screens/sketch_screen.dart';
 import '../screens/whiteboard_screen.dart';
+import '../state/extended_workspace_providers.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
@@ -685,6 +687,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       expand: true,
       builder: (_) => SmartCaptureSheet(
         body: _body.text,
+        noteId: _id,
+        documentStore: ref.read(documentStoreProvider),
         onBodyChanged: (body) {
           if (!mounted || body == _body.text) return;
           setState(() {
@@ -981,6 +985,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             : 'Apri',
                       ),
                     ),
+                    if (ref.type == AttachmentType.pdf)
+                      FilledButton.tonalIcon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.of(this.context).push(
+                            MaterialPageRoute(
+                              builder: (_) => DocumentWorkspaceScreen(
+                                noteId: _id,
+                                attachment: ref,
+                                store: ref.read(documentStoreProvider),
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.find_in_page_outlined),
+                        label: const Text('Workspace documento'),
+                      ),
                     FilledButton.tonalIcon(
                       onPressed: () async {
                         try {
