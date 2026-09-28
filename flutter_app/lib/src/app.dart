@@ -1185,18 +1185,22 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       unifiedSearch: (query) async {
         final hits = await service.search(query: query, notes: notes);
         final byId = {for (final note in notes) note.id: note};
+        final knowledgeHits = <KnowledgeHit>[];
+        for (final hit in hits) {
+          final note = byId[hit.document.noteId];
+          if (note == null) continue;
+          knowledgeHits.add(
+            KnowledgeHit(
+              note: note,
+              score: hit.score,
+              excerpt:
+                  '${_retrievalLabel(hit.document.kind)} · ${hit.excerpt}',
+            ),
+          );
+        }
         return KnowledgeQueryResult(
           query: query,
-          hits: [
-            for (final hit in hits)
-              if (byId[hit.document.noteId] case final note?)
-                KnowledgeHit(
-                  note: note,
-                  score: hit.score,
-                  excerpt:
-                      '${_retrievalLabel(hit.document.kind)} · ${hit.excerpt}',
-                ),
-          ],
+          hits: knowledgeHits,
         );
       },
     );
