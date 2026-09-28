@@ -1541,8 +1541,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                                         workingVersion: _workingVersion,
                                         workingColor: _workingColor,
                                         workingWidth: _workingWidth,
-                                        workingMarker:
-                                            _tool == _WhiteboardTool.highlighter,
+                                        workingMarker: _tool ==
+                                            _WhiteboardTool.highlighter,
                                         previewShape: _previewShape,
                                         visibleRect: visibleRect,
                                         strokeBounds: _strokeBounds,
@@ -1799,9 +1799,7 @@ class _BoardPainter extends CustomPainter {
       case WhiteboardPaper.plain:
         return;
       case WhiteboardPaper.ruled:
-        for (double y = first(visible.top, 70);
-            y <= visible.bottom;
-            y += 70) {
+        for (double y = first(visible.top, 70); y <= visible.bottom; y += 70) {
           canvas.drawLine(
             Offset(visible.left, y),
             Offset(visible.right, y),
@@ -1810,18 +1808,14 @@ class _BoardPainter extends CustomPainter {
         }
         return;
       case WhiteboardPaper.grid:
-        for (double x = first(visible.left, 80);
-            x <= visible.right;
-            x += 80) {
+        for (double x = first(visible.left, 80); x <= visible.right; x += 80) {
           canvas.drawLine(
             Offset(x, visible.top),
             Offset(x, visible.bottom),
             line,
           );
         }
-        for (double y = first(visible.top, 80);
-            y <= visible.bottom;
-            y += 80) {
+        for (double y = first(visible.top, 80); y <= visible.bottom; y += 80) {
           canvas.drawLine(
             Offset(visible.left, y),
             Offset(visible.right, y),
@@ -1831,9 +1825,7 @@ class _BoardPainter extends CustomPainter {
         return;
       case WhiteboardPaper.dots:
         final dot = Paint()..color = const Color(0x33455A64);
-        for (double x = first(visible.left, 40);
-            x <= visible.right;
-            x += 40) {
+        for (double x = first(visible.left, 40); x <= visible.right; x += 40) {
           for (double y = first(visible.top, 40);
               y <= visible.bottom;
               y += 40) {
