@@ -57,8 +57,8 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
       if (!mounted) return;
       setState(() {
         _dark = prefs.getBool('web_dark_mode') ?? false;
-        _localeCode =
-            AppLocale.normalizePreference(prefs.getString(AppLocale.preferenceKey));
+        _localeCode = AppLocale.normalizePreference(
+            prefs.getString(AppLocale.preferenceKey));
       });
     });
   }
@@ -161,8 +161,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       now: now,
     );
     setState(() {
-      final index =
-          _notes.indexWhere((item) => item.id == evaluation.note.id);
+      final index = _notes.indexWhere((item) => item.id == evaluation.note.id);
       if (index < 0) {
         _notes = [evaluation.note, ..._notes];
       } else {
@@ -761,8 +760,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
                     title: Text(AppStrings.of(dialogContext).language),
                     children: [
                       SimpleDialogOption(
-                        onPressed: () =>
-                            Navigator.pop(dialogContext, 'system'),
+                        onPressed: () => Navigator.pop(dialogContext, 'system'),
                         child: Text(
                           AppStrings.of(dialogContext).systemLanguage,
                         ),
