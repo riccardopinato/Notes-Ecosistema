@@ -30,7 +30,6 @@ class KnowledgeGraphScreen extends StatefulWidget {
 class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
   static const _canvasSize = Size(2200, 1600);
   final TransformationController _viewport = TransformationController();
-  final TextEditingController _search = TextEditingController();
   KnowledgeGraphSnapshot? _graph;
   String? _focusId;
   KnowledgeGraphScope _scope = KnowledgeGraphScope.all;
@@ -50,7 +49,6 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
   @override
   void dispose() {
     _viewport.dispose();
-    _search.dispose();
     super.dispose();
   }
 
@@ -289,7 +287,6 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
 
   Widget _graphCanvas() {
     final view = _view;
-    final nodeById = {for (final node in view.nodes) node.id: node};
     return LayoutBuilder(
       builder: (context, constraints) {
         _center(Size(constraints.maxWidth, constraints.maxHeight));
@@ -323,7 +320,6 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
                       _positionedNode(
                         node,
                         view.positions[node.id]!,
-                        nodeById,
                       ),
                   ],
                 ),
@@ -354,7 +350,6 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
   Widget _positionedNode(
     KnowledgeGraphNode node,
     KnowledgeGraphPoint point,
-    Map<String, KnowledgeGraphNode> nodeById,
   ) {
     const width = 176.0;
     const height = 72.0;
