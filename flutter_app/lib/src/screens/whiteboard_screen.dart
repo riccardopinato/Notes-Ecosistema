@@ -1948,7 +1948,9 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       );
 
   Widget _textWidget(SketchText text) {
-    final canEdit = !widget.readOnly && _tool == _WhiteboardTool.navigate;
+    final canManipulate = !widget.readOnly &&
+        (_tool == _WhiteboardTool.navigate || _selectionMode);
+    final selected = _selectedTextIds.contains(text.id);
     final width = math.min(
       800.0,
       math.max(140.0, text.text.length * text.size * 0.55),
@@ -1960,24 +1962,49 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       width: width,
       height: height,
       child: Listener(
-        onPointerDown: canEdit ? _onObjectPointerDown : null,
-        onPointerMove: canEdit
+        onPointerDown:
+            canManipulate ? (event) => _onTextPointerDown(text, event) : null,
+        onPointerMove: canManipulate
             ? (event) => _moveTextByDelta(text, event.localDelta)
             : null,
-        onPointerUp: canEdit ? _onObjectPointerEnd : null,
-        onPointerCancel: canEdit ? _onObjectPointerEnd : null,
+        onPointerUp: canManipulate ? _onObjectPointerEnd : null,
+        onPointerCancel: canManipulate ? _onObjectPointerEnd : null,
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
-          onTap: canEdit ? () => _editText(text) : null,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Text(
-              text.text,
-              maxLines: 6,
-              overflow: TextOverflow.fade,
-              style: TextStyle(
-                color: Color(text.color),
-                fontSize: text.size.toDouble(),
+          onTap: canManipulate
+              ? () {
+                  if (_selectionMode) {
+                    _toggleTextSelection(text);
+                  } else {
+                    _editText(text);
+                  }
+                }
+              : null,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: selected
+                  ? Border.all(
+                      width: 2,
+                      color: Theme.of(context).colorScheme.primary,
+                    )
+                  : null,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: selected
+                    ? const EdgeInsets.all(4)
+                    : EdgeInsets.zero,
+                child: Text(
+                  text.text,
+                  maxLines: 6,
+                  overflow: TextOverflow.fade,
+                  style: TextStyle(
+                    color: Color(text.color),
+                    fontSize: text.size.toDouble(),
+                  ),
+                ),
               ),
             ),
           ),
@@ -1987,23 +2014,34 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   Widget _nodeWidget(BoardNode node) {
-    final selected = _connectFrom == node.id;
-    final canEditNode = !widget.readOnly && _tool == _WhiteboardTool.navigate;
+    final connectSelected = _connectFrom == node.id;
+    final selected = _selectedNodeIds.contains(node.id);
+    final canManipulate = !widget.readOnly &&
+        (_tool == _WhiteboardTool.navigate || _selectionMode);
     return Positioned(
       left: _origin + node.x,
       top: _origin + node.y,
       width: node.width.toDouble(),
       height: node.height.toDouble(),
       child: Listener(
-        onPointerDown: canEditNode ? _onObjectPointerDown : null,
-        onPointerMove: canEditNode
+        onPointerDown:
+            canManipulate ? (event) => _onNodePointerDown(node, event) : null,
+        onPointerMove: canManipulate
             ? (event) => _moveNodeByDelta(node, event.localDelta)
             : null,
-        onPointerUp: canEditNode ? _onObjectPointerEnd : null,
-        onPointerCancel: canEditNode ? _onObjectPointerEnd : null,
+        onPointerUp: canManipulate ? _onObjectPointerEnd : null,
+        onPointerCancel: canManipulate ? _onObjectPointerEnd : null,
         child: GestureDetector(
-          onTap: canEditNode ? () => _nodeTap(node) : null,
-          onLongPress: canEditNode
+          onTap: canManipulate
+              ? () {
+                  if (_selectionMode) {
+                    _toggleNodeSelection(node);
+                  } else {
+                    _nodeTap(node);
+                  }
+                }
+              : null,
+          onLongPress: !widget.readOnly && _tool == _WhiteboardTool.navigate
               ? () {
                   if (_document.mode == WhiteboardMode.mindMap) {
                     _addNode(kind: BoardNodeKind.mindNode, parent: node);
@@ -2017,8 +2055,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
               side: BorderSide(
-                width: selected ? 4 : 1,
-                color: selected
+                width: selected || connectSelected ? 4 : 1,
+                color: selected || connectSelected
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.outlineVariant,
               ),
