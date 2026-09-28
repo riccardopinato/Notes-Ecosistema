@@ -161,6 +161,95 @@ class ImportProvenanceStore {
     };
   }
 
+  Future<void> restoreBackupExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+  }) async {
+    if (payload['version'] != 1 ||
+        payload['records'] is! List ||
+        payload['batches'] is! List) {
+      throw const FormatException('Backup provenance import non valido.');
+    }
+    final rawRecords = payload['records'] as List;
+    final rawBatches = payload['batches'] as List;
+    if (rawRecords.length > 200000 || rawBatches.length > 50000) {
+      throw const FormatException('Backup provenance import troppo grande.');
+    }
+
+    final records = rawRecords.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Record provenance non valido.');
+      }
+      final record = ImportRecord.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      record.identity.validate();
+      if (!noteIds.contains(record.targetNoteId) ||
+          record.externalFingerprint.length != 64 ||
+          record.localFingerprint.length != 64 ||
+          record.lastBatchId.trim().isEmpty ||
+          record.importedAt < 0 ||
+          record.lastSeenAt < 0) {
+        throw const FormatException('Record provenance non valido.');
+      }
+      return record;
+    }).toList(growable: false);
+    if (records.map((record) => record.identity.key).toSet().length !=
+        records.length) {
+      throw const FormatException('Record provenance duplicati.');
+    }
+
+    final batches = rawBatches.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Batch provenance non valido.');
+      }
+      final row = raw.map((key, value) => MapEntry(key.toString(), value));
+      final id = row['id']?.toString() ?? '';
+      final source = row['source']?.toString() ?? '';
+      final sourceInstance = row['sourceInstance']?.toString() ?? '';
+      final startedAt = (row['startedAt'] as num?)?.toInt() ?? -1;
+      final completedAt = (row['completedAt'] as num?)?.toInt();
+      if (id.trim().isEmpty ||
+          source.trim().isEmpty ||
+          sourceInstance.trim().isEmpty ||
+          startedAt < 0 ||
+          (completedAt != null && completedAt < startedAt)) {
+        throw const FormatException('Batch provenance non valido.');
+      }
+      return <String, Object?>{
+        'id': id,
+        'source': source,
+        'sourceInstance': sourceInstance,
+        'startedAt': startedAt,
+        'completedAt': completedAt,
+        'summaryJson': row['summaryJson']?.toString(),
+      };
+    }).toList(growable: false);
+    if (batches.map((row) => row['id']).toSet().length != batches.length) {
+      throw const FormatException('Batch provenance duplicati.');
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('import_records');
+      await txn.delete('import_batches');
+      for (final batch in batches) {
+        await txn.insert(
+          'import_batches',
+          batch,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final record in records) {
+        await txn.insert(
+          'import_records',
+          record.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> close() async {
     final db = _db;
     _db = null;
