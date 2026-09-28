@@ -42,6 +42,7 @@ import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/project_workspace_screen.dart';
 import 'screens/shared_spaces_screen.dart';
+import 'screens/study_screen.dart';
 import 'screens/sketch_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
@@ -551,6 +552,20 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<void> _openStudy() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StudyScreen(
+          notes: ref.read(workspaceProvider).notes,
+          onOpenSource: (note) {
+            Navigator.of(context).pop();
+            _openEditor(note);
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _openProjects({String? initialProjectId}) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -896,6 +911,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         }),
         onOpenNote: _openEditor,
         onProjects: () => _openProjects(),
+        onStudy: _openStudy,
         projectCount:
             projects.projects.where((project) => project.isActive).length,
         sharedUnread: identity == null ? 0 : live.totalUnread(identity.id),
