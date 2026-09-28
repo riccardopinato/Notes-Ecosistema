@@ -58,6 +58,7 @@ Questo ciclo parte dalla baseline consolidata 0.46.0+57 e applica Rule Zero: riu
   - Ctrl+Shift+F ricerca;
 - ricerca in Search mode con focus immediato;
 - copy-link esplicito;
+- Lavagna/Mind Map sempre aperta con il centro logico del canvas centrato nella viewport;
 - testi impostazioni aggiornati alla semantica reale di import e cleanup.
 
 ## Vincoli mantenuti
