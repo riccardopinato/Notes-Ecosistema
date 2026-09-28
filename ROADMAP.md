@@ -1,5 +1,25 @@
 # Notes Ecosistema — Roadmap
 
+## 0.54 — Workflow Automations
+
+**Implementato in 0.54.0+65.**
+
+- motore locale e deterministico evento → azione;
+- trigger create / update / task completed;
+- filtri soggetto, tag e titolo;
+- azioni bounded: tag, raccolta, pin e priorità;
+- audit minimale e lifecycle-aware;
+- Disaster Recovery v2 + Open Export;
+- Web Preview verificabile;
+- base localizzazione v14 con lingua sistema, fallback EN e override IT/EN/ES/FR/DE/PT;
+- nessuna AI, rete, delete automation o background scheduler.
+
+Dettagli: `flutter_app/WORKFLOW_AUTOMATIONS_0_54.md`.
+
+### Prossimo asse candidato
+
+**0.55 — Local Intelligence**, partendo da semantic retrieval/embeddings locali opzionali e misurabili; generazione solo dove porta valore concreto.
+
 ## 0.53 — Knowledge Graph
 
 **Implementato in 0.53.0+64.**
@@ -159,7 +179,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.53.0+64**
+- Versione: **0.54.0+65**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
