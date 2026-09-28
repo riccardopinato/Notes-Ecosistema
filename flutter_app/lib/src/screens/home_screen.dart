@@ -19,7 +19,7 @@ class HomeScreen extends StatefulWidget {
     required this.onCollection,
     required this.onOpenNote,
     required this.onProjects,
-    required this.onStudy,
+    this.onStudy,
     required this.projectCount,
     this.sharedUnread = 0,
     super.key,
@@ -35,7 +35,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<String> onCollection;
   final ValueChanged<Note> onOpenNote;
   final VoidCallback onProjects;
-  final VoidCallback onStudy;
+  final VoidCallback? onStudy;
   final int projectCount;
   final int sharedUnread;
 
@@ -379,7 +379,7 @@ class _ProjectCard extends StatelessWidget {
 class _StudyCard extends StatelessWidget {
   const _StudyCard({required this.onTap});
 
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
