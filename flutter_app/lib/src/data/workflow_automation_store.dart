@@ -214,16 +214,14 @@ class WorkflowAutomationStore {
     if (rules.map((item) => item.id).toSet().length != rules.length) {
       throw const FormatException('Regole automazione duplicate.');
     }
-    final ruleIds = rules.map((item) => item.id).toSet();
-
     final runs = rawRuns.map((raw) {
       if (raw is! Map) throw const FormatException('Esecuzione non valida.');
       final run = WorkflowRun.fromMap(
         raw.map((key, value) => MapEntry(key.toString(), value)),
       );
       WorkflowAutomationRules.validateRun(run);
-      if (!ruleIds.contains(run.ruleId) || !noteIds.contains(run.noteId)) {
-        throw const FormatException('Esecuzione automazione orfana.');
+      if (!noteIds.contains(run.noteId)) {
+        throw const FormatException('Esecuzione automazione verso nota mancante.');
       }
       return run;
     }).toList(growable: false);
