@@ -595,6 +595,7 @@ abstract final class WhiteboardRules {
   static const maxPoints = 50000;
   static const maxShapes = 1200;
   static const maxTexts = 800;
+  static const maxTextCharacters = 120000;
   static const maxCoordinate = 100000;
 
   static WhiteboardDocument validate(WhiteboardDocument document) {
@@ -612,6 +613,22 @@ abstract final class WhiteboardRules {
     );
     if (pointCount > maxPoints) {
       throw const FormatException('Troppi punti disegnati nella lavagna.');
+    }
+
+    final textCharacters = document.nodes.fold<int>(
+          0,
+          (sum, node) => sum + node.text.length,
+        ) +
+        document.texts.fold<int>(
+          0,
+          (sum, text) => sum + text.text.length,
+        ) +
+        document.edges.fold<int>(
+          0,
+          (sum, edge) => sum + edge.label.length,
+        );
+    if (textCharacters > maxTextCharacters) {
+      throw const FormatException('Troppo testo nella lavagna.');
     }
 
     bool coordinateOk(int value) => value.abs() <= maxCoordinate;
