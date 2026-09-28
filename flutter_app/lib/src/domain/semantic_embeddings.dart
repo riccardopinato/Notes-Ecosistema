@@ -37,7 +37,7 @@ class LocalHashEmbeddingEngine implements SemanticEmbeddingEngine {
       }
 
       if (token.length >= 4) {
-        final padded = '^$token' r'
+        final padded = '^' + token + '_';
         for (var i = 0; i <= padded.length - 3; i++) {
           _accumulate(vector, 'g:${padded.substring(i, i + 3)}', 0.18);
         }
