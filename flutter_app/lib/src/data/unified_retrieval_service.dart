@@ -23,10 +23,8 @@ class UnifiedRetrievalService {
   final PropertyStore propertyStore;
   final StudyStore studyStore;
 
-  Future<List<RetrievalHit>> search({
-    required String query,
+  Future<List<RetrievalDocument>> documents({
     required List<Note> notes,
-    int limit = 30,
   }) async {
     final documents = <RetrievalDocument>[
       ...UnifiedRetrieval.noteDocuments(notes),
@@ -167,7 +165,16 @@ class UnifiedRetrievalService {
       );
     }
 
-    return UnifiedRetrieval.search(query, documents, limit: limit);
+    return documents;
+  }
+
+  Future<List<RetrievalHit>> search({
+    required String query,
+    required List<Note> notes,
+    int limit = 30,
+  }) async {
+    final loaded = await documents(notes: notes);
+    return UnifiedRetrieval.search(query, loaded, limit: limit);
   }
 
   static List<Map<String, Object?>> _rows(Object? raw) {
