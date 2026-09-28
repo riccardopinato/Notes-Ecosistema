@@ -216,8 +216,8 @@ class _DocumentWorkspaceScreenState extends State<DocumentWorkspaceScreen> {
     final pages = needle.isEmpty
         ? _ocr
         : _ocr
-            .where((layer) =>
-                layer.searchableText.toLowerCase().contains(needle))
+            .where(
+                (layer) => layer.searchableText.toLowerCase().contains(needle))
             .toList(growable: false);
 
     return Scaffold(
@@ -293,7 +293,8 @@ class _DocumentWorkspaceScreenState extends State<DocumentWorkspaceScreen> {
                               children: [
                                 Text(
                                   'Pagina ${layer.page}',
-                                  style: Theme.of(context).textTheme.titleMedium,
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
                                 ),
                                 const Spacer(),
                                 if (layer.correctedText != null)
