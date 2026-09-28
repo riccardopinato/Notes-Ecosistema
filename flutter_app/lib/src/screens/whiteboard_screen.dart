@@ -504,9 +504,9 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   int _snapValue(int value) => ((value / _snapGrid).round().clamp(
-            -WhiteboardRules.maxCoordinate ~/ _snapGrid,
-            WhiteboardRules.maxCoordinate ~/ _snapGrid,
-          ) *
+                -WhiteboardRules.maxCoordinate ~/ _snapGrid,
+                WhiteboardRules.maxCoordinate ~/ _snapGrid,
+              ) *
           _snapGrid)
       .toInt();
 
