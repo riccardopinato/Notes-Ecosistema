@@ -27,9 +27,7 @@ class _LocalIntelligenceScreenState
   void initState() {
     super.initState();
     Future<void>.microtask(
-      () => ref
-          .read(localIntelligenceProvider.notifier)
-          .refresh(widget.notes),
+      () => ref.read(localIntelligenceProvider.notifier).refresh(widget.notes),
     );
   }
 
@@ -512,7 +510,8 @@ class _LocalIntelligenceScreenState
     return '${min.toStringAsFixed(0)}–${max.toStringAsFixed(0)} MB';
   }
 
-  String _roleLabel(BuildContext context, LocalModelRole role) => switch (role) {
+  String _roleLabel(BuildContext context, LocalModelRole role) =>
+      switch (role) {
         LocalModelRole.shipCandidate => _t(
             context,
             'Candidato',
