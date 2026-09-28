@@ -1981,105 +1981,106 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                       Positioned.fill(
                         child: InteractiveViewer.builder(
                           key: const ValueKey('whiteboard-viewport'),
-                    transformationController: _viewport,
-                    minScale: 0.2,
-                    maxScale: 3.2,
-                    boundaryMargin: const EdgeInsets.all(double.infinity),
-                    panEnabled: !_stylusInContact &&
-                        !_objectPointerActive &&
-                        (widget.readOnly ||
-                            _tool == _WhiteboardTool.navigate ||
-                            _tool == _WhiteboardTool.text ||
-                            (!_selectionMode && !_fingerDraw)),
-                    scaleEnabled: !_stylusInContact && !_objectPointerActive,
-                    onInteractionEnd: (_) => _growCanvasForViewport(),
-                    builder: (context, viewport) {
-                      final xs = <double>[
-                        viewport.point0.x,
-                        viewport.point1.x,
-                        viewport.point2.x,
-                        viewport.point3.x,
-                      ];
-                      final ys = <double>[
-                        viewport.point0.y,
-                        viewport.point1.y,
-                        viewport.point2.y,
-                        viewport.point3.y,
-                      ];
-                      final visibleRect = Rect.fromLTRB(
-                        xs.reduce(math.min),
-                        ys.reduce(math.min),
-                        xs.reduce(math.max),
-                        ys.reduce(math.max),
-                      ).inflate(160);
+                          transformationController: _viewport,
+                          minScale: 0.2,
+                          maxScale: 3.2,
+                          boundaryMargin: const EdgeInsets.all(double.infinity),
+                          panEnabled: !_stylusInContact &&
+                              !_objectPointerActive &&
+                              (widget.readOnly ||
+                                  _tool == _WhiteboardTool.navigate ||
+                                  _tool == _WhiteboardTool.text ||
+                                  (!_selectionMode && !_fingerDraw)),
+                          scaleEnabled:
+                              !_stylusInContact && !_objectPointerActive,
+                          onInteractionEnd: (_) => _growCanvasForViewport(),
+                          builder: (context, viewport) {
+                            final xs = <double>[
+                              viewport.point0.x,
+                              viewport.point1.x,
+                              viewport.point2.x,
+                              viewport.point3.x,
+                            ];
+                            final ys = <double>[
+                              viewport.point0.y,
+                              viewport.point1.y,
+                              viewport.point2.y,
+                              viewport.point3.y,
+                            ];
+                            final visibleRect = Rect.fromLTRB(
+                              xs.reduce(math.min),
+                              ys.reduce(math.min),
+                              xs.reduce(math.max),
+                              ys.reduce(math.max),
+                            ).inflate(160);
 
-                      return Listener(
-                        onPointerDown: _onPointerDown,
-                        onPointerMove: _onPointerMove,
-                        onPointerUp: _onPointerEnd,
-                        onPointerCancel: _onPointerEnd,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          supportedDevices: _canvasGestureDevices,
-                          onPanStart: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawStart,
-                          onPanUpdate: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawUpdate,
-                          onPanEnd: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawEnd,
-                          onPanCancel: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawCancel,
-                          onTapUp:
-                              widget.readOnly || _tool != _WhiteboardTool.text
-                                  ? null
-                                  : _tapCanvas,
-                          child: RepaintBoundary(
-                            key: _exportKey,
-                            child: SizedBox(
-                              key: const ValueKey('whiteboard-canvas'),
-                              width: _canvasSize,
-                              height: _canvasSize,
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter: _BoardPainter(
-                                        document: _document,
-                                        origin: _origin,
-                                        working: _workingPoints,
-                                        workingVersion: _workingVersion,
-                                        workingColor: _workingColor,
-                                        workingWidth: _workingWidth,
-                                        workingMarker: _tool ==
-                                            _WhiteboardTool.highlighter,
-                                        previewShape: _previewShape,
-                                        lassoWorldRect: _lassoWorldRect,
-                                        visibleRect: visibleRect,
-                                        strokeBounds: _strokeBounds,
-                                      ),
+                            return Listener(
+                              onPointerDown: _onPointerDown,
+                              onPointerMove: _onPointerMove,
+                              onPointerUp: _onPointerEnd,
+                              onPointerCancel: _onPointerEnd,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                supportedDevices: _canvasGestureDevices,
+                                onPanStart: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawStart,
+                                onPanUpdate: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawUpdate,
+                                onPanEnd: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawEnd,
+                                onPanCancel: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawCancel,
+                                onTapUp: widget.readOnly ||
+                                        _tool != _WhiteboardTool.text
+                                    ? null
+                                    : _tapCanvas,
+                                child: RepaintBoundary(
+                                  key: _exportKey,
+                                  child: SizedBox(
+                                    key: const ValueKey('whiteboard-canvas'),
+                                    width: _canvasSize,
+                                    height: _canvasSize,
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: CustomPaint(
+                                            painter: _BoardPainter(
+                                              document: _document,
+                                              origin: _origin,
+                                              working: _workingPoints,
+                                              workingVersion: _workingVersion,
+                                              workingColor: _workingColor,
+                                              workingWidth: _workingWidth,
+                                              workingMarker: _tool ==
+                                                  _WhiteboardTool.highlighter,
+                                              previewShape: _previewShape,
+                                              lassoWorldRect: _lassoWorldRect,
+                                              visibleRect: visibleRect,
+                                              strokeBounds: _strokeBounds,
+                                            ),
+                                          ),
+                                        ),
+                                        ..._document.texts.map(_textWidget),
+                                        ..._document.nodes.map(_nodeWidget),
+                                      ],
                                     ),
                                   ),
-                                  ..._document.texts.map(_textWidget),
-                                  ..._document.nodes.map(_nodeWidget),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                            );
+                          },
                         ),
                       ),
                       Positioned(
