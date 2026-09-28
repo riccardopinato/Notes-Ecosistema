@@ -40,8 +40,10 @@ class WhiteboardScreen extends StatefulWidget {
 }
 
 class _WhiteboardScreenState extends State<WhiteboardScreen> {
-  static const _canvasSize = 4200.0;
-  static const _origin = _canvasSize / 2;
+  static const _minCanvasHalfExtent = 6000.0;
+  static const _canvasGrowth = 4000.0;
+  static const _canvasContentMargin = 1600.0;
+  static const _historyLimit = 50;
 
   late final TextEditingController _title;
   late WhiteboardDocument _document;
@@ -53,10 +55,34 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   final TransformationController _viewport = TransformationController();
   Size? _lastViewportSize;
   bool _initialViewportCentered = false;
+
+  double _canvasHalfExtent = _minCanvasHalfExtent;
+  double get _canvasSize => _canvasHalfExtent * 2;
+  double get _origin => _canvasHalfExtent;
+
   _WhiteboardTool _tool = _WhiteboardTool.navigate;
   final List<InkPoint> _workingPoints = [];
+  int _workingVersion = 0;
   Offset? _shapeStart;
   Offset? _shapeEnd;
+
+  final List<WhiteboardDocument> _undoStack = [];
+  final List<WhiteboardDocument> _redoStack = [];
+  WhiteboardDocument? _gestureHistoryStart;
+  bool _gestureChanged = false;
+
+  int _inkColor = 0xFF111111;
+  int _highlighterColor = 0xFFFFD54F;
+  int _penWidth = 6;
+  int _highlighterWidth = 24;
+  int _shapeWidth = 5;
+
+  bool _fingerDraw = true;
+  bool _stylusInContact = false;
+  int? _stylusPointer;
+  double _pointerPressure = 1;
+
+  final Map<String, Rect> _strokeBounds = {};
 
   @override
   void initState() {
@@ -70,6 +96,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _document = WhiteboardOps.empty(WhiteboardMode.freeform);
       _error = userErrorText(error);
     }
+    _canvasHalfExtent = _targetHalfExtent(_document);
+    _rebuildStrokeBounds();
   }
 
   @override
@@ -81,8 +109,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   void _centerViewport(Size viewportSize) {
     if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
-    final dx = (viewportSize.width - _canvasSize) / 2;
-    final dy = (viewportSize.height - _canvasSize) / 2;
+    final dx = viewportSize.width / 2 - _origin;
+    final dy = viewportSize.height / 2 - _origin;
     _viewport.value = Matrix4.identity()..setTranslationRaw(dx, dy, 0);
   }
 
@@ -95,6 +123,264 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _centerViewport(_lastViewportSize ?? viewportSize);
     });
   }
+
+  double _targetHalfExtent(WhiteboardDocument document) {
+    var extent = 0.0;
+
+    void include(double x, double y) {
+      extent = math.max(extent, math.max(x.abs(), y.abs()));
+    }
+
+    for (final node in document.nodes) {
+      include(node.x.toDouble(), node.y.toDouble());
+      include(
+        (node.x + node.width).toDouble(),
+        (node.y + node.height).toDouble(),
+      );
+    }
+    for (final stroke in document.strokes) {
+      for (final point in stroke.points) {
+        include(point.x.toDouble(), point.y.toDouble());
+      }
+    }
+    for (final shape in document.shapes) {
+      include(shape.x1.toDouble(), shape.y1.toDouble());
+      include(shape.x2.toDouble(), shape.y2.toDouble());
+    }
+    for (final text in document.texts) {
+      include(text.x.toDouble(), text.y.toDouble());
+      include(
+        text.x + 800,
+        text.y + math.max(120, text.size * 3).toDouble(),
+      );
+    }
+
+    final required = math.max(
+      _minCanvasHalfExtent,
+      extent + _canvasContentMargin,
+    );
+    return (required / _canvasGrowth).ceil() * _canvasGrowth;
+  }
+
+  void _growCanvasToFit(WhiteboardDocument document) {
+    final target = _targetHalfExtent(document);
+    if (target <= _canvasHalfExtent) return;
+    final delta = target - _canvasHalfExtent;
+    setState(() => _canvasHalfExtent = target);
+    if (!_initialViewportCentered) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final matrix = _viewport.value.clone();
+      final scale = matrix.getMaxScaleOnAxis();
+      matrix.storage[12] -= delta * scale;
+      matrix.storage[13] -= delta * scale;
+      _viewport.value = matrix;
+    });
+  }
+
+  void _pushUndo(WhiteboardDocument snapshot) {
+    if (_undoStack.length >= _historyLimit) {
+      _undoStack.removeAt(0);
+    }
+    _undoStack.add(snapshot);
+    _redoStack.clear();
+  }
+
+  bool _setDocument(
+    WhiteboardDocument next, {
+    bool recordHistory = true,
+    bool ensureCanvas = true,
+  }) {
+    try {
+      WhiteboardRules.validate(next);
+    } catch (error) {
+      setState(() => _error = userErrorText(error));
+      return false;
+    }
+    if (identical(next, _document)) return true;
+
+    final previous = _document;
+    if (recordHistory) _pushUndo(previous);
+    setState(() {
+      _document = next;
+      _error = null;
+    });
+    _rebuildStrokeBounds();
+    if (ensureCanvas) _growCanvasToFit(next);
+    return true;
+  }
+
+  void _undo() {
+    if (_undoStack.isEmpty) return;
+    final previous = _undoStack.removeLast();
+    if (_redoStack.length >= _historyLimit) {
+      _redoStack.removeAt(0);
+    }
+    _redoStack.add(_document);
+    setState(() {
+      _document = previous;
+      _workingPoints.clear();
+      _workingVersion++;
+      _shapeStart = null;
+      _shapeEnd = null;
+      _error = null;
+    });
+    _rebuildStrokeBounds();
+    _growCanvasToFit(previous);
+  }
+
+  void _redo() {
+    if (_redoStack.isEmpty) return;
+    final next = _redoStack.removeLast();
+    if (_undoStack.length >= _historyLimit) {
+      _undoStack.removeAt(0);
+    }
+    _undoStack.add(_document);
+    setState(() {
+      _document = next;
+      _workingPoints.clear();
+      _workingVersion++;
+      _shapeStart = null;
+      _shapeEnd = null;
+      _error = null;
+    });
+    _rebuildStrokeBounds();
+    _growCanvasToFit(next);
+  }
+
+  void _beginGestureHistory() {
+    _gestureHistoryStart ??= _document;
+    _gestureChanged = false;
+  }
+
+  void _markGestureChanged() {
+    _gestureChanged = true;
+  }
+
+  void _finishGestureHistory() {
+    final snapshot = _gestureHistoryStart;
+    if (snapshot != null && _gestureChanged) {
+      _pushUndo(snapshot);
+      _growCanvasToFit(_document);
+    }
+    _gestureHistoryStart = null;
+    _gestureChanged = false;
+  }
+
+  Rect _boundsForStroke(InkStroke stroke) {
+    final cached = _strokeBounds[stroke.id];
+    if (cached != null) return cached;
+    var left = stroke.points.first.x.toDouble();
+    var right = left;
+    var top = stroke.points.first.y.toDouble();
+    var bottom = top;
+    for (final point in stroke.points.skip(1)) {
+      left = math.min(left, point.x.toDouble());
+      right = math.max(right, point.x.toDouble());
+      top = math.min(top, point.y.toDouble());
+      bottom = math.max(bottom, point.y.toDouble());
+    }
+    final padding = stroke.width / 2 + 2;
+    final bounds = Rect.fromLTRB(
+      left - padding,
+      top - padding,
+      right + padding,
+      bottom + padding,
+    );
+    _strokeBounds[stroke.id] = bounds;
+    return bounds;
+  }
+
+  void _rebuildStrokeBounds() {
+    _strokeBounds
+      ..clear()
+      ..addEntries(
+        _document.strokes.map(
+          (stroke) => MapEntry(stroke.id, _computeStrokeBounds(stroke)),
+        ),
+      );
+  }
+
+  Rect _computeStrokeBounds(InkStroke stroke) {
+    var left = stroke.points.first.x.toDouble();
+    var right = left;
+    var top = stroke.points.first.y.toDouble();
+    var bottom = top;
+    for (final point in stroke.points.skip(1)) {
+      left = math.min(left, point.x.toDouble());
+      right = math.max(right, point.x.toDouble());
+      top = math.min(top, point.y.toDouble());
+      bottom = math.max(bottom, point.y.toDouble());
+    }
+    final padding = stroke.width / 2 + 2;
+    return Rect.fromLTRB(
+      left - padding,
+      top - padding,
+      right + padding,
+      bottom + padding,
+    );
+  }
+
+  bool _isStylus(ui.PointerDeviceKind kind) =>
+      kind == ui.PointerDeviceKind.stylus ||
+      kind == ui.PointerDeviceKind.invertedStylus;
+
+  double _normalizedPressure(PointerEvent event) {
+    final range = event.pressureMax - event.pressureMin;
+    if (range <= 0) return 1;
+    return ((event.pressure - event.pressureMin) / range).clamp(0.05, 1.0);
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointerPressure = _normalizedPressure(event);
+    if (!_isStylus(event.kind)) return;
+    _stylusPointer = event.pointer;
+    if (!_stylusInContact || _fingerDraw) {
+      setState(() {
+        _stylusInContact = true;
+        _fingerDraw = false;
+      });
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_stylusPointer == null || event.pointer == _stylusPointer) {
+      _pointerPressure = _normalizedPressure(event);
+    }
+  }
+
+  void _onPointerEnd(PointerEvent event) {
+    if (event.pointer != _stylusPointer) return;
+    _stylusPointer = null;
+    _pointerPressure = 1;
+    if (_stylusInContact) {
+      setState(() => _stylusInContact = false);
+    }
+  }
+
+  Set<ui.PointerDeviceKind> get _drawingDevices => {
+        ui.PointerDeviceKind.stylus,
+        ui.PointerDeviceKind.invertedStylus,
+        ui.PointerDeviceKind.mouse,
+        if (_fingerDraw) ui.PointerDeviceKind.touch,
+      };
+
+  int get _workingColor {
+    if (_tool == _WhiteboardTool.highlighter) {
+      return (_highlighterColor & 0x00FFFFFF) | 0x66000000;
+    }
+    return _inkColor;
+  }
+
+  int get _workingWidth => switch (_tool) {
+        _WhiteboardTool.highlighter => _highlighterWidth,
+        _WhiteboardTool.line ||
+        _WhiteboardTool.rectangle ||
+        _WhiteboardTool.ellipse ||
+        _WhiteboardTool.arrow =>
+          _shapeWidth,
+        _ => _penWidth,
+      };
 
   void _setTool(_WhiteboardTool tool) {
     setState(() {
