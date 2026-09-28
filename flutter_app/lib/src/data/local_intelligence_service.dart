@@ -107,7 +107,9 @@ class LocalIntelligenceService {
     onProgress?.call(done, documents.length);
     const batchSize = 8;
     for (var offset = 0; offset < missing.length; offset += batchSize) {
-      final end = (offset + batchSize).clamp(0, missing.length);
+      final end = offset + batchSize < missing.length
+          ? offset + batchSize
+          : missing.length;
       final batch = missing.sublist(offset, end);
       final vectors = await provider.embedBatch(
         batch.map(_documentText).toList(growable: false),
