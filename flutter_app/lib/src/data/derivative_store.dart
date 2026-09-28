@@ -55,6 +55,7 @@ class DerivativeStore {
     required String content,
     required String sourceText,
     String? sourceAssetKey,
+    String? sourceFingerprint,
     String engine = 'local-deterministic-v1',
   }) async {
     if (sourceNoteId.trim().isEmpty ||
@@ -68,7 +69,8 @@ class DerivativeStore {
       sourceAssetKey: sourceAssetKey,
       kind: kind,
       content: content,
-      sourceFingerprint: sha256.convert(sourceText.codeUnits).toString(),
+      sourceFingerprint:
+          sourceFingerprint ?? sha256.convert(sourceText.codeUnits).toString(),
       createdAt: DateTime.now().millisecondsSinceEpoch,
       engine: engine,
     );
