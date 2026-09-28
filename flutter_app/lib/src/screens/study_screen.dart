@@ -228,8 +228,8 @@ class _StudyScreenState extends State<StudyScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    final snapshot = _snapshot ??
-        const StudySnapshot(items: [], states: [], logs: []);
+    final snapshot =
+        _snapshot ?? const StudySnapshot(items: [], states: [], logs: []);
     final states = {for (final state in snapshot.states) state.itemId: state};
     final now = DateTime.now().millisecondsSinceEpoch;
     final queue = StudyQueue.build(
@@ -241,7 +241,8 @@ class _StudyScreenState extends State<StudyScreen> {
       final state = states[item.id];
       return !item.suspended && state != null && state.dueAt <= now;
     }).length;
-    final fresh = snapshot.items.where((item) => states[item.id] == null).length;
+    final fresh =
+        snapshot.items.where((item) => states[item.id] == null).length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Studio')),
