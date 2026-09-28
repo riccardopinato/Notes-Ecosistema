@@ -192,7 +192,7 @@ void main() {
         ),
       ],
       texts: [
-        BoardText(
+        SketchText(
           id: 'text-1',
           text: 'Appunto',
           color: 0xFF111111,
