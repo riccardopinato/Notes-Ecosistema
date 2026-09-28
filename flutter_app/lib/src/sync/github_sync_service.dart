@@ -294,6 +294,7 @@ class GitHubApi {
       },
     );
   }
+
   Future<Map<String, RemoteAsset>> _assetIndex(String ref) async {
     if (_assets != null) return _assets!;
     final path = _path('${config.folder}/assets');
@@ -599,8 +600,8 @@ class GitHubSyncService {
         );
       }
 
-      final localIds = (await database.syncDocumentIds())
-          .difference(excludedIds);
+      final localIds =
+          (await database.syncDocumentIds()).difference(excludedIds);
       final records = await _loadRecords(current);
       final head = await api.head();
       final files = await api.listNotes(head);
