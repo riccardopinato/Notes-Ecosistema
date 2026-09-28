@@ -10,6 +10,8 @@ enum RetrievalKind {
   study,
   pdfAnnotation,
   research,
+  metadata,
+  relation,
 }
 
 class RetrievalDocument {
@@ -132,6 +134,8 @@ abstract final class UnifiedRetrieval {
         RetrievalKind.study => 8,
         RetrievalKind.pdfAnnotation => 7,
         RetrievalKind.research => 6,
+        RetrievalKind.metadata => 6,
+        RetrievalKind.relation => 6,
         RetrievalKind.derivative => 5,
       };
       rows.add(
