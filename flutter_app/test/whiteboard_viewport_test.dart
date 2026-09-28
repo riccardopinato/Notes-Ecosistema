@@ -463,4 +463,5 @@ void main() {
       WhiteboardCodec.decode(saved!.body).strokes,
       hasLength(12),
     );
-  });}
+   });
+}
