@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import '../domain/note.dart';
 import '../domain/unified_retrieval.dart';
 import 'derivative_store.dart';
 import 'document_store.dart';
 import 'knowledge_store.dart';
+import 'property_store.dart';
 import 'study_store.dart';
 
 class UnifiedRetrievalService {
@@ -10,12 +13,14 @@ class UnifiedRetrievalService {
     required this.derivativeStore,
     required this.documentStore,
     required this.knowledgeStore,
+    required this.propertyStore,
     required this.studyStore,
   });
 
   final DerivativeStore derivativeStore;
   final DocumentStore documentStore;
   final KnowledgeStore knowledgeStore;
+  final PropertyStore propertyStore;
   final StudyStore studyStore;
 
   Future<List<RetrievalHit>> search({
@@ -86,6 +91,30 @@ class UnifiedRetrievalService {
       );
     }
 
+    final propertyBackup = await propertyStore.exportBackup();
+    final propertyNames = <String, String>{
+      for (final raw in _rows(propertyBackup['definitions']))
+        if ((raw['id']?.toString() ?? '').isNotEmpty)
+          raw['id'].toString(): raw['name']?.toString() ?? 'Proprietà',
+    };
+    for (final raw in _rows(propertyBackup['values'])) {
+      final noteId = raw['noteId']?.toString() ?? '';
+      final definitionId = raw['definitionId']?.toString() ?? '';
+      if (noteId.isEmpty || definitionId.isEmpty) continue;
+      final rawValue = raw['valueJson']?.toString() ?? '';
+      documents.add(
+        RetrievalDocument(
+          id: 'metadata:$noteId:$definitionId',
+          noteId: noteId,
+          kind: RetrievalKind.metadata,
+          title: _noteTitle(notes, noteId),
+          text: '${propertyNames[definitionId] ?? 'Proprietà'}: '
+              '${_readableJson(rawValue)}',
+          updatedAt: (raw['updatedAt'] as num?)?.toInt() ?? 0,
+        ),
+      );
+    }
+
     final knowledgeBackup = await knowledgeStore.exportBackup();
     for (final raw in _rows(knowledgeBackup['sources'])) {
       final noteId = raw['noteId']?.toString() ?? '';
@@ -106,6 +135,36 @@ class UnifiedRetrievalService {
       );
     }
 
+    for (final raw in _rows(knowledgeBackup['relations'])) {
+      final sourceId = raw['sourceId']?.toString() ?? '';
+      final targetId = raw['targetId']?.toString() ?? '';
+      if (sourceId.isEmpty || targetId.isEmpty || sourceId == targetId) continue;
+      final label = raw['label']?.toString().trim() ?? '';
+      final updatedAt = (raw['updatedAt'] as num?)?.toInt() ?? 0;
+      documents.add(
+        RetrievalDocument(
+          id: 'relation:${raw['id']}:source',
+          noteId: sourceId,
+          kind: RetrievalKind.relation,
+          title: _noteTitle(notes, sourceId),
+          text: '${label.isEmpty ? 'Collegato a' : label}: '
+              '${_noteTitle(notes, targetId)}',
+          updatedAt: updatedAt,
+        ),
+      );
+      documents.add(
+        RetrievalDocument(
+          id: 'relation:${raw['id']}:target',
+          noteId: targetId,
+          kind: RetrievalKind.relation,
+          title: _noteTitle(notes, targetId),
+          text: '${label.isEmpty ? 'Collegato da' : label}: '
+              '${_noteTitle(notes, sourceId)}',
+          updatedAt: updatedAt,
+        ),
+      );
+    }
+
     return UnifiedRetrieval.search(query, documents, limit: limit);
   }
 
@@ -114,6 +173,22 @@ class UnifiedRetrievalService {
     return raw.whereType<Map>().map((row) {
       return row.map((key, value) => MapEntry(key.toString(), value));
     }).toList(growable: false);
+  }
+
+  static String _readableJson(String raw) {
+    if (raw.trim().isEmpty) return '';
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.join(', ');
+      if (decoded is Map) {
+        return decoded.entries
+            .map((entry) => '${entry.key}: ${entry.value}')
+            .join(', ');
+      }
+      return decoded?.toString() ?? '';
+    } catch (_) {
+      return raw;
+    }
   }
 
   static String _noteTitle(List<Note> notes, String noteId) {
