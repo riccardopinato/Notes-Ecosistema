@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import '../domain/note.dart';
 import '../domain/semantic_embeddings.dart';
@@ -178,7 +177,7 @@ class UnifiedRetrievalService {
     final lexical = UnifiedRetrieval.search(
       query,
       documents,
-      limit: math.max(limit * 3, 40),
+      limit: (limit * 3).clamp(40, 300).toInt(),
     );
     final store = semanticStore;
     if (!semanticEnabled || store == null) {
@@ -190,7 +189,7 @@ class UnifiedRetrievalService {
       final semantic = await store.search(
         query,
         embeddingEngine,
-        limit: math.max(limit * 4, 60),
+        limit: (limit * 4).clamp(60, 400).toInt(),
       );
       return _fuse(
         lexical: lexical,
@@ -225,7 +224,7 @@ class UnifiedRetrievalService {
       final matches = await store.related(
         sourceDocument,
         embeddingEngine,
-        limit: math.max(limit * 4, 30),
+        limit: (limit * 4).clamp(30, 200).toInt(),
       );
       final byId = {for (final document in documents) document.id: document};
       final seen = <String>{};
