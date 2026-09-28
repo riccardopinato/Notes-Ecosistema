@@ -506,11 +506,12 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   int _snapValue(int value) =>
-      (value / _snapGrid).round().clamp(
-            -WhiteboardRules.maxCoordinate ~/ _snapGrid,
-            WhiteboardRules.maxCoordinate ~/ _snapGrid,
-          ) *
-          _snapGrid;
+      ((value / _snapGrid).round().clamp(
+                -WhiteboardRules.maxCoordinate ~/ _snapGrid,
+                WhiteboardRules.maxCoordinate ~/ _snapGrid,
+              ) *
+              _snapGrid)
+          .toInt();
 
   void _snapDraggedObjects() {
     if (!_snapToGrid ||
@@ -1597,7 +1598,17 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     Rect? bounds;
 
     void include(Rect rect) {
-      bounds = bounds == null ? rect : bounds!.expandToInclude(rect);
+      final current = bounds;
+      if (current == null) {
+        bounds = rect;
+        return;
+      }
+      bounds = Rect.fromLTRB(
+        math.min(current.left, rect.left),
+        math.min(current.top, rect.top),
+        math.max(current.right, rect.right),
+        math.max(current.bottom, rect.bottom),
+      );
     }
 
     for (final node in _document.nodes) {
@@ -2566,7 +2577,7 @@ class _MiniMapPainter extends CustomPainter {
 
     for (final stroke in document.strokes) {
       if (stroke.points.isEmpty) continue;
-      final step = math.max(1, stroke.points.length ~/ 60);
+      final step = math.max(1, stroke.points.length ~/ 60).toInt();
       final path = Path();
       final first = stroke.points.first;
       path.moveTo(
