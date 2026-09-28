@@ -89,6 +89,37 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     await prefs.setString(_key, raw);
   }
 
+  Future<Map<String, Object?>> exportRecoveryState() async {
+    final identity = state.identity;
+    if (identity == null) {
+      throw const FormatException(
+        'Profilo collaborazione non ancora disponibile.',
+      );
+    }
+    return {
+      'version': 1,
+      'snapshot': SharedSpacesCodec.encode(
+        SharedSpacesSnapshot(
+          identity: identity,
+          spaces: state.spaces,
+        ),
+      ),
+    };
+  }
+
+  Future<void> restoreRecoveryState(Map<String, Object?> payload) async {
+    if (payload['version'] != 1 || payload['snapshot'] is! String) {
+      throw const FormatException('Backup Shared Spaces non valido.');
+    }
+    final snapshot = SharedSpacesCodec.decode(payload['snapshot'] as String);
+    state = SharedSpacesState(
+      identity: snapshot.identity,
+      spaces: snapshot.spaces,
+      loading: false,
+    );
+    await _persist();
+  }
+
   int _clock(SharedSpace? space) {
     final now = DateTime.now().millisecondsSinceEpoch;
     if (space == null) return now;
