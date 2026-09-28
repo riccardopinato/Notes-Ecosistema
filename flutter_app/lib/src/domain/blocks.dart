@@ -438,9 +438,7 @@ abstract final class BlockEditorCodec {
         provisional.copyWith(
           id: source.id,
           createdAt: source.createdAt,
-          updatedAt: exact(source, provisional)
-              ? source.updatedAt
-              : timestamp,
+          updatedAt: exact(source, provisional) ? source.updatedAt : timestamp,
         ),
       );
     }
