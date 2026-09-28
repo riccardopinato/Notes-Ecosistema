@@ -1855,19 +1855,18 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   Future<void> _cleanupAttachments({bool silent = false}) async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
-      final referenced = <String>{};
-      for (final note in snapshot.notes) {
-        if (!note.isVisual) {
-          referenced.addAll(
-            Attachments.refs(note.body).map((ref) => ref.key),
-          );
-        }
-      }
-      for (final draft in snapshot.drafts) {
-        referenced.addAll(
-          Attachments.refs(draft.body).map((ref) => ref.key),
-        );
-      }
+      final derivativeAssetKeys =
+          await ref.read(derivativeStoreProvider).referencedAssetKeys();
+      final documentAssetKeys =
+          await ref.read(documentStoreProvider).referencedAssetKeys();
+      final referenced = Attachments.referencedKeys(
+        noteBodies: snapshot.notes.map((note) => note.body),
+        draftBodies: snapshot.drafts.map((draft) => draft.body),
+        sidecarKeys: <String?>{
+          ...derivativeAssetKeys,
+          ...documentAssetKeys,
+        },
+      );
 
       final store = await AttachmentStore.open();
       final result = await store.cleanup(referenced);
