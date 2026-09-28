@@ -189,8 +189,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     return (required / _canvasGrowth).ceil() * _canvasGrowth;
   }
 
-  void _growCanvasToFit(WhiteboardDocument document) {
-    final target = _targetHalfExtent(document);
+  void _expandCanvasHalf(double target) {
     if (target <= _canvasHalfExtent) return;
     final delta = target - _canvasHalfExtent;
     setState(() => _canvasHalfExtent = target);
@@ -203,6 +202,30 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       matrix.storage[13] -= delta * scale;
       _viewport.value = matrix;
     });
+  }
+
+  void _growCanvasToFit(WhiteboardDocument document) {
+    _expandCanvasHalf(_targetHalfExtent(document));
+  }
+
+  void _growCanvasForViewport() {
+    final size = _lastViewportSize;
+    if (size == null || size.isEmpty) return;
+    final corners = <Offset>[
+      _viewport.toScene(Offset.zero),
+      _viewport.toScene(Offset(size.width, 0)),
+      _viewport.toScene(Offset(0, size.height)),
+      _viewport.toScene(Offset(size.width, size.height)),
+    ];
+    var extent = 0.0;
+    for (final scene in corners) {
+      final world = scene - Offset(_origin, _origin);
+      extent = math.max(extent, math.max(world.dx.abs(), world.dy.abs()));
+    }
+    if (extent < _canvasHalfExtent - _canvasContentMargin / 2) return;
+    final required = extent + _canvasContentMargin;
+    final target = (required / _canvasGrowth).ceil() * _canvasGrowth;
+    _expandCanvasHalf(target);
   }
 
   void _pushUndo(WhiteboardDocument snapshot) {
