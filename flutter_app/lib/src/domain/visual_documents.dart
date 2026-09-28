@@ -405,9 +405,11 @@ abstract final class SketchCodec {
 
 enum WhiteboardMode { freeform, mindMap }
 
+enum WhiteboardPaper { plain, ruled, grid, dots }
+
 enum BoardNodeKind { sticky, text, noteLink, taskLink, mindNode }
 
-enum BoardShapeKind { rectangle, ellipse }
+enum BoardShapeKind { line, rectangle, ellipse, arrow }
 
 enum BoardEdgeKind { line, arrow }
 
@@ -470,6 +472,7 @@ class BoardEdge {
 }
 
 typedef BoardStroke = InkStroke;
+typedef BoardText = SketchText;
 
 class BoardShape {
   BoardShape({
@@ -503,37 +506,46 @@ class WhiteboardCamera {
 class WhiteboardDocument {
   WhiteboardDocument({
     this.mode = WhiteboardMode.freeform,
+    this.paper = WhiteboardPaper.grid,
     List<BoardNode>? nodes,
     List<BoardEdge>? edges,
     List<BoardStroke>? strokes,
     List<BoardShape>? shapes,
+    List<BoardText>? texts,
     this.camera = const WhiteboardCamera(),
   })  : nodes = nodes ?? const [],
         edges = edges ?? const [],
         strokes = strokes ?? const [],
-        shapes = shapes ?? const [];
+        shapes = shapes ?? const [],
+        texts = texts ?? const [];
 
   final WhiteboardMode mode;
+  final WhiteboardPaper paper;
   final List<BoardNode> nodes;
   final List<BoardEdge> edges;
   final List<BoardStroke> strokes;
   final List<BoardShape> shapes;
+  final List<BoardText> texts;
   final WhiteboardCamera camera;
 
   WhiteboardDocument copyWith({
     WhiteboardMode? mode,
+    WhiteboardPaper? paper,
     List<BoardNode>? nodes,
     List<BoardEdge>? edges,
     List<BoardStroke>? strokes,
     List<BoardShape>? shapes,
+    List<BoardText>? texts,
     WhiteboardCamera? camera,
   }) =>
       WhiteboardDocument(
         mode: mode ?? this.mode,
+        paper: paper ?? this.paper,
         nodes: nodes ?? this.nodes,
         edges: edges ?? this.edges,
         strokes: strokes ?? this.strokes,
         shapes: shapes ?? this.shapes,
+        texts: texts ?? this.texts,
         camera: camera ?? this.camera,
       );
 }
@@ -707,6 +719,7 @@ abstract final class WhiteboardCodec {
       'format': 'notes-whiteboard',
       'version': 1,
       'mode': document.mode == WhiteboardMode.mindMap ? 'MIND_MAP' : 'FREEFORM',
+      'paper': document.paper.name.toUpperCase(),
       'camera': {
         'x': document.camera.x,
         'y': document.camera.y,
@@ -751,15 +764,30 @@ abstract final class WhiteboardCodec {
           .map(
             (shape) => {
               'id': shape.id,
-              'kind': shape.kind == BoardShapeKind.rectangle
-                  ? 'RECTANGLE'
-                  : 'ELLIPSE',
+              'kind': switch (shape.kind) {
+                BoardShapeKind.line => 'LINE',
+                BoardShapeKind.rectangle => 'RECTANGLE',
+                BoardShapeKind.ellipse => 'ELLIPSE',
+                BoardShapeKind.arrow => 'ARROW',
+              },
               'color': shape.color,
               'width': shape.width,
               'x1': shape.x1,
               'y1': shape.y1,
               'x2': shape.x2,
               'y2': shape.y2,
+            },
+          )
+          .toList(),
+      'texts': document.texts
+          .map(
+            (text) => {
+              'id': text.id,
+              'text': text.text,
+              'color': text.color,
+              'x': text.x,
+              'y': text.y,
+              'size': text.size,
             },
           )
           .toList(),
@@ -830,9 +858,12 @@ abstract final class WhiteboardCodec {
       shapes.add(
         BoardShape(
           id: shape['id']?.toString(),
-          kind: shape['kind']?.toString() == 'ELLIPSE'
-              ? BoardShapeKind.ellipse
-              : BoardShapeKind.rectangle,
+          kind: switch (shape['kind']?.toString()) {
+            'LINE' => BoardShapeKind.line,
+            'ELLIPSE' => BoardShapeKind.ellipse,
+            'ARROW' => BoardShapeKind.arrow,
+            _ => BoardShapeKind.rectangle,
+          },
           color: (shape['color'] as num?)?.toInt() ?? 0xFF000000,
           width: (shape['width'] as num?)?.toInt() ?? 4,
           x1: (shape['x1'] as num?)?.toInt() ?? 0,
@@ -842,14 +873,36 @@ abstract final class WhiteboardCodec {
         ),
       );
     }
+    final texts = <BoardText>[];
+    for (final value in (root['texts'] as List? ?? const [])) {
+      final text = value as Map<String, dynamic>;
+      texts.add(
+        SketchText(
+          id: text['id']?.toString(),
+          text: text['text']?.toString() ?? '',
+          color: (text['color'] as num?)?.toInt() ?? 0xFF111111,
+          x: (text['x'] as num?)?.toInt() ?? 0,
+          y: (text['y'] as num?)?.toInt() ?? 0,
+          size: (text['size'] as num?)?.toInt() ?? 32,
+        ),
+      );
+    }
+    final paper = WhiteboardPaper.values.firstWhere(
+      (value) =>
+          value.name.toUpperCase() ==
+          (root['paper']?.toString() ?? 'GRID').toUpperCase(),
+      orElse: () => WhiteboardPaper.grid,
+    );
     return WhiteboardDocument(
       mode: root['mode']?.toString() == 'MIND_MAP'
           ? WhiteboardMode.mindMap
           : WhiteboardMode.freeform,
+      paper: paper,
       nodes: nodes,
       edges: edges,
       strokes: strokes,
       shapes: shapes,
+      texts: texts,
       camera: WhiteboardCamera(
         x: (camera['x'] as num?)?.toDouble() ?? 0,
         y: (camera['y'] as num?)?.toDouble() ?? 0,

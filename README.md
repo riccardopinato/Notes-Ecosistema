@@ -1,8 +1,19 @@
-# Notes — Ecosistema 0.54.0
+# Notes — Ecosistema 0.54.1
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.54.1 — Whiteboard Sketch Layer
+
+- Lavagna e Mind Map ora usano il Digital Ink condiviso con Sketchbook anche in editing, non solo nel codec.
+- strumenti integrati: Naviga, Penna, Evidenziatore, Gomma, Linea, Rettangolo, Ellisse, Freccia e Testo;
+- sfondo selezionabile Bianco / Righe / Griglia / Puntini;
+- annotazioni, forme e testo sono ancorati alle coordinate della canvas e restano sotto post-it/nodi;
+- pan/zoom separati dalla modalità disegno e movimento nodi corretto rispetto allo zoom;
+- apertura sempre centrata sul centro logico della canvas, con comando manuale “Torna al centro”;
+- passaggio Lavagna ↔ Mind Map preserva il layer di appunti;
+- export PNG ora include correttamente l’intera canvas renderizzata.
 
 ## 0.54 — Workflow Automations
 
@@ -133,7 +144,7 @@ Validazione funzionale prima del bump release: **140 test**, analyze pulito, APK
 
 ## Stato corrente
 
-- Versione Flutter: **0.54.0+65**
+- Versione Flutter: **0.54.1+66**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact

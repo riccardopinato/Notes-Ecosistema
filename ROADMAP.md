@@ -1,5 +1,17 @@
 # Notes Ecosistema — Roadmap
 
+## 0.54.1 — Whiteboard Sketch Layer
+
+**Implementato in 0.54.1+66.**
+
+- Whiteboard/Mind Map con layer Digital Ink editabile condiviso con Sketchbook;
+- strumenti penna, evidenziatore, gomma, linea, rettangolo, ellisse, freccia e testo;
+- background bianco, righe, griglia o puntini;
+- coordinate sketch solidali con la canvas e nodi/post-it mantenuti sopra l’inchiostro;
+- viewport centrato sul centro logico a ogni apertura;
+- pan/zoom e manipolazione nodi separati dal disegno;
+- codec Whiteboard v1 esteso in modo backward-compatible con fallback griglia sui documenti legacy.
+
 ## 0.54 — Workflow Automations
 
 **Implementato in 0.54.0+65.**
@@ -179,7 +191,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.54.0+65**
+- Versione: **0.54.1+66**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
