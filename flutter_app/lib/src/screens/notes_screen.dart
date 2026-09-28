@@ -20,6 +20,7 @@ class NotesScreen extends StatefulWidget {
     required this.onTrash,
     required this.onRestore,
     required this.onDeleteForever,
+    required this.onCopyLink,
     required this.onBulkEdit,
     required this.onRenameCollection,
     required this.onDeleteCollection,
@@ -39,6 +40,7 @@ class NotesScreen extends StatefulWidget {
   final ValueChanged<String> onTrash;
   final Future<void> Function(String id) onRestore;
   final Future<void> Function(String id) onDeleteForever;
+  final ValueChanged<String> onCopyLink;
   final Future<int> Function(List<Note>, BulkChange) onBulkEdit;
   final Future<void> Function(NoteCollection, String) onRenameCollection;
   final Future<void> Function(NoteCollection) onDeleteCollection;
@@ -842,6 +844,7 @@ class _NotesScreenState extends State<NotesScreen> {
         onTrash: () => widget.onTrash(note.id),
         onRestore: () => _run(() => widget.onRestore(note.id)),
         onDeleteForever: () => _confirmDeleteForever(note),
+        onCopyLink: () => widget.onCopyLink(note.id),
       );
 }
 
@@ -859,6 +862,7 @@ class _NoteCard extends StatelessWidget {
     required this.onTrash,
     required this.onRestore,
     required this.onDeleteForever,
+    required this.onCopyLink,
   });
 
   final Note note;
@@ -873,6 +877,7 @@ class _NoteCard extends StatelessWidget {
   final VoidCallback onTrash;
   final Future<void> Function() onRestore;
   final Future<void> Function() onDeleteForever;
+  final VoidCallback onCopyLink;
 
   @override
   Widget build(BuildContext context) {
@@ -914,6 +919,7 @@ class _NoteCard extends StatelessWidget {
                         if (v == 'pin') onPin();
                         if (v == 'archive') onArchive();
                         if (v == 'trash') onTrash();
+                        if (v == 'copyLink') onCopyLink();
                         if (v == 'restore') await onRestore();
                         if (v == 'deleteForever') await onDeleteForever();
                       },
@@ -952,6 +958,10 @@ class _NoteCard extends StatelessWidget {
                                       ? 'Riporta nelle note'
                                       : 'Archivia',
                                 ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'copyLink',
+                                child: Text('Copia collegamento'),
                               ),
                               const PopupMenuItem(
                                 value: 'trash',
