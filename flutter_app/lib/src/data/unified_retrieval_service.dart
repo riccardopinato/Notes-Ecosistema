@@ -219,7 +219,11 @@ class UnifiedRetrievalService {
     if (sourceDocument == null) return const [];
 
     try {
-      await store.syncDocuments(documents, embeddingEngine);
+      await store.syncDocuments(
+        documents,
+        embeddingEngine,
+        pruneMissing: false,
+      );
       final matches = await store.related(
         sourceDocument,
         embeddingEngine,
