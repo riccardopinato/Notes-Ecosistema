@@ -571,8 +571,7 @@ class _SketchScreenState extends State<SketchScreen> {
                     _SketchTool.arrow,
                   ),
                   _toolButton(Icons.text_fields, 'Testo', _SketchTool.text),
-                  if (_tool != _SketchTool.eraser &&
-                      _tool != _SketchTool.text)
+                  if (_tool != _SketchTool.eraser && _tool != _SketchTool.text)
                     PopupMenuButton<int>(
                       tooltip: 'Colore',
                       onSelected: _setCurrentColor,
@@ -620,8 +619,7 @@ class _SketchScreenState extends State<SketchScreen> {
                         ),
                       ),
                     ),
-                  if (_tool != _SketchTool.eraser &&
-                      _tool != _SketchTool.text)
+                  if (_tool != _SketchTool.eraser && _tool != _SketchTool.text)
                     PopupMenuButton<int>(
                       tooltip: 'Spessore',
                       onSelected: _setCurrentWidth,
