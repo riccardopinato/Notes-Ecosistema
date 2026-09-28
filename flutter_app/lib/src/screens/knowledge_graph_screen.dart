@@ -104,9 +104,8 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
     switch (node.kind) {
       case KnowledgeGraphNodeKind.note:
       case KnowledgeGraphNodeKind.task:
-        final note = widget.notes
-            .where((item) => item.id == node.entityId)
-            .firstOrNull;
+        final note =
+            widget.notes.where((item) => item.id == node.entityId).firstOrNull;
         if (note != null) widget.onOpenNote(note);
         break;
       case KnowledgeGraphNodeKind.project:
@@ -126,7 +125,8 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
             ? edge.first.targetId
             : edge.first.sourceId;
         final noteId = noteNodeId.replaceFirst('note:', '');
-        final note = widget.notes.where((item) => item.id == noteId).firstOrNull;
+        final note =
+            widget.notes.where((item) => item.id == noteId).firstOrNull;
         if (note != null) widget.onOpenNote(note);
         break;
     }
