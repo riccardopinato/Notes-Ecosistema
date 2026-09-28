@@ -19,6 +19,7 @@ class HomeScreen extends StatefulWidget {
     required this.onCollection,
     required this.onOpenNote,
     required this.onProjects,
+    required this.onStudy,
     required this.projectCount,
     this.sharedUnread = 0,
     super.key,
@@ -34,6 +35,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<String> onCollection;
   final ValueChanged<Note> onOpenNote;
   final VoidCallback onProjects;
+  final VoidCallback onStudy;
   final int projectCount;
   final int sharedUnread;
 
@@ -101,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
           count: widget.projectCount,
           onTap: widget.onProjects,
         ),
+        const SizedBox(height: 16),
+        _StudyCard(onTap: widget.onStudy),
         const SizedBox(height: 16),
         FutureBuilder<FocusClock?>(
           future: _focus,
@@ -359,6 +363,50 @@ class _ProjectCard extends StatelessWidget {
                       count == 0
                           ? 'Crea il primo progetto'
                           : '$count progetti attivi · 5 viste universali',
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StudyCard extends StatelessWidget {
+  const _StudyCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.tertiaryContainer,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              const Icon(Icons.school_outlined, size: 28),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const EditorialEyebrow('STUDY'),
+                    Text(
+                      'Ripassa dalle tue note.',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const Text(
+                      'LearningItem source-linked e coda giornaliera semplice.',
                     ),
                   ],
                 ),
