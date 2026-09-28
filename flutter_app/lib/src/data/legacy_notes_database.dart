@@ -366,16 +366,16 @@ class LegacyNotesDatabase {
 
   Future<bool> isWorkspaceEmpty() async {
     final db = await database;
-    final notes =
-        Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM notes')) ??
-            0;
+    final notes = Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM notes')) ??
+        0;
     final collections = Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM collections'),
         ) ??
         0;
-    final drafts =
-        Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM drafts')) ??
-            0;
+    final drafts = Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM drafts')) ??
+        0;
     return notes == 0 && collections == 0 && drafts == 0;
   }
 
