@@ -1,8 +1,22 @@
-# Notes — Ecosistema 0.38.0
+# Notes — Ecosistema 0.45.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.45 — Consolidated Integrity, Portability, Study, Documents & Visual Foundations
+
+Roadmap P1.2 → P2.4 completata preservando il Core local-first e le source of truth esistenti.
+
+- **P1.2 True Disaster-Recovery Backup:** nuovo recovery bundle distinto dal Media Bundle v3; preserva ID canonici, revisioni, ContentBlock, Properties, Knowledge/Relations/Synced Blocks, Derivatives, Projects, Study, Document annotations, Shared Spaces e asset CAS; restore con preflight completo prima della sostituzione dello stato locale.
+- **P1.3 Distributed Lifecycle Verification & Hardening:** delete-vs-offline-edit resta conflitto preservato; restore dopo tombstone resta update esplicito; il purge di un tombstone GitHub già sincronizzato rimuove il file remoto invece di risuscitare l'oggetto; Shared Live Sync conserva il conflitto delete/edit.
+- **P1.4 Stable Block Identity Contract:** il Block model non è stato riscritto; il reconcile preserva gli ID dei blocchi durante edit testuali e inserimenti, e gli ID persistono nel round-trip storage.
+- **P2.1 Open Export strutturato:** aggiunto export portabile separato dal backup, con Markdown leggibile, JSON strutturato, Properties, Knowledge, Projects, Study, Document annotations e media; la revision history resta intenzionalmente esclusa.
+- **P2.2 Study Core:** LearningItem source-linked con snapshot storico, ReviewLog canonico, ReviewState derivato, scheduler sostituibile e coda giornaliera anti-debt; nessuna dipendenza AI.
+- **P2.3 Document/PDF Workspace:** la Note resta il documento a flusso; aggiunti OCR con provenance, correzione OCR separata, PDF page/region anchors, annotazioni e ricerca sul layer OCR.
+- **P2.4 Visual Workspace evolution:** Sketchbook e Whiteboard restano superfici/codec separati; viene condivisa soltanto la primitiva Digital Ink realmente duplicata, senza introdurre una terza Canvas.
+
+Validazione funzionale prima del bump release: **140 test**, analyze pulito, APK debug/release e size gate PASS; ARM64 **33.542.902 byte** su budget 39.845.888.
 
 ## 0.38 — P1.1 Reference Lifecycle Foundation
 
@@ -29,7 +43,7 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 
 ## Stato corrente
 
-- Versione Flutter: **0.38.0+49**
+- Versione Flutter: **0.45.0+56**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
