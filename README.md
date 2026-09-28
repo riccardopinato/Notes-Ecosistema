@@ -1,8 +1,23 @@
-# Notes — Ecosistema 0.54.2
+# Notes — Ecosistema 0.54.3
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.54.3 — Whiteboard Device QA & Polish
+
+- selezione multipla con lazo su post-it/nodi e testi;
+- spostamento di gruppo con un solo punto Undo;
+- duplicazione della selezione con preservazione dei collegamenti interni;
+- ridimensionamento rapido dei post-it selezionati;
+- snap opzionale a griglia da 40 px;
+- mini-map live per orientarsi nelle canvas estese;
+- barra contestuale di editing per workflow tablet;
+- regressioni automatiche su lasso, duplicazione, resize, snap, mini-map e history stress;
+- benchmark codec su documenti da 20.000 punti e validazione fino al ceiling di 50.000 punti;
+- checklist real-device separata: l'automazione non sostituisce la certificazione stylus/tablet fisica.
+
+Dettagli: `flutter_app/WHITEBOARD_DEVICE_QA_0_54_3.md`.
 
 ## 0.54.2 — Whiteboard Pro Hardening
 
