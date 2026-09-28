@@ -121,7 +121,27 @@ List<Note> searchNotes(
     return true;
   }).toList();
 
-  filtered.sort(_comparator(order));
+  if (needle.isNotEmpty && order == NoteOrder.recent) {
+    filtered.sort((a, b) {
+      final relevance = UnifiedRetrieval.scoreText(
+        query: needle,
+        title: b.title,
+        text: b.isVisual ? '' : b.body,
+        tags: b.tags,
+      ).compareTo(
+        UnifiedRetrieval.scoreText(
+          query: needle,
+          title: a.title,
+          text: a.isVisual ? '' : a.body,
+          tags: a.tags,
+        ),
+      );
+      if (relevance != 0) return relevance;
+      return _comparator(order)(a, b);
+    });
+  } else {
+    filtered.sort(_comparator(order));
+  }
   return filtered;
 }
 
