@@ -68,6 +68,21 @@ abstract final class LocalModelAudit {
           'binding Flutter Cactus corrente documentato per ARM64.',
     ),
     LocalModelCandidate(
+      id: 'me5s-compressed-v3-distilled',
+      name: 'mE5-small compressed v3 distilled',
+      license: 'Apache-2.0',
+      minWeightBytes: 50 * 1024 * 1024,
+      maxWeightBytes: 52 * 1024 * 1024,
+      languages: {'it', 'en', 'es', 'fr', 'de', 'pt'},
+      capabilities: {LocalModelCapability.embeddings},
+      role: LocalModelRole.shipCandidate,
+      summary:
+          'Candidato semantic-only realmente multilingua e molto compatto. '
+          'È poco sopra 50 MB in FP32 e meno maturo: conversione mobile, '
+          'tokenizer e benchmark Notes vanno validati prima del rollout.',
+      embeddingDimensions: 384,
+    ),
+    LocalModelCandidate(
       id: 'minilm-l6-v2-qint8',
       name: 'all-MiniLM-L6-v2 qint8',
       license: 'Apache-2.0',
