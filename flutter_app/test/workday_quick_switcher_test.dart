@@ -124,6 +124,16 @@ void main() {
     expect(results.first.kind, QuickSwitcherKind.command);
   });
 
+  test('quick switcher exposes Local Intelligence command', () {
+    final results = QuickSwitcher.search(
+      query: 'intelligence locale',
+      notes: const [],
+      collections: const [],
+    );
+    expect(results.first.id, 'local-intelligence');
+    expect(results.first.kind, QuickSwitcherKind.command);
+  });
+
   test('task subtasks remain backward compatible and typed', () {
     final task = TaskDetails.empty().copyWith(
       subtasks: const [

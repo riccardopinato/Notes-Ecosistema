@@ -1,5 +1,24 @@
 # Notes Ecosistema — Roadmap
 
+## 0.55 — Local Intelligence Foundation
+
+**Implementato in 0.55.0+66.**
+
+- semantic provider contract opzionale;
+- indice embedding locale rigenerabile;
+- hybrid deterministic + semantic ranking;
+- benchmark IT/EN/ES/FR/DE/PT;
+- audit Needle 3 / MiniLM / BGE / multilingual-E5;
+- nessun modello bundlato nel base APK;
+- nessun cloud fallback o vector DB;
+- semantic similarity distinta dalle relazioni Knowledge Graph.
+
+Dettagli: `flutter_app/LOCAL_INTELLIGENCE_0_55.md`.
+
+### Gate successivo
+
+**0.55.x — Needle Experimental Pack** solo dopo integrazione nativa pin/versionata e benchmark reale superato. In caso contrario il fallback deterministico resta il comportamento prodotto.
+
 ## 0.54 — Workflow Automations
 
 **Implementato in 0.54.0+65.**
@@ -179,7 +198,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.54.0+65**
+- Versione: **0.55.0+66**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
