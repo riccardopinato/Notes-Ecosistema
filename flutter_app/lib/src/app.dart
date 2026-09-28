@@ -50,6 +50,7 @@ import 'screens/editor_screen.dart';
 import 'screens/github_sync_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/knowledge_graph_screen.dart';
+import 'screens/local_intelligence_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/project_workspace_screen.dart';
@@ -60,6 +61,7 @@ import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
 import 'screens/workflow_automation_screen.dart';
 import 'state/document_controller.dart';
+import 'state/local_intelligence_controller.dart';
 import 'state/project_workspace_controller.dart';
 import 'state/shared_live_sync_controller.dart';
 import 'state/shared_spaces_controller.dart';
@@ -721,6 +723,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     );
   }
 
+  Future<void> _openLocalIntelligence() async {
+    final notes = ref.read(workspaceProvider).notes;
+    await ref.read(localIntelligenceProvider.notifier).refresh(notes);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LocalIntelligenceScreen(notes: notes),
+      ),
+    );
+  }
+
   Future<void> _openWorkflowAutomations() async {
     await ref.read(workflowAutomationProvider.notifier).refresh();
     if (!mounted) return;
@@ -1277,20 +1290,33 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _knowledgeSearch(List<Note> notes) async {
-    final service = UnifiedRetrievalService(
+    final deterministic = UnifiedRetrievalService(
       derivativeStore: ref.read(derivativeStoreProvider),
       documentStore: ref.read(documentStoreProvider),
       knowledgeStore: ref.read(knowledgeStoreProvider),
       propertyStore: ref.read(propertyStoreProvider),
       studyStore: ref.read(studyStoreProvider),
     );
+    final localState = ref.read(localIntelligenceProvider);
+    final localService = ref.read(localIntelligenceServiceProvider);
     await showIntelligenceSheet(
       context: context,
       notes: notes,
       derivativeStore: ref.read(derivativeStoreProvider),
       onOpenNote: (note) => _openEditor(note),
+      relatedSearch: localState.active
+          ? (source) => localService.related(source: source, notes: notes)
+          : null,
+      engineLabel: localState.active
+          ? 'Ranking ibrido locale: retrieval deterministico + embeddings '
+              'on-device. Nessun cloud fallback.'
+          : 'Fallback locale e verificabile. Il ranking semantico resta '
+              'opzionale e nessuna funzione core dipende da provider AI.',
       unifiedSearch: (query) async {
-        final hits = await service.search(query: query, notes: notes);
+        if (localState.active) {
+          return localService.search(query: query, notes: notes);
+        }
+        final hits = await deterministic.search(query: query, notes: notes);
         final byId = {for (final note in notes) note.id: note};
         final knowledgeHits = <KnowledgeHit>[];
         for (final hit in hits) {
@@ -2045,6 +2071,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             recovery.automations,
             noteIds: noteIds,
           );
+      await ref.read(semanticIndexStoreProvider).clearAll();
 
       await ref.read(workspaceProvider.notifier).refresh();
       await ref.read(workflowAutomationProvider.notifier).refresh();
@@ -2318,6 +2345,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(projectStoreProvider).deleteLinksForNote(id);
     await ref.read(importProvenanceStoreProvider).deleteForNote(id);
     await ref.read(workflowAutomationStoreProvider).deleteRunsForNote(id);
+    await ref.read(semanticIndexStoreProvider).deleteForNote(id);
     await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
@@ -2404,6 +2432,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                 title: Text(AppStrings.of(context).language),
                 subtitle: Text(AppLocale.label(widget.localeCode)),
                 onTap: () => _selectLanguage(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: const Text('Intelligence locale'),
+                subtitle: const Text(
+                  'Semantic search opzionale, benchmark modelli e indice locale.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openLocalIntelligence();
+                },
               ),
               const Divider(),
               SwitchListTile(
