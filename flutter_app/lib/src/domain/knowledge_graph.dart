@@ -316,9 +316,9 @@ abstract final class KnowledgeGraph {
 
   static Set<String> _stableObjectLinks(String text) {
     final result = <String>{};
-    final regex = RegExp(r'notes://object/([^\\s)\\]]+)');
+    final regex = RegExp(r'\]\((notes://object/[^)\s]+)\)');
     for (final match in regex.allMatches(text)) {
-      final raw = match.group(0);
+      final raw = match.group(1);
       if (raw == null) continue;
       final target = StableLinks.parse(raw);
       if (target?.kind == StableLinkKind.object) {
