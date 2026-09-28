@@ -100,30 +100,48 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   }
 
   Future<void> save(Note note) async {
-    final before = state.notes.where((item) => item.id == note.id).firstOrNull ??
-        await _database.loadNote(note.id);
-    final collections =
-        state.loading ? await _database.loadCollections() : state.collections;
-    final rules = await _automations.loadEnabledRules();
     final now = DateTime.now().millisecondsSinceEpoch;
-    final evaluation = WorkflowAutomations.evaluate(
-      before: before,
-      incoming: note,
-      rules: rules,
-      validCollectionIds: collections.map((item) => item.id).toSet(),
-      now: now,
+    var evaluation = WorkflowEvaluation(
+      note: note,
+      trigger: null,
+      appliedRules: const [],
     );
 
-    await _database.saveNote(evaluation.note);
-    if (evaluation.changed && evaluation.trigger != null) {
-      await _automations.recordEvaluation(
-        noteId: evaluation.note.id,
-        trigger: evaluation.trigger!,
-        rules: evaluation.appliedRules,
-        ranAt: now,
+    try {
+      final before =
+          state.notes.where((item) => item.id == note.id).firstOrNull ??
+              await _database.loadNote(note.id);
+      final collections =
+          state.loading ? await _database.loadCollections() : state.collections;
+      final rules = await _automations.loadEnabledRules();
+      evaluation = WorkflowAutomations.evaluate(
+        before: before,
+        incoming: note,
+        rules: rules,
+        validCollectionIds: collections.map((item) => item.id).toSet(),
+        now: now,
       );
+    } catch (_) {
+      // Automations are optional. A sidecar/rule failure must never block
+      // the canonical Note/Task save path.
     }
+
+    await _database.saveNote(evaluation.note);
     await _upsertNote(evaluation.note);
+
+    if (evaluation.changed && evaluation.trigger != null) {
+      try {
+        await _automations.recordEvaluation(
+          noteId: evaluation.note.id,
+          trigger: evaluation.trigger!,
+          rules: evaluation.appliedRules,
+          ranAt: now,
+        );
+      } catch (_) {
+        // The content is already saved. Audit failure must not surface as
+        // a false save failure or cause a duplicate retry.
+      }
+    }
   }
 
   Future<void> _upsertNote(Note note) async {
