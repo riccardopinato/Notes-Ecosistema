@@ -5,6 +5,8 @@ enum DerivativeKind {
   cleanedTranscript,
   summary,
   extractedTasks,
+  ocrText,
+  ocrCorrected,
 }
 
 class SourceDerivative {
