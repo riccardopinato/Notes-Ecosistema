@@ -146,7 +146,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (!_blocksInitialized) return;
     final profile = AdaptiveEditorPolicy.evaluate(body);
     if (profile.liveBlockParsing) {
-      _blocks = BlockEditorCodec.parse(_id, body);
+      _blocks = BlockEditorCodec.reconcile(_id, _blocks, body);
     } else {
       // content_blocks are a derived representation. On large documents we
       // deliberately invalidate the live cache instead of reparsing on each
@@ -522,7 +522,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           stored.isEmpty ? null : BlockEditorCodec.toMarkdown(stored);
       final source = stored.isNotEmpty && storedMarkdown == _body.text
           ? stored
-          : BlockEditorCodec.parse(_id, _body.text);
+          : BlockEditorCodec.reconcile(_id, stored, _body.text);
       if (!mounted) return;
       setState(() {
         _blocks = source.isEmpty
