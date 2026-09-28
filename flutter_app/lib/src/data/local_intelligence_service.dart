@@ -117,9 +117,7 @@ class LocalIntelligenceService {
       if (vectors.length != batch.length) {
         throw StateError('Il provider ha restituito un batch incompleto.');
       }
-      for (var indexInBatch = 0;
-          indexInBatch < batch.length;
-          indexInBatch++) {
+      for (var indexInBatch = 0; indexInBatch < batch.length; indexInBatch++) {
         final document = batch[indexInBatch];
         final vector = vectors[indexInBatch];
         if (vector.values.length != provider.dimensions) {
@@ -162,28 +160,28 @@ class LocalIntelligenceService {
     try {
       await rebuildIndex(notes);
       final queryVector = await provider.embed(query);
-    if (queryVector.values.length != provider.dimensions) {
-      return _lexicalResult(query, lexical, notes, limit);
-    }
-    final indexed = await index.forModel(
-      modelId: provider.modelId,
-      modelVersion: provider.modelVersion,
-    );
-    final scores = <SemanticScore>[];
-    final live = documents.map((item) => item.id).toSet();
-    for (final entry in indexed) {
-      if (!live.contains(entry.documentId) ||
-          entry.vector.values.length != queryVector.values.length) {
-        continue;
+      if (queryVector.values.length != provider.dimensions) {
+        return _lexicalResult(query, lexical, notes, limit);
       }
-      scores.add(
-        SemanticScore(
-          documentId: entry.documentId,
-          noteId: entry.noteId,
-          score: SemanticVector.cosine(queryVector, entry.vector),
-        ),
+      final indexed = await index.forModel(
+        modelId: provider.modelId,
+        modelVersion: provider.modelVersion,
       );
-    }
+      final scores = <SemanticScore>[];
+      final live = documents.map((item) => item.id).toSet();
+      for (final entry in indexed) {
+        if (!live.contains(entry.documentId) ||
+            entry.vector.values.length != queryVector.values.length) {
+          continue;
+        }
+        scores.add(
+          SemanticScore(
+            documentId: entry.documentId,
+            noteId: entry.noteId,
+            score: SemanticVector.cosine(queryVector, entry.vector),
+          ),
+        );
+      }
 
       final hits = HybridSemanticRanker.rank(
         query: query,
@@ -215,39 +213,39 @@ class LocalIntelligenceService {
     try {
       await rebuildIndex(notes);
       final queryVector = await provider.embed(
-      _boundedText('${source.title}\n${source.body}'),
-    );
-    final indexed = await index.forModel(
-      modelId: provider.modelId,
-      modelVersion: provider.modelVersion,
-    );
-    final byNote = {for (final note in notes) note.id: note};
-    final best = <String, double>{};
-    for (final entry in indexed) {
-      if (entry.noteId == source.id ||
-          entry.vector.values.length != queryVector.values.length) {
-        continue;
-      }
-      final note = byNote[entry.noteId];
-      if (note == null || note.isDeleted || note.archived || note.isVisual) {
-        continue;
-      }
-      final score = SemanticVector.cosine(queryVector, entry.vector);
-      best.update(
-        entry.noteId,
-        (value) => value > score ? value : score,
-        ifAbsent: () => score,
+        _boundedText('${source.title}\n${source.body}'),
       );
-    }
+      final indexed = await index.forModel(
+        modelId: provider.modelId,
+        modelVersion: provider.modelVersion,
+      );
+      final byNote = {for (final note in notes) note.id: note};
+      final best = <String, double>{};
+      for (final entry in indexed) {
+        if (entry.noteId == source.id ||
+            entry.vector.values.length != queryVector.values.length) {
+          continue;
+        }
+        final note = byNote[entry.noteId];
+        if (note == null || note.isDeleted || note.archived || note.isVisual) {
+          continue;
+        }
+        final score = SemanticVector.cosine(queryVector, entry.vector);
+        best.update(
+          entry.noteId,
+          (value) => value > score ? value : score,
+          ifAbsent: () => score,
+        );
+      }
 
-    final ranked = best.entries.where((entry) => entry.value >= 0.18).toList()
-      ..sort((a, b) {
-        final score = b.value.compareTo(a.value);
-        if (score != 0) return score;
-        final aNote = byNote[a.key]!;
-        final bNote = byNote[b.key]!;
-        return bNote.updatedAt.compareTo(aNote.updatedAt);
-      });
+      final ranked = best.entries.where((entry) => entry.value >= 0.18).toList()
+        ..sort((a, b) {
+          final score = b.value.compareTo(a.value);
+          if (score != 0) return score;
+          final aNote = byNote[a.key]!;
+          final bNote = byNote[b.key]!;
+          return bNote.updatedAt.compareTo(aNote.updatedAt);
+        });
       return ranked.take(limit.clamp(1, 20)).map((entry) {
         final note = byNote[entry.key]!;
         return KnowledgeHit(
