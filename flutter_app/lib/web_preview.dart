@@ -12,7 +12,6 @@ import 'src/domain/library.dart';
 import 'src/domain/note.dart';
 import 'src/domain/planner.dart';
 import 'src/domain/stable_links.dart';
-import 'src/domain/templates.dart';
 import 'src/domain/unified_retrieval.dart';
 import 'src/domain/visual_documents.dart';
 import 'src/screens/diary_screen.dart';
@@ -1209,7 +1208,7 @@ class _WebEditorScreenState extends State<_WebEditorScreen> {
                 detail: 'Metadata e organizzazione della pagina.',
               ),
               DropdownButtonFormField<String?>(
-                value: _collectionId,
+                initialValue: _collectionId,
                 decoration: const InputDecoration(labelText: 'Raccolta'),
                 items: [
                   const DropdownMenuItem<String?>(
