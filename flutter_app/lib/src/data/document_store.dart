@@ -176,10 +176,12 @@ class DocumentStore {
       final text = layer.searchableText;
       final lower = text.toLowerCase();
       final at = lower.indexOf(needle.toLowerCase());
-      final start = at < 0 ? 0 : (at - 60).clamp(0, text.length);
+      final start = at < 0
+          ? 0
+          : (at - 60).clamp(0, text.length).toInt();
       final end = at < 0
-          ? text.length.clamp(0, 180)
-          : (at + needle.length + 120).clamp(0, text.length);
+          ? text.length.clamp(0, 180).toInt()
+          : (at + needle.length + 120).clamp(0, text.length).toInt();
       return DocumentSearchHit(
         noteId: layer.noteId,
         assetKey: layer.assetKey,
