@@ -230,7 +230,8 @@ void main() {
     );
   });
 
-  test('shared Digital Ink defaults stay available to both visual surfaces', () {
+  test('shared Digital Ink defaults stay available to both visual surfaces',
+      () {
     expect(VisualInkDefaults.palette, isNotEmpty);
     expect(VisualInkDefaults.penWidths, contains(6));
     expect(VisualInkDefaults.highlighterWidths, contains(24));
