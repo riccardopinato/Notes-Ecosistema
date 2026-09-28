@@ -227,12 +227,16 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     WhiteboardDocument next, {
     bool recordHistory = true,
     bool ensureCanvas = true,
+    bool validate = true,
+    bool rebuildStrokeBounds = true,
   }) {
-    try {
-      WhiteboardRules.validate(next);
-    } catch (error) {
-      setState(() => _error = userErrorText(error));
-      return false;
+    if (validate) {
+      try {
+        WhiteboardRules.validate(next);
+      } catch (error) {
+        setState(() => _error = userErrorText(error));
+        return false;
+      }
     }
     if (identical(next, _document)) return true;
 
@@ -242,7 +246,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _document = next;
       _error = null;
     });
-    _rebuildStrokeBounds();
+    if (rebuildStrokeBounds) _rebuildStrokeBounds();
     if (ensureCanvas) _growCanvasToFit(next);
     return true;
   }
@@ -740,9 +744,10 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       (item) => item.id == text.id,
       orElse: () => text,
     );
+    final limit = WhiteboardRules.maxCoordinate;
     final updated = current.copyWith(
-      x: current.x + details.delta.dx.round(),
-      y: current.y + details.delta.dy.round(),
+      x: (current.x + details.delta.dx.round()).clamp(-limit, limit).toInt(),
+      y: (current.y + details.delta.dy.round()).clamp(-limit, limit).toInt(),
     );
     if (_setDocument(
       _document.copyWith(
@@ -752,6 +757,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       ),
       recordHistory: false,
       ensureCanvas: false,
+      validate: false,
+      rebuildStrokeBounds: false,
     )) {
       _markGestureChanged();
     }
@@ -813,7 +820,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       ),
       recordHistory: false,
       ensureCanvas: false,
+      validate: false,
+      rebuildStrokeBounds: false,
     )) {
+      final liveIds = strokes.map((stroke) => stroke.id).toSet();
+      _strokeBounds.removeWhere((id, _) => !liveIds.contains(id));
       _markGestureChanged();
     }
   }
@@ -1070,14 +1081,17 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       (item) => item.id == node.id,
       orElse: () => node,
     );
+    final limit = WhiteboardRules.maxCoordinate;
     final updated = current.copyWith(
-      x: current.x + details.delta.dx.round(),
-      y: current.y + details.delta.dy.round(),
+      x: (current.x + details.delta.dx.round()).clamp(-limit, limit).toInt(),
+      y: (current.y + details.delta.dy.round()).clamp(-limit, limit).toInt(),
     );
     if (_setDocument(
       WhiteboardOps.updateNode(_document, updated),
       recordHistory: false,
       ensureCanvas: false,
+      validate: false,
+      rebuildStrokeBounds: false,
     )) {
       _markGestureChanged();
     }
