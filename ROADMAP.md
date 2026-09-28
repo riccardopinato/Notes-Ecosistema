@@ -1,5 +1,22 @@
 # Notes Ecosistema — Roadmap
 
+## 0.55.0 — Local Semantic Retrieval
+
+**Implementato in 0.55.0+69.**
+
+- sidecar derivato `notes-semantic.db`;
+- embedding locale deterministico 192D, senza rete né dipendenza da provider AI;
+- indicizzazione incrementale con fingerprint;
+- ranking ibrido Unified Retrieval + semantic similarity;
+- related notes sulla stessa pipeline;
+- fallback completo alla ricerca classica;
+- lifecycle purge integrato;
+- toggle utente con indice eliminabile/ricostruibile;
+- Web Preview semantic-aware;
+- benchmark automatici su footprint e throughput.
+
+0.55.0 costruisce il contratto di embedding e l'indice locale. Un eventuale modello neurale on-device futuro potrà sostituire l'engine senza cambiare Unified Retrieval o le source of truth.
+
 ## 0.54.3 — Whiteboard Device QA & Polish
 
 **Implementato in 0.54.3+68.**
