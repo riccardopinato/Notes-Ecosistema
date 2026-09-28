@@ -1,5 +1,24 @@
 # Notes Ecosistema — Roadmap
 
+## 0.53 — Knowledge Graph
+
+**Implementato in 0.53.0+64.**
+
+- grafo derivato, senza nuova source of truth;
+- nodi Note/Task/Project/Study/PDF;
+- archi da internal link, relazioni, Projects, Study e Documents;
+- ricerca, focus 1-hop/2-hop/all e filtri per relazione;
+- layout deterministico bounded;
+- apertura diretta della sorgente con permessi Shared Spaces preservati;
+- accesso da Home e Quick Switcher;
+- nessun graph DB, vector store o AI.
+
+Dettagli: `flutter_app/KNOWLEDGE_GRAPH_0_53.md`.
+
+### Prossimo asse candidato
+
+**0.54 — Workflow Automations**, evento → azione locale e deterministica prima di qualunque automazione AI.
+
 ## 0.52 — Collaborative Workspace
 
 **Implementato in 0.52.0+63.**
@@ -140,7 +159,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.52.0+63**
+- Versione: **0.53.0+64**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST

@@ -20,6 +20,7 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenNote,
     required this.onProjects,
     this.onStudy,
+    this.onGraph,
     required this.projectCount,
     this.sharedUnread = 0,
     super.key,
@@ -36,6 +37,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Note> onOpenNote;
   final VoidCallback onProjects;
   final VoidCallback? onStudy;
+  final VoidCallback? onGraph;
   final int projectCount;
   final int sharedUnread;
 
@@ -105,6 +107,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 16),
         _StudyCard(onTap: widget.onStudy),
+        const SizedBox(height: 16),
+        _KnowledgeGraphCard(onTap: widget.onGraph),
         const SizedBox(height: 16),
         FutureBuilder<FocusClock?>(
           future: _focus,
@@ -272,6 +276,40 @@ class _Metric extends StatelessWidget {
                     ?.copyWith(color: Theme.of(context).colorScheme.primary)),
             const SizedBox(height: 6),
             Text(label, style: Theme.of(context).textTheme.labelLarge),
+          ],
+        ),
+      );
+}
+
+class _KnowledgeGraphCard extends StatelessWidget {
+  const _KnowledgeGraphCard({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => _SurfaceCard(
+        onTap: onTap,
+        child: Row(
+          children: [
+            const CircleAvatar(child: Icon(Icons.hub_outlined)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Knowledge Graph',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Esplora link, relazioni, progetti, Study e documenti come una rete navigabile.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right),
           ],
         ),
       );

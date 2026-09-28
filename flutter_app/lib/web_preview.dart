@@ -9,13 +9,18 @@ import 'package:uuid/uuid.dart';
 import 'src/domain/diary.dart';
 import 'src/domain/editing.dart';
 import 'src/domain/library.dart';
+import 'src/domain/knowledge_graph.dart';
 import 'src/domain/note.dart';
 import 'src/domain/planner.dart';
+import 'src/domain/project_workspace.dart';
+import 'src/domain/research.dart';
+import 'src/domain/study.dart';
 import 'src/domain/stable_links.dart';
 import 'src/domain/unified_retrieval.dart';
 import 'src/domain/visual_documents.dart';
 import 'src/screens/diary_screen.dart';
 import 'src/screens/home_screen.dart';
+import 'src/screens/knowledge_graph_screen.dart';
 import 'src/screens/notes_screen.dart';
 import 'src/screens/planner_screen.dart';
 import 'src/screens/sketch_screen.dart';
@@ -44,7 +49,7 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notes Ecosistema 0.52 · Web',
+      title: 'Notes Ecosistema 0.53 · Web',
       theme: NotesTheme.light(),
       darkTheme: NotesTheme.dark(),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
@@ -502,6 +507,92 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     );
   }
 
+  Future<void> _openKnowledgeGraph() async {
+    final notes = _personalNotes;
+    final noteIds = notes.map((note) => note.id).toSet();
+    final alpha = notes.where((note) => note.id == 'strategy').firstOrNull;
+    final retrieval = notes.where((note) => note.id == 'retrieval').firstOrNull;
+    final studySource =
+        notes.where((note) => note.id == 'study-note').firstOrNull;
+    final graph = KnowledgeGraph.build(
+      KnowledgeGraphBuildInput(
+        notes: notes,
+        relations: [
+          if (alpha != null && retrieval != null)
+            NoteRelation(
+              id: 'web-relation',
+              sourceId: alpha.id,
+              targetId: retrieval.id,
+              label: 'supports',
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+        ],
+        projects: const [
+          ProjectWorkspace(
+            id: 'web-project',
+            name: 'Notes Ecosistema',
+            description: 'Project Workspace demo',
+            createdAt: 1,
+            updatedAt: 2,
+          ),
+        ],
+        projectLinks: [
+          if (alpha != null)
+            ProjectItemLink(
+              projectId: 'web-project',
+              noteId: alpha.id,
+              position: 0,
+              addedAt: 1,
+              updatedAt: 2,
+            ),
+          if (retrieval != null)
+            ProjectItemLink(
+              projectId: 'web-project',
+              noteId: retrieval.id,
+              position: 1,
+              addedAt: 1,
+              updatedAt: 2,
+            ),
+        ],
+        studyItems: [
+          if (studySource != null)
+            LearningItem(
+              id: 'web-study',
+              sourceNoteId: studySource.id,
+              prompt: 'Vantaggio comparato',
+              answer: 'Costo opportunità e specializzazione relativa.',
+              sourceSnapshot: studySource.body,
+              sourceUpdatedAt: studySource.updatedAt,
+              createdAt: 1,
+              updatedAt: 2,
+            ),
+        ],
+        pdfAnnotations: const [],
+      ),
+    );
+    if (!mounted || noteIds.isEmpty) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => KnowledgeGraphScreen(
+          loadGraph: () async => graph,
+          notes: notes,
+          onOpenNote: (note) {
+            Navigator.pop(context);
+            unawaited(_openNote(note));
+          },
+          onOpenProject: (_) {
+            Navigator.pop(context);
+            unawaited(_openProjects());
+          },
+          onOpenStudy: () {
+            Navigator.pop(context);
+            unawaited(_openStudy());
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _openKnowledgeSearch() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -612,6 +703,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           onOpenNote: _openNote,
           onProjects: _openProjects,
           onStudy: _openStudy,
+          onGraph: _openKnowledgeGraph,
           projectCount: 3,
           sharedUnread: 2,
         ),

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'data/import_application_service.dart';
+import 'data/knowledge_graph_service.dart';
 import 'data/unified_retrieval_service.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
@@ -46,6 +47,7 @@ import 'screens/diary_screen.dart';
 import 'screens/editor_screen.dart';
 import 'screens/github_sync_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/knowledge_graph_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/planner_screen.dart';
 import 'screens/project_workspace_screen.dart';
@@ -640,6 +642,57 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     );
   }
 
+  bool _sharedReadOnly(String noteId) {
+    final shared = ref.read(sharedSpacesProvider);
+    final identity = shared.identity;
+    if (identity == null) return false;
+    var viewer = false;
+    var editor = false;
+    for (final space in shared.spaces) {
+      if (!space.contentIds.contains(noteId)) continue;
+      final role = space.roleFor(identity.id);
+      if (role == null) continue;
+      if (role.canEdit) {
+        editor = true;
+      } else {
+        viewer = true;
+      }
+    }
+    return viewer && !editor;
+  }
+
+  Future<void> _openKnowledgeGraph() async {
+    final notes = ref.read(workspaceProvider).notes;
+    final service = KnowledgeGraphService(
+      knowledgeStore: ref.read(knowledgeStoreProvider),
+      projectStore: ref.read(projectStoreProvider),
+      studyStore: ref.read(studyStoreProvider),
+      documentStore: ref.read(documentStoreProvider),
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => KnowledgeGraphScreen(
+          notes: notes,
+          loadGraph: () => service.load(
+            ref.read(workspaceProvider).notes,
+          ),
+          onOpenNote: (note) {
+            Navigator.of(context).pop();
+            unawaited(_openSharedItem(note, _sharedReadOnly(note.id)));
+          },
+          onOpenProject: (id) {
+            Navigator.of(context).pop();
+            unawaited(_openProjects(initialProjectId: id));
+          },
+          onOpenStudy: () {
+            Navigator.of(context).pop();
+            unawaited(_openStudy());
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _openProjects({String? initialProjectId}) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -986,6 +1039,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         onOpenNote: _openEditor,
         onProjects: () => _openProjects(),
         onStudy: _openStudy,
+        onGraph: _openKnowledgeGraph,
         projectCount:
             projects.projects.where((project) => project.isActive).length,
         sharedUnread: identity == null ? 0 : live.totalUnread(identity.id),
@@ -1261,6 +1315,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             break;
           case 'projects':
             await _openProjects();
+            break;
+          case 'knowledge-graph':
+            await _openKnowledgeGraph();
             break;
           case 'search':
             setState(() => _index = 5);
