@@ -10,6 +10,8 @@ import '../domain/backup.dart';
 import '../domain/library.dart';
 import '../domain/note.dart';
 import '../domain/templates.dart';
+import '../domain/workflow_automation.dart';
+import 'workflow_automation_controller.dart';
 
 final databaseProvider = Provider<LegacyNotesDatabase>((ref) {
   final database = LegacyNotesDatabase();
@@ -69,11 +71,13 @@ class WorkspaceState {
 }
 
 class WorkspaceController extends StateNotifier<WorkspaceState> {
-  WorkspaceController(this._database) : super(const WorkspaceState()) {
+  WorkspaceController(this._database, this._automations)
+      : super(const WorkspaceState()) {
     refresh();
   }
 
   final LegacyNotesDatabase _database;
+  final WorkflowAutomationStore _automations;
   int _refreshGeneration = 0;
 
   Future<void> refresh() async {
@@ -95,8 +99,30 @@ class WorkspaceController extends StateNotifier<WorkspaceState> {
   }
 
   Future<void> save(Note note) async {
-    await _database.saveNote(note);
-    await _upsertNote(note);
+    final before = state.notes.where((item) => item.id == note.id).firstOrNull ??
+        await _database.loadNote(note.id);
+    final collections =
+        state.loading ? await _database.loadCollections() : state.collections;
+    final rules = await _automations.loadEnabledRules();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final evaluation = WorkflowAutomations.evaluate(
+      before: before,
+      incoming: note,
+      rules: rules,
+      validCollectionIds: collections.map((item) => item.id).toSet(),
+      now: now,
+    );
+
+    await _database.saveNote(evaluation.note);
+    if (evaluation.changed && evaluation.trigger != null) {
+      await _automations.recordEvaluation(
+        noteId: evaluation.note.id,
+        trigger: evaluation.trigger!,
+        rules: evaluation.appliedRules,
+        ranAt: now,
+      );
+    }
+    await _upsertNote(evaluation.note);
   }
 
   Future<void> _upsertNote(Note note) async {
@@ -252,5 +278,15 @@ int _compareNotes(Note a, Note b) {
 
 final workspaceProvider =
     StateNotifierProvider<WorkspaceController, WorkspaceState>((ref) {
-  return WorkspaceController(ref.watch(databaseProvider));
+  return WorkspaceController(
+    ref.watch(databaseProvider),
+    ref.watch(workflowAutomationStoreProvider),
+  );
 });
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    return iterator.moveNext() ? iterator.current : null;
+  }
+}
