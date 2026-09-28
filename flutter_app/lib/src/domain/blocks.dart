@@ -387,6 +387,87 @@ abstract final class BlockEditorCodec {
     return canonicalize(noteId, result, now: timestamp);
   }
 
+  static List<ContentBlock> reconcile(
+    String noteId,
+    List<ContentBlock> existing,
+    String markdown, {
+    int? now,
+  }) {
+    final timestamp = now ?? DateTime.now().millisecondsSinceEpoch;
+    final parsed = parse(noteId, markdown, now: timestamp);
+    if (existing.isEmpty || parsed.isEmpty) return parsed;
+
+    String signature(ContentBlock block) => [
+          block.type.wire,
+          block.checked?.toString() ?? '-',
+          block.metadataJson,
+          block.text,
+        ].join('\u0000');
+
+    final oldBySignature = <String, List<int>>{};
+    for (var i = 0; i < existing.length; i++) {
+      oldBySignature.putIfAbsent(signature(existing[i]), () => []).add(i);
+    }
+
+    final used = <int>{};
+    final matchedOld = List<int?>.filled(parsed.length, null);
+
+    // First preserve exact blocks, including blocks shifted by insertions.
+    for (var i = 0; i < parsed.length; i++) {
+      final candidates = oldBySignature[signature(parsed[i])];
+      if (candidates == null) continue;
+      for (final index in candidates) {
+        if (used.add(index)) {
+          matchedOld[i] = index;
+          break;
+        }
+      }
+    }
+
+    // Then preserve edited blocks when position/type still identifies them.
+    for (var i = 0; i < parsed.length; i++) {
+      if (matchedOld[i] != null) continue;
+      if (i < existing.length &&
+          !used.contains(i) &&
+          existing[i].type == parsed[i].type) {
+        used.add(i);
+        matchedOld[i] = i;
+        continue;
+      }
+
+      // Small local search handles one inserted/deleted neighbour without
+      // turning identity reconciliation into a global fuzzy matcher.
+      for (final candidate in [i - 1, i + 1, i - 2, i + 2]) {
+        if (candidate < 0 ||
+            candidate >= existing.length ||
+            used.contains(candidate)) {
+          continue;
+        }
+        if (existing[candidate].type == parsed[i].type) {
+          used.add(candidate);
+          matchedOld[i] = candidate;
+          break;
+        }
+      }
+    }
+
+    final reconciled = <ContentBlock>[
+      for (var i = 0; i < parsed.length; i++)
+        () {
+          final oldIndex = matchedOld[i];
+          if (oldIndex == null) return parsed[i];
+          final old = existing[oldIndex];
+          return parsed[i].copyWith(
+            id: old.id,
+            parentBlockId: old.parentBlockId,
+            createdAt: old.createdAt,
+            updatedAt: timestamp,
+          );
+        }(),
+    ];
+    return canonicalize(noteId, reconciled, now: timestamp);
+  }
+
   static String toMarkdown(List<ContentBlock> blocks) {
     final sorted = [...blocks]
       ..sort((a, b) => a.position.compareTo(b.position));
