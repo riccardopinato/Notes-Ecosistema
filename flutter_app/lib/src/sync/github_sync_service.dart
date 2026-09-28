@@ -278,7 +278,8 @@ class GitHubApi {
   }
 
   Future<void> deleteNote(String id, String expectedSha) async {
-    if (!RegExp(r'^[a-f0-9]{40}    if (_assets != null) return _assets!;
+    if (!RegExp(r'^[a-f0-9]{40}\
+    if (_assets != null) return _assets!;
     final path = _path('${config.folder}/assets');
     String text;
     try {
