@@ -333,7 +333,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                   collectionId = collections.first.id;
                 }
                 return DropdownButtonFormField<String>(
-                  value: collectionId,
+                  initialValue: collectionId,
                   decoration: InputDecoration(
                     labelText: _t(
                       dialogContext,
@@ -372,7 +372,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                 );
               case WorkflowActionKind.setPriority:
                 return DropdownButtonFormField<int>(
-                  value: priority,
+                  initialValue: priority,
                   decoration: InputDecoration(
                     labelText: _t(
                       dialogContext,
@@ -443,7 +443,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<WorkflowTrigger>(
-                      value: trigger,
+                      initialValue: trigger,
                       decoration: InputDecoration(
                         labelText: _t(
                           dialogContext,
@@ -467,7 +467,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<WorkflowSubject>(
-                      value: subject,
+                      initialValue: subject,
                       decoration: InputDecoration(
                         labelText: _t(
                           dialogContext,
@@ -520,7 +520,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                     ),
                     const Divider(height: 28),
                     DropdownButtonFormField<WorkflowActionKind>(
-                      value: action,
+                      initialValue: action,
                       decoration: InputDecoration(
                         labelText: _t(
                           dialogContext,
