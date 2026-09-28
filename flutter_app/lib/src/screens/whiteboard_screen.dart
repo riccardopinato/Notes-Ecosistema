@@ -251,7 +251,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _document = _document.copyWith(
         texts: [
           ..._document.texts,
-          BoardText(
+          SketchText(
             text: value,
             color: 0xFF111111,
             x: point.x,
