@@ -122,7 +122,11 @@ abstract final class DisasterRecoveryArchive {
           'Percorso duplicato o non sicuro nel backup.',
         );
       }
-      final data = Uint8List.fromList(entry.content as List<int>);
+      final raw = entry.readBytes();
+      if (raw == null) {
+        throw const FormatException('Voce backup non leggibile.');
+      }
+      final data = Uint8List.fromList(raw);
       expanded += data.length;
       if (expanded > maxExpandedBytes) {
         throw const FormatException(
