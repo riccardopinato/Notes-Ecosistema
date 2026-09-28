@@ -53,6 +53,57 @@ class InkStroke {
   final List<InkPoint> points;
 }
 
+abstract final class VisualInkCodec {
+  static Map<String, Object?> encode(InkStroke stroke) => {
+        'id': stroke.id,
+        'color': stroke.color,
+        'width': stroke.width,
+        'marker': stroke.marker,
+        'points': [
+          for (final point in stroke.points) ...[
+            point.x,
+            point.y,
+            point.pressure,
+          ],
+        ],
+      };
+
+  static InkStroke decode(
+    Map<String, dynamic> row, {
+    bool legacyPairs = false,
+  }) {
+    final rawPoints = (row['points'] as List? ?? const []).cast<num>();
+    final points = <InkPoint>[];
+    if (legacyPairs) {
+      for (var i = 0; i + 1 < rawPoints.length; i += 2) {
+        points.add(
+          InkPoint(
+            rawPoints[i].toInt(),
+            rawPoints[i + 1].toInt(),
+          ),
+        );
+      }
+    } else {
+      for (var i = 0; i + 2 < rawPoints.length; i += 3) {
+        points.add(
+          InkPoint(
+            rawPoints[i].toInt(),
+            rawPoints[i + 1].toInt(),
+            rawPoints[i + 2].toInt().clamp(0, 1000).toInt(),
+          ),
+        );
+      }
+    }
+    return InkStroke(
+      id: row['id']?.toString(),
+      color: (row['color'] as num?)?.toInt() ?? 0xFF000000,
+      width: (row['width'] as num?)?.toInt() ?? 4,
+      marker: row['marker'] == true,
+      points: points,
+    );
+  }
+}
+
 class SketchShape {
   SketchShape({
     required this.kind,
@@ -211,23 +262,8 @@ abstract final class SketchCodec {
             (page) => {
               'id': page.id,
               'paper': page.paper.name.toUpperCase(),
-              'strokes': page.strokes
-                  .map(
-                    (stroke) => {
-                      'id': stroke.id,
-                      'color': stroke.color,
-                      'width': stroke.width,
-                      'marker': stroke.marker,
-                      'points': [
-                        for (final point in stroke.points) ...[
-                          point.x,
-                          point.y,
-                          point.pressure,
-                        ],
-                      ],
-                    },
-                  )
-                  .toList(),
+              'strokes':
+                  page.strokes.map(VisualInkCodec.encode).toList(),
               'shapes': page.shapes
                   .map(
                     (shape) => {
@@ -279,25 +315,13 @@ abstract final class SketchCodec {
     }
 
     if (version == 1) {
-      final strokes = <InkStroke>[];
-      for (final value in (root['strokes'] as List? ?? const [])) {
-        final map = value as Map<String, dynamic>;
-        final pointsRaw = (map['points'] as List).cast<num>();
-        final points = <InkPoint>[];
-        for (var i = 0; i + 1 < pointsRaw.length; i += 2) {
-          points.add(
-            InkPoint(pointsRaw[i].toInt(), pointsRaw[i + 1].toInt()),
-          );
-        }
-        strokes.add(
-          InkStroke(
-            color: (map['color'] as num).toInt(),
-            width: (map['width'] as num).toInt(),
-            marker: map['marker'] == true,
-            points: points,
+      final strokes = <InkStroke>[
+        for (final value in (root['strokes'] as List? ?? const []))
+          VisualInkCodec.decode(
+            value as Map<String, dynamic>,
+            legacyPairs: true,
           ),
-        );
-      }
+      ];
       return SketchRules.validate(
         SketchDocument(pages: [SketchPage(strokes: strokes)]),
       );
@@ -310,30 +334,12 @@ abstract final class SketchCodec {
     final pages = <SketchPage>[];
     for (final value in (root['pages'] as List? ?? const [])) {
       final map = value as Map<String, dynamic>;
-      final strokes = <InkStroke>[];
-      for (final strokeValue in (map['strokes'] as List? ?? const [])) {
-        final stroke = strokeValue as Map<String, dynamic>;
-        final rawPoints = (stroke['points'] as List).cast<num>();
-        final points = <InkPoint>[];
-        for (var i = 0; i + 2 < rawPoints.length; i += 3) {
-          points.add(
-            InkPoint(
-              rawPoints[i].toInt(),
-              rawPoints[i + 1].toInt(),
-              rawPoints[i + 2].toInt().clamp(0, 1000).toInt(),
-            ),
-          );
-        }
-        strokes.add(
-          InkStroke(
-            id: stroke['id']?.toString(),
-            color: (stroke['color'] as num).toInt(),
-            width: (stroke['width'] as num).toInt(),
-            marker: stroke['marker'] == true,
-            points: points,
+      final strokes = <InkStroke>[
+        for (final strokeValue in (map['strokes'] as List? ?? const []))
+          VisualInkCodec.decode(
+            strokeValue as Map<String, dynamic>,
           ),
-        );
-      }
+      ];
 
       final shapes = <SketchShape>[];
       for (final shapeValue in (map['shapes'] as List? ?? const [])) {
@@ -406,12 +412,7 @@ enum BoardShapeKind { rectangle, ellipse }
 
 enum BoardEdgeKind { line, arrow }
 
-class BoardPoint {
-  const BoardPoint(this.x, this.y, [this.pressure = 1000]);
-  final int x;
-  final int y;
-  final int pressure;
-}
+typedef BoardPoint = InkPoint;
 
 class BoardNode {
   BoardNode({
@@ -469,21 +470,7 @@ class BoardEdge {
   final String label;
 }
 
-class BoardStroke {
-  BoardStroke({
-    required this.color,
-    required this.width,
-    required this.marker,
-    required this.points,
-    String? id,
-  }) : id = id ?? const Uuid().v4();
-
-  final String id;
-  final int color;
-  final int width;
-  final bool marker;
-  final List<BoardPoint> points;
-}
+typedef BoardStroke = InkStroke;
 
 class BoardShape {
   BoardShape({
@@ -760,23 +747,7 @@ abstract final class WhiteboardCodec {
             },
           )
           .toList(),
-      'strokes': document.strokes
-          .map(
-            (stroke) => {
-              'id': stroke.id,
-              'color': stroke.color,
-              'width': stroke.width,
-              'marker': stroke.marker,
-              'points': [
-                for (final point in stroke.points) ...[
-                  point.x,
-                  point.y,
-                  point.pressure,
-                ],
-              ],
-            },
-          )
-          .toList(),
+      'strokes': document.strokes.map(VisualInkCodec.encode).toList(),
       'shapes': document.shapes
           .map(
             (shape) => {
@@ -850,30 +821,10 @@ abstract final class WhiteboardCodec {
         ),
       );
     }
-    final strokes = <BoardStroke>[];
-    for (final value in (root['strokes'] as List? ?? const [])) {
-      final stroke = value as Map<String, dynamic>;
-      final rawPoints = (stroke['points'] as List? ?? const []).cast<num>();
-      final points = <BoardPoint>[];
-      for (var i = 0; i + 2 < rawPoints.length; i += 3) {
-        points.add(
-          BoardPoint(
-            rawPoints[i].toInt(),
-            rawPoints[i + 1].toInt(),
-            rawPoints[i + 2].toInt(),
-          ),
-        );
-      }
-      strokes.add(
-        BoardStroke(
-          id: stroke['id']?.toString(),
-          color: (stroke['color'] as num?)?.toInt() ?? 0xFF000000,
-          width: (stroke['width'] as num?)?.toInt() ?? 4,
-          marker: stroke['marker'] == true,
-          points: points,
-        ),
-      );
-    }
+    final strokes = <BoardStroke>[
+      for (final value in (root['strokes'] as List? ?? const []))
+        VisualInkCodec.decode(value as Map<String, dynamic>),
+    ];
     final shapes = <BoardShape>[];
     for (final value in (root['shapes'] as List? ?? const [])) {
       final shape = value as Map<String, dynamic>;
