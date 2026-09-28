@@ -27,7 +27,8 @@ class ImportApplicationService {
         throw const FormatException('Provenienza import incoerente.');
       }
       if (!seenIdentity.add(document.identity.key)) {
-        throw const FormatException('Elemento import duplicato nella sorgente.');
+        throw const FormatException(
+            'Elemento import duplicato nella sorgente.');
       }
     }
 
