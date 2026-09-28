@@ -861,7 +861,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       Note(
         id: 'strategy',
         title: 'Product strategy · Notes',
-        body: '# Obiettivo\n\nRendere Notes il centro di lavoro e conoscenza.\n\n'
+        body:
+            '# Obiettivo\n\nRendere Notes il centro di lavoro e conoscenza.\n\n'
             '## Prossimi passi\n- [ ] Validare flussi Web\n- [ ] Rifinire collaborazione\n'
             '- [x] Unified Retrieval\n\n> Local-first, private-by-default.',
         collectionId: 'work',
@@ -875,7 +876,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       Note(
         id: 'retrieval',
         title: 'Unified Retrieval',
-        body: 'FTS, metadata, relazioni, OCR, Study e annotazioni PDF convergono '
+        body:
+            'FTS, metadata, relazioni, OCR, Study e annotazioni PDF convergono '
             'in un unico livello di retrieval deterministico.\n\n'
             'Il ranking privilegia titolo, tag, contenuto e recenza.',
         collectionId: 'work',
@@ -929,7 +931,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       Note(
         id: 'task-design',
         title: 'Rifinire Product & UX Polish',
-        body: 'Verificare gerarchia, navigazione responsive e desktop shortcuts.',
+        body:
+            'Verificare gerarchia, navigazione responsive e desktop shortcuts.',
         collectionId: 'work',
         favorite: false,
         createdAt: millis - 7200000,
@@ -973,8 +976,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         pinned: false,
         archived: false,
         tags: const ['visual', 'architecture'],
-        sketchJson:
-            const VisualInfo(kind: VisualInfoKind.whiteboard).encode(),
+        sketchJson: const VisualInfo(kind: VisualInfoKind.whiteboard).encode(),
       ),
       Note(
         id: 'sketch',
@@ -992,7 +994,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       Note(
         id: 'template-weekly',
         title: 'Review personale',
-        body: '# Settimana {{data}}\n\n## Completato\n\n## Da riprendere\n- [ ] '
+        body:
+            '# Settimana {{data}}\n\n## Completato\n\n## Da riprendere\n- [ ] '
             '\n\n## Priorità prossima settimana',
         collectionId: 'work',
         favorite: false,
@@ -1096,7 +1099,8 @@ class _WebEditorScreenState extends State<_WebEditorScreen> {
     final checklist = Checklist.parse(_body.text);
     return Scaffold(
       appBar: AppBar(
-        title: const EditorialAppTitle('Editor', eyebrow: 'UNIVERSAL BLOCK EDITOR'),
+        title: const EditorialAppTitle('Editor',
+            eyebrow: 'UNIVERSAL BLOCK EDITOR'),
         actions: [
           TextButton.icon(
             onPressed: _save,
@@ -1243,7 +1247,8 @@ class _WebEditorScreenState extends State<_WebEditorScreen> {
               const _CapabilityTile(
                 icon: Icons.hub_outlined,
                 title: 'Knowledge',
-                detail: 'Relazioni, fonti e retrieval condividono la stessa nota.',
+                detail:
+                    'Relazioni, fonti e retrieval condividono la stessa nota.',
               ),
             ],
           );
@@ -1296,14 +1301,16 @@ class _WebSpacesScreen extends StatelessWidget {
         _FeaturePanel(
           icon: Icons.work_outline,
           title: 'Project Workspace',
-          subtitle: '3 progetti attivi · Lista · Board · Tabella · Calendario · Timeline',
+          subtitle:
+              '3 progetti attivi · Lista · Board · Tabella · Calendario · Timeline',
           onTap: onProjects,
         ),
         const SizedBox(height: 12),
         _FeaturePanel(
           icon: Icons.group_work_outlined,
           title: 'Shared Space · Product',
-          subtitle: '4 membri · 2 novità · note e task restano oggetti canonici',
+          subtitle:
+              '4 membri · 2 novità · note e task restano oggetti canonici',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => _WebSharedSpaceDetail(
@@ -1323,7 +1330,9 @@ class _WebSpacesScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => _WebSharedSpaceDetail(
                 title: 'Studio',
-                notes: notes.where((note) => note.tags.contains('studio')).toList(),
+                notes: notes
+                    .where((note) => note.tags.contains('studio'))
+                    .toList(),
                 onOpen: onOpen,
               ),
             ),
@@ -1342,7 +1351,8 @@ class _WebSpacesScreen extends StatelessWidget {
         const _CapabilityTile(
           icon: Icons.security_outlined,
           title: 'Lifecycle esplicito',
-          detail: 'Rimuovi dallo spazio, lascia lo spazio o elimina con semantica distinta.',
+          detail:
+              'Rimuovi dallo spazio, lascia lo spazio o elimina con semantica distinta.',
         ),
       ],
     );
@@ -1419,7 +1429,8 @@ class _WebProjectsScreenState extends State<_WebProjectsScreen> {
   @override
   Widget build(BuildContext context) {
     final tasks = widget.notes.where((note) => note.isTask).toList();
-    final pages = widget.notes.where((note) => !note.isTask && !note.isVisual).toList();
+    final pages =
+        widget.notes.where((note) => !note.isTask && !note.isVisual).toList();
     return Scaffold(
       appBar: AppBar(
         title: const EditorialAppTitle(
@@ -1816,7 +1827,8 @@ class _WebKnowledgeSearchState extends State<_WebKnowledgeSearch> {
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
-              hintText: 'Cerca in note, OCR, Study, PDF, proprietà e relazioni…',
+              hintText:
+                  'Cerca in note, OCR, Study, PDF, proprietà e relazioni…',
             ),
           ),
           const SizedBox(height: 14),
@@ -1882,16 +1894,19 @@ class _WebQuickSwitcherState extends State<_WebQuickSwitcher> {
   @override
   Widget build(BuildContext context) {
     final query = UnifiedRetrieval.normalize(_query.text);
-    final notes = widget.notes.where((note) {
-      if (query.isEmpty) return true;
-      return UnifiedRetrieval.scoreText(
-            query: query,
-            title: note.title,
-            text: note.isVisual ? '' : note.body,
-            tags: note.tags,
-          ) >
-          0;
-    }).take(8).toList();
+    final notes = widget.notes
+        .where((note) {
+          if (query.isEmpty) return true;
+          return UnifiedRetrieval.scoreText(
+                query: query,
+                title: note.title,
+                text: note.isVisual ? '' : note.body,
+                tags: note.tags,
+              ) >
+              0;
+        })
+        .take(8)
+        .toList();
 
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
