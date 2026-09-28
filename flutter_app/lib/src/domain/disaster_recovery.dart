@@ -55,10 +55,51 @@ abstract final class DisasterRecoveryBundle {
     required AttachmentStore store,
     int? createdAt,
   }) async {
+    final assets = <String, Uint8List>{};
+    for (final key in _referencedAssets(snapshot)) {
+      final bytes = await store.read(key);
+      Attachments.verify(key, bytes);
+      assets[key] = bytes;
+    }
+    return encodeLoaded(
+      snapshot: snapshot,
+      revisions: revisions,
+      blocks: blocks,
+      properties: properties,
+      knowledge: knowledge,
+      derivatives: derivatives,
+      projects: projects,
+      sharedSpaces: sharedSpaces,
+      assets: assets,
+      createdAt: createdAt,
+    );
+  }
+
+  static Uint8List encodeLoaded({
+    required BackupSnapshot snapshot,
+    required List<Map<String, Object?>> revisions,
+    required List<ContentBlock> blocks,
+    required Map<String, Object?> properties,
+    required Map<String, Object?> knowledge,
+    required Map<String, Object?> derivatives,
+    required Map<String, Object?> projects,
+    required SharedSpacesSnapshot sharedSpaces,
+    required Map<String, Uint8List> assets,
+    int? createdAt,
+  }) {
     BackupCodec.validate(snapshot);
     _validateRevisions(revisions, snapshot);
     _validateBlocks(blocks, snapshot);
     SharedSpacesCodec.encode(sharedSpaces);
+
+    final referenced = _referencedAssets(snapshot);
+    if (assets.length != referenced.length ||
+        !assets.keys.toSet().containsAll(referenced) ||
+        !referenced.containsAll(assets.keys)) {
+      throw const FormatException(
+        'Allegati non coerenti con lo stato da salvare.',
+      );
+    }
 
     final payloads = <String, Uint8List>{
       'backup.json': _jsonBytes(jsonDecode(BackupCodec.encode(snapshot))),
@@ -75,21 +116,9 @@ abstract final class DisasterRecoveryBundle {
         utf8.encode(SharedSpacesCodec.encode(sharedSpaces)),
       ),
     };
-
-    final assetKeys = <String>{};
-    for (final note in snapshot.notes) {
-      if (!note.isVisual) {
-        assetKeys.addAll(Attachments.refs(note.body).map((ref) => ref.key));
-      }
-    }
-    for (final draft in snapshot.drafts) {
-      assetKeys.addAll(Attachments.refs(draft.body).map((ref) => ref.key));
-    }
-
-    for (final key in assetKeys) {
-      final bytes = await store.read(key);
-      Attachments.verify(key, bytes);
-      payloads['assets/$key'] = bytes;
+    for (final entry in assets.entries) {
+      Attachments.verify(entry.key, entry.value);
+      payloads['assets/${entry.key}'] = entry.value;
     }
 
     var expanded = 0;
@@ -129,6 +158,7 @@ abstract final class DisasterRecoveryBundle {
     }
     return zip;
   }
+
 
   static DisasterRecoveryPreview decode(Uint8List bytes) {
     if (bytes.isEmpty || bytes.length > maxArchiveBytes) {
@@ -282,6 +312,19 @@ abstract final class DisasterRecoveryBundle {
       assets: Map.unmodifiable(assets),
       createdAt: createdAt,
     );
+  }
+
+  static Set<String> _referencedAssets(BackupSnapshot snapshot) {
+    final keys = <String>{};
+    for (final note in snapshot.notes) {
+      if (!note.isVisual) {
+        keys.addAll(Attachments.refs(note.body).map((ref) => ref.key));
+      }
+    }
+    for (final draft in snapshot.drafts) {
+      keys.addAll(Attachments.refs(draft.body).map((ref) => ref.key));
+    }
+    return keys;
   }
 
   static Map<String, Object?> _jsonMap(
