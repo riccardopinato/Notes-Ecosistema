@@ -135,7 +135,7 @@ void main() {
         ArchiveFile.string(
           'Work/Alpha.md',
           '---\ntitle: Alpha\ntags: [work, idea]\ncustom: keep\n---\n'
-          'Link a [[Beta|seconda nota]] e ![[img.png]].',
+              'Link a [[Beta|seconda nota]] e ![[img.png]].',
         ),
       )
       ..add(
