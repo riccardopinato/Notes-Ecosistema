@@ -656,9 +656,7 @@ abstract final class DisasterRecoveryBundle {
         raw.map((key, value) => MapEntry(key.toString(), value)),
       );
       WorkflowAutomationRules.validateRun(run);
-      if (!automationRunIds.add(run.id) ||
-          !automationRuleIds.contains(run.ruleId) ||
-          !noteIds.contains(run.noteId)) {
+      if (!automationRunIds.add(run.id) || !noteIds.contains(run.noteId)) {
         throw const FormatException('Esecuzione automazione recovery non valida.');
       }
     }
