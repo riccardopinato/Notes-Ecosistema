@@ -172,6 +172,17 @@ class WorkflowAutomationStore {
     });
   }
 
+  Future<void> deleteRunsForNote(String noteId) async {
+    final clean = noteId.trim();
+    if (clean.isEmpty) return;
+    final db = await database;
+    await db.delete(
+      'workflow_runs',
+      where: 'noteId = ?',
+      whereArgs: [clean],
+    );
+  }
+
   Future<WorkflowAutomationSnapshot> snapshot() async =>
       WorkflowAutomationSnapshot(
         rules: await loadRules(),
