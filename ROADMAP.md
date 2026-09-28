@@ -1,5 +1,25 @@
 # Notes Ecosistema — Roadmap
 
+## 0.46 — Consolidation & Quality Sweep
+
+**Implementato in 0.46.0+57.**
+
+- Universal Delete & Lifecycle audit sui domini canonici e sidecar;
+- nessun nuovo lifecycle engine: mantenute le ownership già esistenti;
+- attachment cleanup reso conservativo e sidecar-aware per Derivatives/OCR e PDF annotations;
+- Study conserva intenzionalmente LearningItem e source snapshot dopo il purge della source;
+- eliminazione progetto resta non distruttiva sui contenuti collegati;
+- nessuna migration DB, AI, Feature Pack runtime o refactor architetturale preventivo.
+
+### Roadmap successiva approvata
+
+- **0.47 — P2.5 Import Provenance & Idempotency:** source/source-instance/external-id/fingerprint/import-batch, re-import sicuro e conflitti espliciti.
+- **0.48 — Unified Retrieval & Search:** facade logica comune per FTS, metadata, relations, OCR, Study e Documents; ricerca live e ranking coerente.
+- **0.49 — Interoperability Core:** stable deep link, Open-in e file association per i formati realmente supportati.
+- **0.50 — Obsidian / Markdown Migration Pro:** cartelle, frontmatter, wikilink, media e lossiness report senza promettere pixel-perfect migration.
+- **0.51 — Product & UX Polish:** navigazione, gerarchia, onboarding, accessibilità, keyboard/tablet/desktop e coerenza visuale.
+- **Future:** Collaborative Workspace sopra Shared Spaces/Projects, Knowledge Graph derivato, automazioni evento→azione, Local Intelligence opzionale e Module Archive solo quando richiesto da scala reale.
+
 ## Roadmap red-team consolidata — P1.2 → P2.4
 
 **Completata in 0.45.0+56.**
@@ -85,7 +105,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.45.0+56**
+- Versione: **0.46.0+57**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST

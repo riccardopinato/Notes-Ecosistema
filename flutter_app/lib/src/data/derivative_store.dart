@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/attachments.dart';
 import '../domain/derivatives.dart';
 
 class DerivativeStore {
@@ -91,6 +92,21 @@ class DerivativeStore {
       where: 'sourceNoteId = ?',
       whereArgs: [noteId],
     );
+  }
+
+  Future<Set<String>> referencedAssetKeys() async {
+    final db = await database;
+    final rows = await db.query(
+      'derivatives',
+      columns: ['sourceAssetKey'],
+      where: 'sourceAssetKey IS NOT NULL',
+    );
+    return {
+      for (final row in rows)
+        if (row['sourceAssetKey'] is String &&
+            Attachments.validKey(row['sourceAssetKey']! as String))
+          row['sourceAssetKey']! as String,
+    };
   }
 
   Future<Map<String, Object?>> exportBackup() async {

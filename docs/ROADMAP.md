@@ -4,20 +4,13 @@ La roadmap operativa canonica è mantenuta nel file root `ROADMAP.md`.
 
 ## Stato corrente
 
-- Versione: **0.36.0+45**
+- Versione: **0.46.0+57**
 - Stack: Flutter + SQLite/sqflite
 - Strategia: local-first, private-by-default, REUSE-FIRST
-- Roadmap riconciliata **P0–P4 funzionalmente completata**
-- P0: Production Truth & Data Lifecycle — 0.32
-- P1: Universal Properties & Adaptive Editor — 0.33
-- P2: Daily Work Briefing & Capture — 0.34
-- P3: Interoperability & Research — 0.35
-- P4: Optional Intelligence — 0.36
+- Roadmap red-team **P1.2 → P2.4 completata in 0.45.0+56**
+- **0.46 Consolidation & Quality Sweep implementato**
+- Prossimo step canonico: **0.47 / P2.5 Import Provenance & Idempotency**
 
-Il dettaglio, i gate FAST/FULL/CERTIFIED e i principi permanenti sono in
-`../ROADMAP.md`. Questo file resta solo come puntatore di compatibilità per
-evitare due roadmap divergenti.
+Il dettaglio dei gate FAST/FULL/CERTIFIED, dei principi permanenti e della roadmap successiva è in `../ROADMAP.md`.
 
-La chiusura funzionale P0–P4 non equivale alla certificazione hardware:
-reminder, notifiche/background, Doze/OEM e installazione/upgrade release
-richiedono ancora le evidenze real-device previste dal Master Prompt corrente.
+Questo file resta soltanto un puntatore di compatibilità: non deve contenere una seconda roadmap indipendente o uno stato versione divergente.

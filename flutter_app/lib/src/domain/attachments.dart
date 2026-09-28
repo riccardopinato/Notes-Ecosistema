@@ -125,6 +125,24 @@ abstract final class Attachments {
         .toList(growable: false);
   }
 
+  static Set<String> referencedKeys({
+    required Iterable<String> noteBodies,
+    required Iterable<String> draftBodies,
+    Iterable<String?> sidecarKeys = const [],
+  }) {
+    final referenced = <String>{};
+    for (final body in noteBodies) {
+      referenced.addAll(refs(body).map((ref) => ref.key));
+    }
+    for (final body in draftBodies) {
+      referenced.addAll(refs(body).map((ref) => ref.key));
+    }
+    for (final key in sidecarKeys) {
+      if (key != null && validKey(key)) referenced.add(key);
+    }
+    return referenced;
+  }
+
   static String append(String body, String key, String name) {
     if (!validKey(key)) {
       throw const FormatException('Allegato non valido.');
