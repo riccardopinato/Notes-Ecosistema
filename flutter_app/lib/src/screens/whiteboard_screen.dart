@@ -755,7 +755,20 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _workingVersion++;
       _shapeStart = null;
       _shapeEnd = null;
+      _lassoStart = null;
+      _lassoEnd = null;
+      if (tool != _WhiteboardTool.select) {
+        _selectedNodeIds.clear();
+        _selectedTextIds.clear();
+      }
     });
+  }
+
+  Rect? get _lassoWorldRect {
+    final start = _lassoStart;
+    final end = _lassoEnd;
+    if (start == null || end == null) return null;
+    return Rect.fromPoints(start, end);
   }
 
   void _setPaper(WhiteboardPaper paper) {
@@ -775,6 +788,14 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   void _drawStart(DragStartDetails details) {
     final point = _boardPoint(details.localPosition);
+    if (_selectionMode) {
+      final offset = Offset(point.x.toDouble(), point.y.toDouble());
+      setState(() {
+        _lassoStart = offset;
+        _lassoEnd = offset;
+      });
+      return;
+    }
     if (_tool == _WhiteboardTool.pen || _tool == _WhiteboardTool.highlighter) {
       _workingPoints
         ..clear()
@@ -799,6 +820,12 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   void _drawUpdate(DragUpdateDetails details) {
     final point = _boardPoint(details.localPosition);
+    if (_selectionMode && _lassoStart != null) {
+      setState(() {
+        _lassoEnd = Offset(point.x.toDouble(), point.y.toDouble());
+      });
+      return;
+    }
     if (_tool == _WhiteboardTool.pen || _tool == _WhiteboardTool.highlighter) {
       _workingPoints.add(point);
       setState(() => _workingVersion++);
@@ -815,6 +842,16 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   void _drawEnd(DragEndDetails details) {
+    if (_selectionMode && _lassoWorldRect != null) {
+      final rect = _lassoWorldRect!;
+      _selectLasso(rect);
+      setState(() {
+        _lassoStart = null;
+        _lassoEnd = null;
+      });
+      return;
+    }
+
     if ((_tool == _WhiteboardTool.pen ||
             _tool == _WhiteboardTool.highlighter) &&
         _workingPoints.isNotEmpty) {
@@ -886,6 +923,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _workingVersion++;
       _shapeStart = null;
       _shapeEnd = null;
+      _lassoStart = null;
+      _lassoEnd = null;
     });
   }
 
