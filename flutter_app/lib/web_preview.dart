@@ -1055,6 +1055,38 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     );
   }
 
+  static List<WorkflowRule> _seedAutomationRules() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return [
+      WorkflowRule(
+        id: 'web-auto-1',
+        name: 'Tagga nuove note di lavoro',
+        enabled: true,
+        trigger: WorkflowTrigger.itemCreated,
+        subject: WorkflowSubject.note,
+        requiredTag: null,
+        titleContains: null,
+        actionKind: WorkflowActionKind.addTag,
+        actionValue: 'inbox',
+        createdAt: now - 2000,
+        updatedAt: now - 2000,
+      ),
+      WorkflowRule(
+        id: 'web-auto-2',
+        name: 'Priorità media ai nuovi task',
+        enabled: true,
+        trigger: WorkflowTrigger.itemCreated,
+        subject: WorkflowSubject.task,
+        requiredTag: null,
+        titleContains: null,
+        actionKind: WorkflowActionKind.setPriority,
+        actionValue: '2',
+        createdAt: now - 1000,
+        updatedAt: now - 1000,
+      ),
+    ];
+  }
+
   static List<Note> _seedNotes() {
     final now = DateTime.now();
     final millis = now.millisecondsSinceEpoch;
@@ -2104,6 +2136,81 @@ class _WebKnowledgeSearchState extends State<_WebKnowledgeSearch> {
   }
 }
 
+class _WebAutomationScreen extends StatelessWidget {
+  const _WebAutomationScreen({
+    required this.rules,
+    required this.runs,
+    required this.collections,
+    required this.onToggle,
+  });
+
+  final List<WorkflowRule> rules;
+  final List<WorkflowRun> runs;
+  final List<NoteCollection> collections;
+  final void Function(String id, bool value) onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final byId = {for (final rule in rules) rule.id: rule};
+    return Scaffold(
+      appBar: AppBar(title: Text(strings.automations)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+        children: [
+          const EditorialEyebrow('WORKFLOW AUTOMATIONS · WEB'),
+          const SizedBox(height: 4),
+          Text(
+            strings.automationsSubtitle,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'La preview usa regole in memoria ma applica lo stesso motore '
+            'deterministico della release Android ai salvataggi demo.',
+          ),
+          const SizedBox(height: 18),
+          for (final rule in rules)
+            Card(
+              child: SwitchListTile(
+                value: rule.enabled,
+                onChanged: (value) => onToggle(rule.id, value),
+                title: Text(rule.name),
+                subtitle: Text(
+                  '${rule.trigger.name} · ${rule.subject.name} · '
+                  '${rule.actionKind.name}'
+                  '${rule.actionValue.isEmpty ? '' : ': ${rule.actionValue}'}',
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          EditorialSection(strings.recentRuns),
+          if (runs.isEmpty)
+            const Text(
+              'Crea o modifica una nota/task nella preview per generare '
+              'un’esecuzione.',
+            )
+          else
+            for (final run in runs.take(12))
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(child: Icon(Icons.bolt_outlined)),
+                title: Text(byId[run.ruleId]?.name ?? 'Regola rimossa'),
+                subtitle: Text('${run.trigger.name} · ${run.actionKind.name}'),
+              ),
+          if (collections.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Raccolte demo: '
+              '${collections.map((item) => item.name).join(', ')}',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _WebQuickSwitcher extends StatefulWidget {
   const _WebQuickSwitcher({
     required this.notes,
@@ -2111,6 +2218,7 @@ class _WebQuickSwitcher extends StatefulWidget {
     required this.onOpen,
     required this.onProjects,
     required this.onStudy,
+    required this.onAutomations,
   });
 
   final List<Note> notes;
@@ -2118,6 +2226,7 @@ class _WebQuickSwitcher extends StatefulWidget {
   final ValueChanged<Note> onOpen;
   final VoidCallback onProjects;
   final VoidCallback onStudy;
+  final VoidCallback onAutomations;
 
   @override
   State<_WebQuickSwitcher> createState() => _WebQuickSwitcherState();
@@ -2186,6 +2295,11 @@ class _WebQuickSwitcherState extends State<_WebQuickSwitcher> {
                       leading: const Icon(Icons.school_outlined),
                       title: const Text('Apri Study'),
                       onTap: widget.onStudy,
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.auto_mode_outlined),
+                      title: const Text('Apri Automazioni'),
+                      onTap: widget.onAutomations,
                     ),
                     const Divider(),
                   ],
