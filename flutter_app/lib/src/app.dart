@@ -1400,6 +1400,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           case 'automations':
             await _openWorkflowAutomations();
             break;
+          case 'local-intelligence':
+            await _openLocalIntelligence();
+            break;
           case 'search':
             setState(() => _index = 5);
             break;
