@@ -159,8 +159,9 @@ class LocalIntelligenceService {
       return _lexicalResult(query, lexical, notes, limit);
     }
 
-    await rebuildIndex(notes);
-    final queryVector = await provider.embed(query);
+    try {
+      await rebuildIndex(notes);
+      final queryVector = await provider.embed(query);
     if (queryVector.values.length != provider.dimensions) {
       return _lexicalResult(query, lexical, notes, limit);
     }
@@ -184,15 +185,18 @@ class LocalIntelligenceService {
       );
     }
 
-    final hits = HybridSemanticRanker.rank(
-      query: query,
-      documents: documents,
-      lexicalHits: lexical,
-      semanticScores: scores,
-      notes: notes,
-      limit: limit,
-    );
-    return KnowledgeQueryResult(query: query.trim(), hits: hits);
+      final hits = HybridSemanticRanker.rank(
+        query: query,
+        documents: documents,
+        lexicalHits: lexical,
+        semanticScores: scores,
+        notes: notes,
+        limit: limit,
+      );
+      return KnowledgeQueryResult(query: query.trim(), hits: hits);
+    } catch (_) {
+      return _lexicalResult(query, lexical, notes, limit);
+    }
   }
 
   Future<List<KnowledgeHit>> related({
@@ -208,8 +212,9 @@ class LocalIntelligenceService {
       );
     }
 
-    await rebuildIndex(notes);
-    final queryVector = await provider.embed(
+    try {
+      await rebuildIndex(notes);
+      final queryVector = await provider.embed(
       _boundedText('${source.title}\n${source.body}'),
     );
     final indexed = await index.forModel(
@@ -243,14 +248,21 @@ class LocalIntelligenceService {
         final bNote = byNote[b.key]!;
         return bNote.updatedAt.compareTo(aNote.updatedAt);
       });
-    return ranked.take(limit.clamp(1, 20)).map((entry) {
-      final note = byNote[entry.key]!;
-      return KnowledgeHit(
-        note: note,
-        score: entry.value,
-        excerpt: UnifiedRetrieval.excerpt(note.body, source.title),
+      return ranked.take(limit.clamp(1, 20)).map((entry) {
+        final note = byNote[entry.key]!;
+        return KnowledgeHit(
+          note: note,
+          score: entry.value,
+          excerpt: UnifiedRetrieval.excerpt(note.body, source.title),
+        );
+      }).toList(growable: false);
+    } catch (_) {
+      return const LocalKnowledgeRetrieval().related(
+        source,
+        notes,
+        limit: limit,
       );
-    }).toList(growable: false);
+    }
   }
 
   Future<SemanticBenchmarkResult> benchmark() async {
