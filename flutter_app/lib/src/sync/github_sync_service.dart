@@ -644,8 +644,7 @@ class GitHubSyncService {
         }
 
         if (localDocument == null && remoteDocument != null) {
-          final syncedTombstoneWasPurged =
-              remoteDocument.deletedAt != null &&
+          final syncedTombstoneWasPurged = remoteDocument.deletedAt != null &&
               previous?.base?.deletedAt != null &&
               previous?.base == remoteDocument;
           if (syncedTombstoneWasPurged) {
