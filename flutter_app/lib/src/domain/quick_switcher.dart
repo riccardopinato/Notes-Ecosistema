@@ -55,6 +55,12 @@ abstract final class QuickSwitcher {
         kind: QuickSwitcherKind.command,
       ),
       const QuickSwitcherEntry(
+        id: 'study',
+        label: 'Studio',
+        subtitle: 'Ripasso e Learning Items',
+        kind: QuickSwitcherKind.command,
+      ),
+      const QuickSwitcherEntry(
         id: 'search',
         label: 'Cerca',
         subtitle: 'Ricerca completa',
