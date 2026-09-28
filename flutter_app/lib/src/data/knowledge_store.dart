@@ -372,6 +372,7 @@ class KnowledgeStore {
       final list = ids.toList(growable: false);
       return list.length == list.toSet().length;
     }
+
     if (!unique(sources.map((item) => item.id)) ||
         !unique(relations.map((item) => item.id)) ||
         !unique(blocks.map((item) => item.id))) {
