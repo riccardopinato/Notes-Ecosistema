@@ -244,4 +244,225 @@ void main() {
     final decoded = WhiteboardCodec.decode(saved!.body);
     expect(decoded.strokes, hasLength(1));
   });
+
+  testWidgets('lasso selects only objects inside the drawn area',
+      (tester) async {
+    final source = WhiteboardDocument(
+      nodes: [
+        BoardNode(
+          id: 'left',
+          kind: BoardNodeKind.sticky,
+          text: 'Sinistra',
+          x: -300,
+          y: -40,
+          width: 120,
+          height: 80,
+        ),
+        BoardNode(
+          id: 'right',
+          kind: BoardNodeKind.sticky,
+          text: 'Destra',
+          x: 300,
+          y: -40,
+          width: 120,
+          height: 80,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WhiteboardScreen(
+          note: whiteboardNote(
+            id: 'whiteboard-lasso',
+            body: WhiteboardCodec.encode(source),
+          ),
+          onSave: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Seleziona'));
+    await tester.pump();
+
+    final viewport = find.byKey(const ValueKey('whiteboard-viewport'));
+    final center = tester.getCenter(viewport);
+    await tester.dragFrom(
+      center + const Offset(-360, -120),
+      const Offset(340, 280),
+    );
+    await tester.pump();
+
+    expect(find.text('1 selezionati'), findsOneWidget);
+  });
+
+  testWidgets('selection can duplicate and resize post-its', (tester) async {
+    Note? saved;
+    final source = WhiteboardDocument(
+      nodes: [
+        BoardNode(
+          id: 'one',
+          kind: BoardNodeKind.sticky,
+          text: 'Uno',
+          x: -320,
+          y: -80,
+        ),
+        BoardNode(
+          id: 'two',
+          kind: BoardNodeKind.sticky,
+          text: 'Due',
+          x: 80,
+          y: -80,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WhiteboardScreen(
+          note: whiteboardNote(
+            id: 'whiteboard-selection-actions',
+            body: WhiteboardCodec.encode(source),
+          ),
+          onSave: (value) async => saved = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Seleziona'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('whiteboard-select-all')));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('whiteboard-duplicate-selection')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('whiteboard-resize-larger')),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Salva'));
+    await tester.pumpAndSettle();
+
+    final decoded = WhiteboardCodec.decode(saved!.body);
+    expect(decoded.nodes, hasLength(4));
+    final duplicates = decoded.nodes
+        .where((node) => node.id != 'one' && node.id != 'two')
+        .toList();
+    expect(duplicates, hasLength(2));
+    expect(duplicates.every((node) => node.width == 300), isTrue);
+    expect(duplicates.every((node) => node.height == 186), isTrue);
+  });
+
+  testWidgets('snap grid aligns moved selection to 40 px', (tester) async {
+    Note? saved;
+    final source = WhiteboardDocument(
+      nodes: [
+        BoardNode(
+          id: 'snap',
+          kind: BoardNodeKind.sticky,
+          text: 'Snap',
+          x: 13,
+          y: 17,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WhiteboardScreen(
+          note: whiteboardNote(
+            id: 'whiteboard-snap',
+            body: WhiteboardCodec.encode(source),
+          ),
+          onSave: (value) async => saved = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Seleziona'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('whiteboard-select-all')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('whiteboard-snap-grid')));
+    await tester.pump();
+
+    await tester.drag(find.text('Snap'), const Offset(53, 31));
+    await tester.pump();
+    await tester.tap(find.text('Salva'));
+    await tester.pumpAndSettle();
+
+    final node = WhiteboardCodec.decode(saved!.body).nodes.single;
+    expect(node.x % 40, 0);
+    expect(node.y % 40, 0);
+  });
+
+  testWidgets('mini-map is always available for board overview',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WhiteboardScreen(
+          note: whiteboardNote(id: 'whiteboard-minimap'),
+          onSave: (_) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('whiteboard-minimap')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('history remains bounded and stable across repeated ink edits',
+      (tester) async {
+    Note? saved;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WhiteboardScreen(
+          note: whiteboardNote(id: 'whiteboard-history-stress'),
+          onSave: (value) async => saved = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Penna'));
+    await tester.pump();
+
+    final viewport = find.byKey(const ValueKey('whiteboard-viewport'));
+    final center = tester.getCenter(viewport);
+    for (var i = 0; i < 12; i++) {
+      await tester.dragFrom(
+        center + Offset(-180 + i * 12, -120 + i * 8),
+        const Offset(45, 18),
+      );
+      await tester.pump();
+    }
+
+    final undo = find.byKey(const ValueKey('whiteboard-undo'));
+    final redo = find.byKey(const ValueKey('whiteboard-redo'));
+    for (var i = 0; i < 12; i++) {
+      await tester.tap(undo);
+      await tester.pump();
+    }
+    for (var i = 0; i < 12; i++) {
+      await tester.tap(redo);
+      await tester.pump();
+    }
+
+    await tester.tap(find.text('Salva'));
+    await tester.pumpAndSettle();
+
+    expect(
+      WhiteboardCodec.decode(saved!.body).strokes,
+      hasLength(12),
+    );
+  });
+
 }
