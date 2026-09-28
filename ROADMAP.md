@@ -1,5 +1,60 @@
 # Notes Ecosistema — Roadmap
 
+## Roadmap red-team consolidata — P1.2 → P2.4
+
+**Completata in 0.45.0+56.**
+
+### P1.2 — True Disaster-Recovery Backup
+- recovery bundle distinto dal Media Bundle v3;
+- restore exact-ID per Core e sidecar;
+- revision history e ContentBlock inclusi;
+- asset CAS verificati;
+- preflight di tutti i sidecar prima della modifica persistente;
+- Media Bundle v3 resta invariato come migration/import-as-copy.
+
+### P1.3 — Distributed Lifecycle Verification & Hardening
+- delete vs offline edit verificato come conflitto, non last-write-wins;
+- restore dopo tombstone verificato come upload esplicito;
+- purge di tombstone GitHub già sincronizzato non provoca resurrection;
+- Shared Live Sync conserva delete/edit concorrenti come conflitto;
+- nessuna unificazione preventiva dei due sync engine.
+
+### P1.4 — Stable Block Identity Contract
+- nessun nuovo Block model;
+- reconcile UBE preserva gli ID dei blocchi compatibili;
+- edit del testo e inserimenti non rigenerano inutilmente gli ID;
+- round-trip storage mantiene l'identità esplicita.
+
+### P2.1 — Open Export strutturato completo
+- Markdown human-readable e JSON machine-readable nello stesso pacchetto aperto;
+- Properties, Knowledge, Projects, Study, Documents e media inclusi;
+- revision history intenzionalmente esclusa perché appartiene al disaster-recovery backup;
+- nessuna fusione fra Open Export e Backup.
+
+### P2.2 — Study Core
+- LearningItem source-linked + historical source snapshot;
+- ReviewLog canonico e ReviewState derivato;
+- SimpleStudyScheduler dietro contratto sostituibile;
+- coda giornaliera bounded/anti-debt;
+- UI Study raggiungibile dalla Home;
+- niente FSRS avanzato, Exam, AI, gamification o collaboration Study.
+
+### P2.3 — Document/PDF Workspace
+- Note resta il document flow canonico;
+- PDF originale resta asset CAS;
+- OCR originale e OCR corretto distinti con provenance;
+- annotation store locale con page/region anchors;
+- ricerca bounded sul layer OCR;
+- nessun nuovo Document Object duplicato.
+
+### P2.4 — Visual Workspace evolution
+- Sketchbook e Whiteboard restano sistemi separati;
+- condivise soltanto primitive InkStroke/InkPoint e wire codec realmente duplicate;
+- i codec legacy Sketch/Whiteboard restano distinti e retrocompatibili;
+- nessuna Canvas universale, Graph View o Kanban-in-Canvas.
+
+**Gate funzionale pre-release:** 140 test PASS, analyze pulito, build debug/release PASS, size gate PASS.
+
 ## Wave 1 — P1.1 Reference Lifecycle Foundation
 
 **Implementato in 0.38.0+49.**
@@ -30,7 +85,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.38.0+49**
+- Versione: **0.45.0+56**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
