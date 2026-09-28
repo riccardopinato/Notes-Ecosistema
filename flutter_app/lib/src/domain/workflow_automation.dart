@@ -51,8 +51,9 @@ class WorkflowRule {
         enabled: enabled ?? this.enabled,
         trigger: trigger ?? this.trigger,
         subject: subject ?? this.subject,
-        requiredTag:
-            identical(requiredTag, _unset) ? this.requiredTag : requiredTag as String?,
+        requiredTag: identical(requiredTag, _unset)
+            ? this.requiredTag
+            : requiredTag as String?,
         titleContains: identical(titleContains, _unset)
             ? this.titleContains
             : titleContains as String?,
@@ -80,12 +81,14 @@ class WorkflowRule {
         id: row['id']?.toString() ?? '',
         name: row['name']?.toString() ?? '',
         enabled: (row['enabled'] as num?)?.toInt() == 1,
-        trigger: WorkflowTrigger.values.byName(row['trigger']?.toString() ?? ''),
-        subject: WorkflowSubject.values.byName(row['subject']?.toString() ?? ''),
+        trigger:
+            WorkflowTrigger.values.byName(row['trigger']?.toString() ?? ''),
+        subject:
+            WorkflowSubject.values.byName(row['subject']?.toString() ?? ''),
         requiredTag: _optional(row['requiredTag']),
         titleContains: _optional(row['titleContains']),
-        actionKind:
-            WorkflowActionKind.values.byName(row['actionKind']?.toString() ?? ''),
+        actionKind: WorkflowActionKind.values
+            .byName(row['actionKind']?.toString() ?? ''),
         actionValue: row['actionValue']?.toString() ?? '',
         createdAt: (row['createdAt'] as num?)?.toInt() ?? -1,
         updatedAt: (row['updatedAt'] as num?)?.toInt() ?? -1,
@@ -122,9 +125,10 @@ class WorkflowRun {
         id: row['id']?.toString() ?? '',
         ruleId: row['ruleId']?.toString() ?? '',
         noteId: row['noteId']?.toString() ?? '',
-        trigger: WorkflowTrigger.values.byName(row['trigger']?.toString() ?? ''),
-        actionKind:
-            WorkflowActionKind.values.byName(row['actionKind']?.toString() ?? ''),
+        trigger:
+            WorkflowTrigger.values.byName(row['trigger']?.toString() ?? ''),
+        actionKind: WorkflowActionKind.values
+            .byName(row['actionKind']?.toString() ?? ''),
         ranAt: (row['ranAt'] as num?)?.toInt() ?? -1,
       );
 }
@@ -164,7 +168,8 @@ abstract final class WorkflowAutomationRules {
 
     switch (rule.actionKind) {
       case WorkflowActionKind.addTag:
-        if (rule.actionValue.trim().isEmpty || rule.actionValue.trim().length > 80) {
+        if (rule.actionValue.trim().isEmpty ||
+            rule.actionValue.trim().length > 80) {
           throw const FormatException('Tag automazione non valido.');
         }
         break;
@@ -316,7 +321,9 @@ abstract final class WorkflowAutomations {
         if (!note.isTask) return note;
         final details = TaskDetails.tryDecode(note.taskJson);
         final priority = int.tryParse(rule.actionValue.trim());
-        if (details == null || priority == null || details.priority == priority) {
+        if (details == null ||
+            priority == null ||
+            details.priority == priority) {
           return note;
         }
         return note.copyWith(
