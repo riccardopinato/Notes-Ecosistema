@@ -1,5 +1,24 @@
 # Notes Ecosistema — Roadmap
 
+## 0.52 — Collaborative Workspace
+
+**Implementato in 0.52.0+63.**
+
+- riuso completo di Shared Spaces e Project Workspace;
+- discussioni/commenti sincronizzati nel workspace;
+- commenti merge-safe con tombstone;
+- Viewer read-only sui contenuti ma abilitato alla discussione;
+- cronologia locale degli inviti recenti;
+- lifecycle esplicito: lascia spazio ≠ rimuovi dal dispositivo;
+- Project Workspace team espone membri/commenti/ruolo;
+- nessun CRDT, presence realtime, block ACL o secondo collaboration engine.
+
+Dettagli: `flutter_app/COLLABORATIVE_WORKSPACE_0_52.md`.
+
+### Prossimo asse candidato
+
+**0.53 — Knowledge Graph**, come proiezione derivata di link, relazioni, Study, Documents e Projects. Nessuna nuova source of truth.
+
 ## 0.47 → 0.51 — Product Interoperability & UX Cycle
 
 **Implementato in 0.51.0+62.**
@@ -121,7 +140,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.51.0+62**
+- Versione: **0.52.0+63**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
