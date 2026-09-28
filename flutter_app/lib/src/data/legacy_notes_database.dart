@@ -371,6 +371,187 @@ class LegacyNotesDatabase {
     );
   }
 
+  Future<Map<String, Object?>> exportRecoveryState() async {
+    final db = await database;
+    return {
+      'version': 1,
+      'collections': await db.query('collections', orderBy: 'id ASC'),
+      'notes': await db.query('notes', orderBy: 'id ASC'),
+      'drafts': await db.query('drafts', orderBy: 'id ASC'),
+      'revisions': await db.query(
+        'note_revisions',
+        orderBy: 'noteId ASC, savedAt ASC, revisionId ASC',
+      ),
+      'contentBlocks': await db.query(
+        'content_blocks',
+        orderBy: 'ownerType ASC, ownerId ASC, position ASC, id ASC',
+      ),
+    };
+  }
+
+  Future<void> restoreRecoveryState(Map<String, Object?> payload) async {
+    if (payload['version'] != 1 ||
+        payload['collections'] is! List ||
+        payload['notes'] is! List ||
+        payload['drafts'] is! List ||
+        payload['revisions'] is! List ||
+        payload['contentBlocks'] is! List) {
+      throw const FormatException('Backup workspace non valido.');
+    }
+
+    Map<String, Object?> row(Object? raw, String label) {
+      if (raw is! Map) {
+        throw FormatException('$label non valido.');
+      }
+      return raw.map((key, value) => MapEntry(key.toString(), value));
+    }
+
+    final collections = (payload['collections'] as List)
+        .map((raw) => row(raw, 'Raccolta'))
+        .toList(growable: false);
+    final notes = (payload['notes'] as List)
+        .map((raw) => row(raw, 'Nota'))
+        .toList(growable: false);
+    final drafts = (payload['drafts'] as List)
+        .map((raw) => row(raw, 'Bozza'))
+        .toList(growable: false);
+    final revisions = (payload['revisions'] as List)
+        .map((raw) => row(raw, 'Revisione'))
+        .toList(growable: false);
+    final blocks = (payload['contentBlocks'] as List)
+        .map((raw) => row(raw, 'Blocco'))
+        .toList(growable: false);
+
+    if (notes.length > 10000 ||
+        collections.length > 10000 ||
+        drafts.length > 10000 ||
+        revisions.length > 500000 ||
+        blocks.length > 200000) {
+      throw const FormatException('Backup workspace troppo grande.');
+    }
+
+    final collectionIds = <String>{};
+    final collectionModels = <NoteCollection>[];
+    for (final value in collections) {
+      final id = value['id']?.toString() ?? '';
+      final name = value['name']?.toString() ?? '';
+      if (id.trim().isEmpty ||
+          name.trim().isEmpty ||
+          !collectionIds.add(id)) {
+        throw const FormatException('Raccolta backup non valida.');
+      }
+      collectionModels.add(NoteCollection(id: id, name: name));
+    }
+
+    final noteModels = notes.map(Note.fromMap).toList(growable: false);
+    final noteIds = noteModels.map((note) => note.id).toSet();
+    if (noteIds.length != noteModels.length ||
+        noteModels.any(
+          (note) =>
+              note.id.trim().isEmpty ||
+              (note.collectionId != null &&
+                  !collectionIds.contains(note.collectionId)),
+        )) {
+      throw const FormatException('Note backup non valide.');
+    }
+
+    final draftModels = drafts.map((value) {
+      final id = value['id']?.toString() ?? '';
+      final updatedAt = (value['updatedAt'] as num?)?.toInt() ?? -1;
+      final collectionId = value['collectionId']?.toString();
+      if (id.trim().isEmpty ||
+          updatedAt < 0 ||
+          (collectionId != null && !collectionIds.contains(collectionId))) {
+        throw const FormatException('Bozza backup non valida.');
+      }
+      return BackupDraft(
+        id: id,
+        title: value['title']?.toString() ?? '',
+        body: value['body']?.toString() ?? '',
+        collectionId: collectionId,
+        updatedAt: updatedAt,
+        tags: _decodeTags(value['tagsJson']?.toString()),
+      );
+    }).toList(growable: false);
+
+    BackupCodec.validate(
+      BackupSnapshot(
+        notes: noteModels,
+        collections: collectionModels,
+        drafts: draftModels,
+      ),
+    );
+
+    final revisionIds = <String>{};
+    for (final value in revisions) {
+      final id = value['revisionId']?.toString() ?? '';
+      final noteId = value['noteId']?.toString() ?? '';
+      final savedAt = (value['savedAt'] as num?)?.toInt() ?? -1;
+      if (id.trim().isEmpty ||
+          !revisionIds.add(id) ||
+          !noteIds.contains(noteId) ||
+          savedAt < 0) {
+        throw const FormatException('Revisione backup non valida.');
+      }
+    }
+
+    final blockIds = <String>{};
+    for (final value in blocks) {
+      final model = ContentBlock.fromMap(value);
+      ContentBlocks.validate(model);
+      if (!blockIds.add(model.id) ||
+          model.ownerType != 'note' ||
+          !noteIds.contains(model.ownerId)) {
+        throw const FormatException('Blocco backup non valido.');
+      }
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('content_blocks');
+      await txn.delete('note_revisions');
+      await txn.delete('drafts');
+      await txn.delete('notes');
+      await txn.delete('collections');
+
+      for (final value in collections) {
+        await txn.insert(
+          'collections',
+          value,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final value in notes) {
+        await txn.insert(
+          'notes',
+          value,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final value in drafts) {
+        await txn.insert(
+          'drafts',
+          value,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final value in revisions) {
+        await txn.insert(
+          'note_revisions',
+          value,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final value in blocks) {
+        await txn.insert(
+          'content_blocks',
+          value,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<Set<String>> syncDocumentIds() async {
     final db = await database;
     final rows = await db.query('notes', columns: ['id']);
