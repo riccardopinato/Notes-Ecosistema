@@ -2536,6 +2536,112 @@ class _BoardPainter extends CustomPainter {
       oldDelegate.visibleRect != visibleRect;
 }
 
+class _MiniMapPainter extends CustomPainter {
+  const _MiniMapPainter({
+    required this.document,
+    required this.bounds,
+    required this.viewport,
+  });
+
+  final WhiteboardDocument document;
+  final Rect bounds;
+  final Rect viewport;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final background = Paint()..color = const Color(0xFFF7F8FA);
+    canvas.drawRect(Offset.zero & size, background);
+
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    const padding = 8.0;
+    final scale = math.min(
+      (size.width - padding * 2) / bounds.width,
+      (size.height - padding * 2) / bounds.height,
+    );
+    if (!scale.isFinite || scale <= 0) return;
+
+    final usedWidth = bounds.width * scale;
+    final usedHeight = bounds.height * scale;
+    final dx = (size.width - usedWidth) / 2;
+    final dy = (size.height - usedHeight) / 2;
+
+    Offset mapPoint(Offset point) => Offset(
+          dx + (point.dx - bounds.left) * scale,
+          dy + (point.dy - bounds.top) * scale,
+        );
+
+    Rect mapRect(Rect rect) => Rect.fromPoints(
+          mapPoint(rect.topLeft),
+          mapPoint(rect.bottomRight),
+        );
+
+    final inkPaint = Paint()
+      ..color = const Color(0x8052606D)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    for (final stroke in document.strokes) {
+      if (stroke.points.isEmpty) continue;
+      final step = math.max(1, stroke.points.length ~/ 60);
+      final path = Path();
+      final first = stroke.points.first;
+      path.moveTo(
+        mapPoint(Offset(first.x.toDouble(), first.y.toDouble())).dx,
+        mapPoint(Offset(first.x.toDouble(), first.y.toDouble())).dy,
+      );
+      for (var i = step; i < stroke.points.length; i += step) {
+        final point = stroke.points[i];
+        final mapped = mapPoint(
+          Offset(point.x.toDouble(), point.y.toDouble()),
+        );
+        path.lineTo(mapped.dx, mapped.dy);
+      }
+      canvas.drawPath(path, inkPaint);
+    }
+
+    final nodePaint = Paint()
+      ..color = const Color(0xFF90A4AE)
+      ..style = PaintingStyle.fill;
+    for (final node in document.nodes) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          mapRect(
+            Rect.fromLTWH(
+              node.x.toDouble(),
+              node.y.toDouble(),
+              node.width.toDouble(),
+              node.height.toDouble(),
+            ),
+          ),
+          const Radius.circular(2),
+        ),
+        nodePaint,
+      );
+    }
+
+    final textPaint = Paint()
+      ..color = const Color(0xFF607D8B)
+      ..style = PaintingStyle.fill;
+    for (final text in document.texts) {
+      final point = mapPoint(Offset(text.x.toDouble(), text.y.toDouble()));
+      canvas.drawCircle(point, 1.8, textPaint);
+    }
+
+    final viewportPaint = Paint()
+      ..color = const Color(0xFF1976D2)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawRect(mapRect(viewport), viewportPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniMapPainter oldDelegate) =>
+      oldDelegate.document != document ||
+      oldDelegate.bounds != bounds ||
+      oldDelegate.viewport != viewport;
+}
+
 Color _contrast(Color background) {
   final luminance = background.computeLuminance();
   return luminance > 0.5 ? Colors.black87 : Colors.white;
