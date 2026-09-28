@@ -411,22 +411,315 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     }
   }
 
-  void _onObjectPointerDown(PointerDownEvent event) {
-    if (widget.readOnly || _tool != _WhiteboardTool.navigate) return;
+  bool get _selectionMode => _tool == _WhiteboardTool.select;
+
+  Rect _nodeWorldRect(BoardNode node) => Rect.fromLTWH(
+        node.x.toDouble(),
+        node.y.toDouble(),
+        node.width.toDouble(),
+        node.height.toDouble(),
+      );
+
+  Rect _textWorldRect(SketchText text) => Rect.fromLTWH(
+        text.x.toDouble(),
+        text.y.toDouble(),
+        math.min(
+          800.0,
+          math.max(140.0, text.text.length * text.size * 0.55),
+        ),
+        math.max(72.0, text.size * 2.8),
+      );
+
+  void _clearSelection() {
+    if (_selectedNodeIds.isEmpty && _selectedTextIds.isEmpty) return;
+    setState(() {
+      _selectedNodeIds.clear();
+      _selectedTextIds.clear();
+    });
+  }
+
+  void _selectAllObjects() {
+    setState(() {
+      _selectedNodeIds
+        ..clear()
+        ..addAll(_document.nodes.map((node) => node.id));
+      _selectedTextIds
+        ..clear()
+        ..addAll(_document.texts.map((text) => text.id));
+    });
+  }
+
+  void _toggleNodeSelection(BoardNode node) {
+    setState(() {
+      if (!_selectedNodeIds.remove(node.id)) {
+        _selectedNodeIds.add(node.id);
+      }
+    });
+  }
+
+  void _toggleTextSelection(SketchText text) {
+    setState(() {
+      if (!_selectedTextIds.remove(text.id)) {
+        _selectedTextIds.add(text.id);
+      }
+    });
+  }
+
+  void _prepareNodeDrag(BoardNode node) {
+    if (!_selectionMode) return;
+    if (_selectedNodeIds.contains(node.id)) return;
+    setState(() {
+      _selectedNodeIds
+        ..clear()
+        ..add(node.id);
+      _selectedTextIds.clear();
+    });
+  }
+
+  void _prepareTextDrag(SketchText text) {
+    if (!_selectionMode) return;
+    if (_selectedTextIds.contains(text.id)) return;
+    setState(() {
+      _selectedTextIds
+        ..clear()
+        ..add(text.id);
+      _selectedNodeIds.clear();
+    });
+  }
+
+  void _onNodePointerDown(BoardNode node, PointerDownEvent event) {
+    if (widget.readOnly ||
+        (_tool != _WhiteboardTool.navigate && !_selectionMode)) {
+      return;
+    }
+    _prepareNodeDrag(node);
     _objectPointer = event.pointer;
+    _draggedNodeIds
+      ..clear()
+      ..addAll(
+        _selectionMode
+            ? _selectedNodeIds
+            : <String>{node.id},
+      );
+    _draggedTextIds
+      ..clear()
+      ..addAll(_selectionMode ? _selectedTextIds : const <String>{});
     _beginGestureHistory();
     if (!_objectPointerActive) {
       setState(() => _objectPointerActive = true);
     }
   }
 
+  void _onTextPointerDown(SketchText text, PointerDownEvent event) {
+    if (widget.readOnly ||
+        (_tool != _WhiteboardTool.navigate && !_selectionMode)) {
+      return;
+    }
+    _prepareTextDrag(text);
+    _objectPointer = event.pointer;
+    _draggedTextIds
+      ..clear()
+      ..addAll(
+        _selectionMode
+            ? _selectedTextIds
+            : <String>{text.id},
+      );
+    _draggedNodeIds
+      ..clear()
+      ..addAll(_selectionMode ? _selectedNodeIds : const <String>{});
+    _beginGestureHistory();
+    if (!_objectPointerActive) {
+      setState(() => _objectPointerActive = true);
+    }
+  }
+
+  int _snapValue(int value) =>
+      (value / _snapGrid).round().clamp(
+            -WhiteboardRules.maxCoordinate ~/ _snapGrid,
+            WhiteboardRules.maxCoordinate ~/ _snapGrid,
+          ) *
+          _snapGrid;
+
+  void _snapDraggedObjects() {
+    if (!_snapToGrid ||
+        (_draggedNodeIds.isEmpty && _draggedTextIds.isEmpty)) {
+      return;
+    }
+    final nextNodes = _document.nodes
+        .map(
+          (node) => _draggedNodeIds.contains(node.id)
+              ? node.copyWith(
+                  x: _snapValue(node.x),
+                  y: _snapValue(node.y),
+                )
+              : node,
+        )
+        .toList();
+    final nextTexts = _document.texts
+        .map(
+          (text) => _draggedTextIds.contains(text.id)
+              ? text.copyWith(
+                  x: _snapValue(text.x),
+                  y: _snapValue(text.y),
+                )
+              : text,
+        )
+        .toList();
+    _setDocument(
+      _document.copyWith(nodes: nextNodes, texts: nextTexts),
+      recordHistory: false,
+      ensureCanvas: false,
+      validate: false,
+      rebuildStrokeBounds: false,
+    );
+    _markGestureChanged();
+  }
+
   void _onObjectPointerEnd(PointerEvent event) {
     if (event.pointer != _objectPointer) return;
     _objectPointer = null;
+    _snapDraggedObjects();
     _finishGestureHistory();
+    _draggedNodeIds.clear();
+    _draggedTextIds.clear();
     if (_objectPointerActive) {
       setState(() => _objectPointerActive = false);
     }
+  }
+
+  void _selectLasso(Rect worldRect) {
+    final normalized = Rect.fromLTRB(
+      math.min(worldRect.left, worldRect.right),
+      math.min(worldRect.top, worldRect.bottom),
+      math.max(worldRect.left, worldRect.right),
+      math.max(worldRect.top, worldRect.bottom),
+    );
+    setState(() {
+      _selectedNodeIds
+        ..clear()
+        ..addAll(
+          _document.nodes
+              .where((node) => _nodeWorldRect(node).overlaps(normalized))
+              .map((node) => node.id),
+        );
+      _selectedTextIds
+        ..clear()
+        ..addAll(
+          _document.texts
+              .where((text) => _textWorldRect(text).overlaps(normalized))
+              .map((text) => text.id),
+        );
+    });
+  }
+
+  void _duplicateSelection() {
+    if (_selectedNodeIds.isEmpty && _selectedTextIds.isEmpty) return;
+    const offset = 48;
+    final idMap = <String, String>{};
+    final duplicates = <BoardNode>[];
+
+    for (final node in _document.nodes) {
+      if (!_selectedNodeIds.contains(node.id)) continue;
+      final clone = BoardNode(
+        kind: node.kind,
+        text: node.text,
+        x: node.x + offset,
+        y: node.y + offset,
+        width: node.width,
+        height: node.height,
+        color: node.color,
+        linkedNoteId: node.linkedNoteId,
+      );
+      idMap[node.id] = clone.id;
+      duplicates.add(clone);
+    }
+
+    final duplicateTexts = <SketchText>[];
+    for (final source in _document.texts) {
+      if (!_selectedTextIds.contains(source.id)) continue;
+      duplicateTexts.add(
+        SketchText(
+          text: source.text,
+          color: source.color,
+          x: source.x + offset,
+          y: source.y + offset,
+          size: source.size,
+        ),
+      );
+    }
+
+    final duplicateEdges = _document.edges
+        .where(
+          (edge) =>
+              idMap.containsKey(edge.fromNodeId) &&
+              idMap.containsKey(edge.toNodeId),
+        )
+        .map(
+          (edge) => BoardEdge(
+            fromNodeId: idMap[edge.fromNodeId]!,
+            toNodeId: idMap[edge.toNodeId]!,
+            kind: edge.kind,
+            color: edge.color,
+            width: edge.width,
+            label: edge.label,
+          ),
+        )
+        .toList();
+
+    final next = _document.copyWith(
+      nodes: [..._document.nodes, ...duplicates],
+      texts: [..._document.texts, ...duplicateTexts],
+      edges: [..._document.edges, ...duplicateEdges],
+    );
+    if (!_setDocument(next)) return;
+    setState(() {
+      _selectedNodeIds
+        ..clear()
+        ..addAll(duplicates.map((node) => node.id));
+      _selectedTextIds
+        ..clear()
+        ..addAll(duplicateTexts.map((text) => text.id));
+    });
+  }
+
+  void _deleteSelection() {
+    if (_selectedNodeIds.isEmpty && _selectedTextIds.isEmpty) return;
+    final removedNodes = Set<String>.from(_selectedNodeIds);
+    final next = _document.copyWith(
+      nodes: _document.nodes
+          .where((node) => !removedNodes.contains(node.id))
+          .toList(),
+      texts: _document.texts
+          .where((text) => !_selectedTextIds.contains(text.id))
+          .toList(),
+      edges: _document.edges
+          .where(
+            (edge) =>
+                !removedNodes.contains(edge.fromNodeId) &&
+                !removedNodes.contains(edge.toNodeId),
+          )
+          .toList(),
+    );
+    if (!_setDocument(next)) return;
+    _clearSelection();
+  }
+
+  void _resizeSelection(int delta) {
+    if (_selectedNodeIds.isEmpty) return;
+    final nextNodes = _document.nodes.map((node) {
+      if (!_selectedNodeIds.contains(node.id)) return node;
+      final width = (node.width + delta).clamp(120, 720).toInt();
+      final height = (node.height + (delta * 0.65).round())
+          .clamp(80, 520)
+          .toInt();
+      return node.copyWith(
+        x: node.x - ((width - node.width) / 2).round(),
+        y: node.y - ((height - node.height) / 2).round(),
+        width: width,
+        height: height,
+      );
+    }).toList();
+    _setDocument(_document.copyWith(nodes: nextNodes));
   }
 
   Set<ui.PointerDeviceKind> get _drawingDevices => {
