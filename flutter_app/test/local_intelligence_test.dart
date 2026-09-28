@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/data/local_intelligence_service.dart';
-import 'package:notes_ecosistema/src/domain/intelligence.dart';
 import 'package:notes_ecosistema/src/domain/local_intelligence.dart';
 import 'package:notes_ecosistema/src/domain/note.dart';
 import 'package:notes_ecosistema/src/domain/unified_retrieval.dart';
@@ -162,6 +161,15 @@ class _PerfectBenchmarkProvider implements SemanticEmbeddingProvider {
 
   @override
   Future<bool> isAvailable() async => true;
+
+  @override
+  Future<List<SemanticVector>> embedBatch(List<String> texts) async {
+    final result = <SemanticVector>[];
+    for (final text in texts) {
+      result.add(await embed(text));
+    }
+    return result;
+  }
 
   @override
   Future<SemanticVector> embed(String text) async {
