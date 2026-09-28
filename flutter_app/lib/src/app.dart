@@ -18,6 +18,7 @@ import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
+import 'domain/open_export.dart';
 import 'domain/planner.dart';
 import 'domain/project_workspace.dart';
 import 'domain/research.dart';
@@ -1575,6 +1576,41 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<void> _exportOpenArchive() async {
+    try {
+      final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final store = await AttachmentStore.open();
+      final bytes = await OpenExportBundle.encode(
+        snapshot: snapshot,
+        properties: await ref.read(propertyStoreProvider).exportBackup(),
+        knowledge: await ref.read(knowledgeStoreProvider).exportBackup(),
+        projects: await ref.read(projectStoreProvider).exportBackup(),
+        store: store,
+      );
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Esporta archivio aperto Notes',
+        fileName: 'notes-open-export-$stamp.zip',
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Open Export creato: Markdown, JSON strutturato e media.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userErrorText(error))),
+      );
+    }
+  }
+
   Future<void> _exportLegacyJson() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
@@ -1890,6 +1926,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                 onTap: () {
                   Navigator.pop(context);
                   _syncMarkdownFolder();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder_zip_outlined),
+                title: const Text('Esporta archivio aperto'),
+                subtitle: const Text(
+                  'Markdown + JSON strutturato + media, leggibili senza Notes.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportOpenArchive();
                 },
               ),
               ListTile(
