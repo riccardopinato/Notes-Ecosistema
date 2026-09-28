@@ -66,6 +66,24 @@ Rischi:
 
 **Decisione:** non promuovere Needle finché il benchmark Notes non passa.
 
+### mE5-small compressed v3 distilled — candidato semantic-only
+
+- derivato da multilingual-e5-small;
+- 4 layer, 384d, circa 13.4M parametri;
+- circa 51 MB FP32;
+- supporta esplicitamente IT / EN / ES / FR / DE / PT fra 16 lingue;
+- risultati STS multilingua pubblicati migliori delle prime varianti compresse;
+- Apache-2.0.
+
+Rischi:
+
+- progetto giovane e poco adottato;
+- non è pubblicato come pack mobile Notes pronto all'uso;
+- tokenizer/vocab pruning e conversione ONNX/mobile devono essere validati;
+- il peso FP32 è appena oltre il target 50 MB; una eventuale quantizzazione int8 va misurata, non presunta.
+
+**Decisione:** secondo candidato da benchmarkare per semantic search pura. Non sostituisce Needle per extraction/tool calling.
+
 ### all-MiniLM-L6-v2 qint8
 
 - circa 23 MB per ONNX ARM64;
