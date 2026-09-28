@@ -1890,6 +1890,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final documents = await ref.read(documentStoreProvider).exportBackup();
       final importProvenance =
           await ref.read(importProvenanceStoreProvider).exportBackup();
+      final automations =
+          await ref.read(workflowAutomationStoreProvider).exportBackup();
       final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
       final store = await AttachmentStore.open();
 
@@ -1904,6 +1906,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         study: study,
         documents: documents,
         importProvenance: importProvenance,
+        automations: automations,
         sharedSpaces: shared,
         store: store,
       );
@@ -2031,8 +2034,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             recovery.importProvenance,
             noteIds: noteIds,
           );
+      await ref.read(workflowAutomationStoreProvider).restoreBackupExact(
+            recovery.automations,
+            noteIds: noteIds,
+          );
 
       await ref.read(workspaceProvider.notifier).refresh();
+      await ref.read(workflowAutomationProvider.notifier).refresh();
       await ref.read(studyProvider.notifier).refresh();
       await ref.read(projectWorkspaceProvider.notifier).refresh();
       await _cleanupAttachments(silent: true);
@@ -2072,6 +2080,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         projects: await ref.read(projectStoreProvider).exportBackup(),
         study: await ref.read(studyStoreProvider).exportBackup(),
         documents: await ref.read(documentStoreProvider).exportBackup(),
+        automations:
+            await ref.read(workflowAutomationStoreProvider).exportBackup(),
         store: store,
       );
       final now = DateTime.now();
