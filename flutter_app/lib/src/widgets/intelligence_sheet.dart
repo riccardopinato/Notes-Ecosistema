@@ -14,6 +14,7 @@ Future<void> showIntelligenceSheet({
   ValueChanged<Note>? onOpenNote,
   ValueChanged<String>? onInsertMarkdown,
   Future<KnowledgeQueryResult> Function(String query)? unifiedSearch,
+  Future<List<KnowledgeHit>> Function(Note source)? unifiedRelated,
   bool semanticEnabled = true,
 }) =>
     showNotesBottomSheet<void>(
@@ -26,6 +27,7 @@ Future<void> showIntelligenceSheet({
         onOpenNote: onOpenNote,
         onInsertMarkdown: onInsertMarkdown,
         unifiedSearch: unifiedSearch,
+        unifiedRelated: unifiedRelated,
         semanticEnabled: semanticEnabled,
       ),
     );
@@ -38,6 +40,7 @@ class _IntelligenceSheet extends StatefulWidget {
     this.onOpenNote,
     this.onInsertMarkdown,
     this.unifiedSearch,
+    this.unifiedRelated,
     this.semanticEnabled = true,
   });
 
@@ -47,6 +50,7 @@ class _IntelligenceSheet extends StatefulWidget {
   final ValueChanged<Note>? onOpenNote;
   final ValueChanged<String>? onInsertMarkdown;
   final Future<KnowledgeQueryResult> Function(String query)? unifiedSearch;
+  final Future<List<KnowledgeHit>> Function(Note source)? unifiedRelated;
   final bool semanticEnabled;
 
   @override
@@ -67,7 +71,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     super.initState();
     final note = widget.currentNote;
     if (note != null) {
-      _related = _engine.related(note, widget.notes);
+      _loadRelated();
       _loadDerivatives();
     }
   }
@@ -76,6 +80,23 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
   void dispose() {
     _query.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRelated() async {
+    final note = widget.currentNote;
+    if (note == null) return;
+    try {
+      final unified = widget.unifiedRelated;
+      final values = unified == null
+          ? _engine.related(note, widget.notes)
+          : await unified(note);
+      if (!mounted) return;
+      setState(() => _related = values);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = userErrorText(error));
+      }
+    }
   }
 
   Future<void> _loadDerivatives() async {
