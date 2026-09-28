@@ -27,8 +27,8 @@ class WorkflowAutomationScreen extends ConsumerWidget {
         title: Text(strings.automations),
         actions: [
           IconButton(
-            tooltip: _t(context, 'Aggiorna', 'Refresh', 'Actualizar', 'Actualiser',
-                'Aktualisieren', 'Atualizar'),
+            tooltip: _t(context, 'Aggiorna', 'Refresh', 'Actualizar',
+                'Actualiser', 'Aktualisieren', 'Atualizar'),
             onPressed: state.loading
                 ? null
                 : () => ref.read(workflowAutomationProvider.notifier).refresh(),
@@ -152,8 +152,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          onTap: () =>
-                              _editRule(context, ref, existing: rule),
+                          onTap: () => _editRule(context, ref, existing: rule),
                         ),
                       ),
                     ),
@@ -353,8 +352,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                         child: Text(collection.name),
                       ),
                   ],
-                  onChanged: (value) =>
-                      setLocal(() => collectionId = value),
+                  onChanged: (value) => setLocal(() => collectionId = value),
                 );
               case WorkflowActionKind.pin:
                 return ListTile(
@@ -404,8 +402,7 @@ class WorkflowAutomationScreen extends ConsumerWidget {
                       child: Text(_priorityLabel(dialogContext, 3)),
                     ),
                   ],
-                  onChanged: (value) =>
-                      setLocal(() => priority = value ?? 0),
+                  onChanged: (value) => setLocal(() => priority = value ?? 0),
                 );
             }
           }
@@ -663,20 +660,19 @@ String _describeRule(
   }
   final target = switch (rule.actionKind) {
     WorkflowActionKind.addTag => '#${rule.actionValue}',
-    WorkflowActionKind.moveToCollection =>
-      collections
-              .where((item) => item.id == rule.actionValue)
-              .firstOrNull
-              ?.name ??
-          _t(
-            context,
-            'raccolta mancante',
-            'missing collection',
-            'colección ausente',
-            'collection manquante',
-            'fehlende Sammlung',
-            'coleção ausente',
-          ),
+    WorkflowActionKind.moveToCollection => collections
+            .where((item) => item.id == rule.actionValue)
+            .firstOrNull
+            ?.name ??
+        _t(
+          context,
+          'raccolta mancante',
+          'missing collection',
+          'colección ausente',
+          'collection manquante',
+          'fehlende Sammlung',
+          'coleção ausente',
+        ),
     WorkflowActionKind.pin => '',
     WorkflowActionKind.setPriority =>
       _priorityLabel(context, int.tryParse(rule.actionValue) ?? 0),
@@ -722,21 +718,23 @@ String _triggerLabel(BuildContext context, WorkflowTrigger trigger) =>
 String _subjectLabel(BuildContext context, WorkflowSubject subject) =>
     switch (subject) {
       WorkflowSubject.any => _t(
-          context, 'Note e attività', 'Notes and tasks', 'Notas y tareas',
-          'Notes et tâches', 'Notizen und Aufgaben', 'Notas e tarefas'),
-      WorkflowSubject.note =>
-        _t(context, 'Solo note', 'Notes only', 'Solo notas', 'Notes seulement',
-            'Nur Notizen', 'Somente notas'),
-      WorkflowSubject.task => _t(
-          context, 'Solo attività', 'Tasks only', 'Solo tareas',
-          'Tâches seulement', 'Nur Aufgaben', 'Somente tarefas'),
+          context,
+          'Note e attività',
+          'Notes and tasks',
+          'Notas y tareas',
+          'Notes et tâches',
+          'Notizen und Aufgaben',
+          'Notas e tarefas'),
+      WorkflowSubject.note => _t(context, 'Solo note', 'Notes only',
+          'Solo notas', 'Notes seulement', 'Nur Notizen', 'Somente notas'),
+      WorkflowSubject.task => _t(context, 'Solo attività', 'Tasks only',
+          'Solo tareas', 'Tâches seulement', 'Nur Aufgaben', 'Somente tarefas'),
     };
 
 String _actionLabel(BuildContext context, WorkflowActionKind action) =>
     switch (action) {
-      WorkflowActionKind.addTag => _t(
-          context, 'Aggiungi tag', 'Add tag', 'Añadir etiqueta', 'Ajouter tag',
-          'Tag hinzufügen', 'Adicionar tag'),
+      WorkflowActionKind.addTag => _t(context, 'Aggiungi tag', 'Add tag',
+          'Añadir etiqueta', 'Ajouter tag', 'Tag hinzufügen', 'Adicionar tag'),
       WorkflowActionKind.moveToCollection => _t(
           context,
           'Sposta in raccolta',
@@ -746,8 +744,8 @@ String _actionLabel(BuildContext context, WorkflowActionKind action) =>
           'In Sammlung verschieben',
           'Mover para coleção',
         ),
-      WorkflowActionKind.pin => _t(
-          context, 'Fissa', 'Pin', 'Fijar', 'Épingler', 'Anheften', 'Fixar'),
+      WorkflowActionKind.pin =>
+        _t(context, 'Fissa', 'Pin', 'Fijar', 'Épingler', 'Anheften', 'Fixar'),
       WorkflowActionKind.setPriority => _t(
           context,
           'Imposta priorità',
@@ -761,9 +759,11 @@ String _actionLabel(BuildContext context, WorkflowActionKind action) =>
 
 String _priorityLabel(BuildContext context, int value) => switch (value) {
       3 => _t(context, 'Alta', 'High', 'Alta', 'Haute', 'Hoch', 'Alta'),
-      2 => _t(context, 'Media', 'Medium', 'Media', 'Moyenne', 'Mittel', 'Média'),
+      2 =>
+        _t(context, 'Media', 'Medium', 'Media', 'Moyenne', 'Mittel', 'Média'),
       1 => _t(context, 'Bassa', 'Low', 'Baja', 'Basse', 'Niedrig', 'Baixa'),
-      _ => _t(context, 'Nessuna', 'None', 'Ninguna', 'Aucune', 'Keine', 'Nenhuma'),
+      _ =>
+        _t(context, 'Nessuna', 'None', 'Ninguna', 'Aucune', 'Keine', 'Nenhuma'),
     };
 
 String _shortDate(int millis) {
