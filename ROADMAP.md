@@ -1,5 +1,19 @@
 # Notes Ecosistema — Roadmap
 
+## 0.54.2 — Whiteboard Pro Hardening
+
+**Implementato in 0.54.2+67.**
+
+- canvas espandibile con centro logico stabile;
+- drag zoom-correct e cumulativo di nodi e testo;
+- Undo/Redo bounded;
+- stylus pressure + palm rejection + controllo dito/navigazione;
+- palette/spessori Digital Ink condivisi con Sketchbook;
+- testo editabile/spostabile/ridimensionabile/ricolorabile;
+- painter e gomma ottimizzati per lavagne grandi;
+- limiti preventivi di complessità;
+- test regressione su zoom, history, stylus e mappe profonde.
+
 ## 0.54.1 — Whiteboard Sketch Layer
 
 **Implementato in 0.54.1+66.**
