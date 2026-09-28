@@ -1,8 +1,24 @@
-# Notes — Ecosistema 0.53.0
+# Notes — Ecosistema 0.54.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.54 — Workflow Automations
+
+- regole locali evento → azione su Note e Task canonici;
+- trigger creazione, aggiornamento e completamento attività;
+- condizioni per tipo oggetto, tag e titolo;
+- azioni reversibili: tag, raccolta, pin e priorità;
+- audit minimale senza duplicare contenuti;
+- sidecar `notes-automations.db`;
+- Disaster Recovery v2 backward-compatible con v1;
+- automazioni incluse nell'Open Export;
+- Web Preview con lo stesso motore deterministico in memoria;
+- base localizzazione sistema + fallback EN + override persistente IT/EN/ES/FR/DE/PT;
+- nessuna AI, rete, eliminazione automatica o scheduler background.
+
+Dettagli: `flutter_app/WORKFLOW_AUTOMATIONS_0_54.md`.
 
 ## 0.53 — Knowledge Graph
 
@@ -117,7 +133,7 @@ Validazione funzionale prima del bump release: **140 test**, analyze pulito, APK
 
 ## Stato corrente
 
-- Versione Flutter: **0.53.0+64**
+- Versione Flutter: **0.54.0+65**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
