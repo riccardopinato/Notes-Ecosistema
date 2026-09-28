@@ -88,7 +88,6 @@ class StudyController extends StateNotifier<StudyState> {
   }
 }
 
-final studyProvider =
-    StateNotifierProvider<StudyController, StudyState>((ref) {
+final studyProvider = StateNotifierProvider<StudyController, StudyState>((ref) {
   return StudyController(ref.watch(studyStoreProvider));
 });
