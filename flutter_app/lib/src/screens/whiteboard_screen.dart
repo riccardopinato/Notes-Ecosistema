@@ -93,6 +93,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   bool _fingerDraw = true;
   bool _stylusInContact = false;
+  bool _objectPointerActive = false;
+  int? _objectPointer;
   int? _stylusPointer;
   double _pointerPressure = 1;
 
@@ -396,6 +398,22 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     _pointerPressure = 1;
     if (_stylusInContact) {
       setState(() => _stylusInContact = false);
+    }
+  }
+
+  void _onObjectPointerDown(PointerDownEvent event) {
+    if (widget.readOnly || _tool != _WhiteboardTool.navigate) return;
+    _objectPointer = event.pointer;
+    if (!_objectPointerActive) {
+      setState(() => _objectPointerActive = true);
+    }
+  }
+
+  void _onObjectPointerEnd(PointerEvent event) {
+    if (event.pointer != _objectPointer) return;
+    _objectPointer = null;
+    if (_objectPointerActive) {
+      setState(() => _objectPointerActive = false);
     }
   }
 
@@ -1299,11 +1317,13 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 children: [
                   IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-undo'),
                     onPressed: _undoStack.isEmpty ? null : _undo,
                     tooltip: 'Annulla',
                     icon: const Icon(Icons.undo),
                   ),
                   IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-redo'),
                     onPressed: _redoStack.isEmpty ? null : _redo,
                     tooltip: 'Ripristina',
                     icon: const Icon(Icons.redo),
@@ -1466,11 +1486,12 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     maxScale: 3.2,
                     boundaryMargin: const EdgeInsets.all(double.infinity),
                     panEnabled: !_stylusInContact &&
+                        !_objectPointerActive &&
                         (widget.readOnly ||
                             _tool == _WhiteboardTool.navigate ||
                             _tool == _WhiteboardTool.text ||
                             !_fingerDraw),
-                    scaleEnabled: !_stylusInContact,
+                    scaleEnabled: !_stylusInContact && !_objectPointerActive,
                     onInteractionEnd: (_) => _growCanvasForViewport(),
                     builder: (context, viewport) {
                       final xs = <double>[
@@ -1592,22 +1613,27 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       top: _origin + text.y,
       width: width,
       height: height,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onPanStart: canEdit ? (_) => _beginGestureHistory() : null,
+      child: Listener(
+        onPointerDown: canEdit ? _onObjectPointerDown : null,
+        onPointerUp: canEdit ? _onObjectPointerEnd : null,
+        onPointerCancel: canEdit ? _onObjectPointerEnd : null,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onPanStart: canEdit ? (_) => _beginGestureHistory() : null,
         onPanUpdate: canEdit ? (details) => _moveText(text, details) : null,
         onPanEnd: canEdit ? (_) => _finishGestureHistory() : null,
         onPanCancel: canEdit ? _finishGestureHistory : null,
         onTap: canEdit ? () => _editText(text) : null,
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Text(
-            text.text,
-            maxLines: 6,
-            overflow: TextOverflow.fade,
-            style: TextStyle(
-              color: Color(text.color),
-              fontSize: text.size.toDouble(),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Text(
+              text.text,
+              maxLines: 6,
+              overflow: TextOverflow.fade,
+              style: TextStyle(
+                color: Color(text.color),
+                fontSize: text.size.toDouble(),
+              ),
             ),
           ),
         ),
@@ -1623,8 +1649,12 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       top: _origin + node.y,
       width: node.width.toDouble(),
       height: node.height.toDouble(),
-      child: GestureDetector(
-        onPanStart: canEditNode ? (_) => _beginGestureHistory() : null,
+      child: Listener(
+        onPointerDown: canEditNode ? _onObjectPointerDown : null,
+        onPointerUp: canEditNode ? _onObjectPointerEnd : null,
+        onPointerCancel: canEditNode ? _onObjectPointerEnd : null,
+        child: GestureDetector(
+          onPanStart: canEditNode ? (_) => _beginGestureHistory() : null,
         onPanUpdate: canEditNode ? (details) => _moveNode(node, details) : null,
         onPanEnd: canEditNode ? (_) => _finishGestureHistory() : null,
         onPanCancel: canEditNode ? _finishGestureHistory : null,
@@ -1638,8 +1668,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                 }
               }
             : null,
-        child: Card(
-          color: Color(node.color),
+          child: Card(
+            color: Color(node.color),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
             side: BorderSide(
@@ -1680,6 +1710,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                         ),
                   ),
               ],
+            ),
             ),
           ),
         ),
