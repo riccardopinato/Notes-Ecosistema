@@ -62,6 +62,12 @@ abstract final class QuickSwitcher {
         kind: QuickSwitcherKind.command,
       ),
       const QuickSwitcherEntry(
+        id: 'knowledge-graph',
+        label: 'Knowledge Graph',
+        subtitle: 'Esplora connessioni e relazioni',
+        kind: QuickSwitcherKind.command,
+      ),
+      const QuickSwitcherEntry(
         id: 'search',
         label: 'Cerca',
         subtitle: 'Ricerca completa',
