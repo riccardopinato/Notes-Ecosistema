@@ -4,7 +4,8 @@ import 'package:uuid/uuid.dart';
 import '../data/workflow_automation_store.dart';
 import '../domain/workflow_automation.dart';
 
-final workflowAutomationStoreProvider = Provider<WorkflowAutomationStore>((ref) {
+final workflowAutomationStoreProvider =
+    Provider<WorkflowAutomationStore>((ref) {
   final store = WorkflowAutomationStore();
   ref.onDispose(store.close);
   return store;
@@ -103,7 +104,8 @@ class WorkflowAutomationController
 
 final workflowAutomationProvider = StateNotifierProvider<
     WorkflowAutomationController, WorkflowAutomationState>((ref) {
-  return WorkflowAutomationController(ref.watch(workflowAutomationStoreProvider));
+  return WorkflowAutomationController(
+      ref.watch(workflowAutomationStoreProvider));
 });
 
 String? _optional(String? value) {
