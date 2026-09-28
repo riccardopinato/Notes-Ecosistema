@@ -465,45 +465,20 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     });
   }
 
-  void _prepareNodeDrag(BoardNode node) {
-    if (!_selectionMode) return;
-    if (_selectedNodeIds.contains(node.id)) return;
-    setState(() {
-      _selectedNodeIds
-        ..clear()
-        ..add(node.id);
-      _selectedTextIds.clear();
-    });
-  }
-
-  void _prepareTextDrag(SketchText text) {
-    if (!_selectionMode) return;
-    if (_selectedTextIds.contains(text.id)) return;
-    setState(() {
-      _selectedTextIds
-        ..clear()
-        ..add(text.id);
-      _selectedNodeIds.clear();
-    });
-  }
-
   void _onNodePointerDown(BoardNode node, PointerDownEvent event) {
     if (widget.readOnly ||
         (_tool != _WhiteboardTool.navigate && !_selectionMode)) {
       return;
     }
-    _prepareNodeDrag(node);
     _objectPointer = event.pointer;
+    final moveSelection =
+        _selectionMode && _selectedNodeIds.contains(node.id);
     _draggedNodeIds
       ..clear()
-      ..addAll(
-        _selectionMode
-            ? _selectedNodeIds
-            : <String>{node.id},
-      );
+      ..addAll(moveSelection ? _selectedNodeIds : <String>{node.id});
     _draggedTextIds
       ..clear()
-      ..addAll(_selectionMode ? _selectedTextIds : const <String>{});
+      ..addAll(moveSelection ? _selectedTextIds : const <String>{});
     _beginGestureHistory();
     if (!_objectPointerActive) {
       setState(() => _objectPointerActive = true);
@@ -515,18 +490,15 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         (_tool != _WhiteboardTool.navigate && !_selectionMode)) {
       return;
     }
-    _prepareTextDrag(text);
     _objectPointer = event.pointer;
+    final moveSelection =
+        _selectionMode && _selectedTextIds.contains(text.id);
     _draggedTextIds
       ..clear()
-      ..addAll(
-        _selectionMode
-            ? _selectedTextIds
-            : <String>{text.id},
-      );
+      ..addAll(moveSelection ? _selectedTextIds : <String>{text.id});
     _draggedNodeIds
       ..clear()
-      ..addAll(_selectionMode ? _selectedNodeIds : const <String>{});
+      ..addAll(moveSelection ? _selectedNodeIds : const <String>{});
     _beginGestureHistory();
     if (!_objectPointerActive) {
       setState(() => _objectPointerActive = true);
@@ -728,6 +700,16 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         ui.PointerDeviceKind.mouse,
         if (_fingerDraw) ui.PointerDeviceKind.touch,
       };
+
+  Set<ui.PointerDeviceKind> get _canvasGestureDevices =>
+      _selectionMode
+          ? {
+              ui.PointerDeviceKind.touch,
+              ui.PointerDeviceKind.stylus,
+              ui.PointerDeviceKind.invertedStylus,
+              ui.PointerDeviceKind.mouse,
+            }
+          : _drawingDevices;
 
   int get _workingColor {
     if (_tool == _WhiteboardTool.highlighter) {
@@ -1853,6 +1835,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                   if (_isInkTool) _colorControl(),
                   if (_isInkTool) _widthControl(),
                   if (_tool != _WhiteboardTool.navigate &&
+                      _tool != _WhiteboardTool.select &&
                       _tool != _WhiteboardTool.text)
                     IconButton.filledTonal(
                       onPressed: () =>
@@ -2001,7 +1984,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                         (widget.readOnly ||
                             _tool == _WhiteboardTool.navigate ||
                             _tool == _WhiteboardTool.text ||
-                            !_fingerDraw),
+                            (!_selectionMode && !_fingerDraw)),
                     scaleEnabled: !_stylusInContact && !_objectPointerActive,
                     onInteractionEnd: (_) => _growCanvasForViewport(),
                     builder: (context, viewport) {
@@ -2031,7 +2014,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                         onPointerCancel: _onPointerEnd,
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          supportedDevices: _drawingDevices,
+                          supportedDevices: _canvasGestureDevices,
                           onPanStart: widget.readOnly ||
                                   _tool == _WhiteboardTool.navigate ||
                                   _tool == _WhiteboardTool.text
