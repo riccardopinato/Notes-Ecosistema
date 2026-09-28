@@ -37,7 +37,8 @@ class LocalModelCandidate {
 
   bool get supportsAllProductLanguages {
     const required = {'it', 'en', 'es', 'fr', 'de', 'pt'};
-    return languages.contains('multilingual') || languages.containsAll(required);
+    return languages.contains('multilingual') ||
+        languages.containsAll(required);
   }
 
   double get maxWeightMb => maxWeightBytes / (1024 * 1024);
@@ -103,8 +104,7 @@ abstract final class LocalModelAudit {
       languages: {'multilingual'},
       capabilities: {LocalModelCapability.embeddings},
       role: LocalModelRole.qualityReference,
-      summary:
-          'Riferimento multilingua per il benchmark. Troppo grande per il '
+      summary: 'Riferimento multilingua per il benchmark. Troppo grande per il '
           'pack mobile leggero desiderato.',
       embeddingDimensions: 384,
     ),
@@ -208,8 +208,7 @@ abstract final class HybridSemanticRanker {
     final semanticByNote = <String, double>{};
     for (final score in semanticScores) {
       if (!docs.containsKey(score.documentId)) continue;
-      final normalized =
-          ((score.score + 1) / 2).clamp(0.0, 1.0).toDouble();
+      final normalized = ((score.score + 1) / 2).clamp(0.0, 1.0).toDouble();
       semanticByNote.update(
         score.noteId,
         (value) => math.max(value, normalized),
@@ -225,13 +224,11 @@ abstract final class HybridSemanticRanker {
     for (final noteId in noteIds) {
       final note = byNote[noteId];
       if (note == null || note.isDeleted || note.archived) continue;
-      final lexical = lexicalMax <= 0
-          ? 0.0
-          : (lexicalByNote[noteId] ?? 0) / lexicalMax;
+      final lexical =
+          lexicalMax <= 0 ? 0.0 : (lexicalByNote[noteId] ?? 0) / lexicalMax;
       final semantic = semanticByNote[noteId] ?? 0.0;
       if (lexical <= 0 && semantic < 0.55) continue;
-      final score =
-          lexical * (1 - semanticWeight) + semantic * semanticWeight;
+      final score = lexical * (1 - semanticWeight) + semantic * semanticWeight;
       ranked.add((note: note, score: score));
     }
     ranked.sort((a, b) {
@@ -306,10 +303,12 @@ class SemanticBenchmarkCorpus {
 
   static const notesMultilingual = SemanticBenchmarkCorpus(
     documents: {
-      'travel': 'Pianificare un viaggio in montagna con sentieri, rifugi e meteo.',
+      'travel':
+          'Pianificare un viaggio in montagna con sentieri, rifugi e meteo.',
       'finance': 'Budget mensile, spese ricorrenti, risparmio e investimenti.',
       'study': 'Preparare un esame con domande, ripasso e spaced repetition.',
-      'project': 'Organizzare progetto, milestone, task, scadenze e collaboratori.',
+      'project':
+          'Organizzare progetto, milestone, task, scadenze e collaboratori.',
       'health': 'Allenamento, recupero, sonno e abitudini di benessere.',
       'documents': 'PDF, annotazioni, OCR e ricerca dentro documenti.',
     },
@@ -429,8 +428,7 @@ abstract final class SemanticBenchmark {
       final hit = rank == 1;
       if (hit) top1++;
       if (rank > 0) reciprocal += 1 / rank;
-      final current =
-          perLanguage[testCase.language] ?? (total: 0, hits: 0);
+      final current = perLanguage[testCase.language] ?? (total: 0, hits: 0);
       perLanguage[testCase.language] = (
         total: current.total + 1,
         hits: current.hits + (hit ? 1 : 0),
@@ -447,10 +445,9 @@ abstract final class SemanticBenchmark {
           corpus.cases.isEmpty ? 0 : reciprocal / corpus.cases.length,
       perLanguageTop1: {
         for (final entry in perLanguage.entries)
-          entry.key:
-              entry.value.total == 0
-                  ? 0.0
-                  : entry.value.hits / entry.value.total,
+          entry.key: entry.value.total == 0
+              ? 0.0
+              : entry.value.hits / entry.value.total,
       },
       elapsedMilliseconds: watch.elapsedMilliseconds,
     );
