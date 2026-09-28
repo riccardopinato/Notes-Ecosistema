@@ -83,7 +83,8 @@ class LocalIntelligenceState {
         totalDocuments: totalDocuments ?? this.totalDocuments,
         modelId: modelId ?? this.modelId,
         modelVersion: modelVersion ?? this.modelVersion,
-        progress: identical(progress, _unset) ? this.progress : progress as double?,
+        progress:
+            identical(progress, _unset) ? this.progress : progress as double?,
         benchmark: identical(benchmark, _unset)
             ? this.benchmark
             : benchmark as SemanticBenchmarkResult?,
