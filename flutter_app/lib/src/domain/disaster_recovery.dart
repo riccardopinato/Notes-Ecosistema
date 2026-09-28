@@ -18,6 +18,8 @@ class DisasterRecoveryPreview {
     required this.knowledge,
     required this.derivatives,
     required this.projects,
+    required this.study,
+    required this.documents,
     required this.sharedSpaces,
     required this.assets,
     required this.createdAt,
@@ -30,6 +32,8 @@ class DisasterRecoveryPreview {
   final Map<String, Object?> knowledge;
   final Map<String, Object?> derivatives;
   final Map<String, Object?> projects;
+  final Map<String, Object?> study;
+  final Map<String, Object?> documents;
   final SharedSpacesSnapshot sharedSpaces;
   final Map<String, Uint8List> assets;
   final int createdAt;
@@ -51,6 +55,8 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> knowledge,
     required Map<String, Object?> derivatives,
     required Map<String, Object?> projects,
+    required Map<String, Object?> study,
+    required Map<String, Object?> documents,
     required SharedSpacesSnapshot sharedSpaces,
     required AttachmentStore store,
     int? createdAt,
@@ -69,6 +75,8 @@ abstract final class DisasterRecoveryBundle {
       knowledge: knowledge,
       derivatives: derivatives,
       projects: projects,
+      study: study,
+      documents: documents,
       sharedSpaces: sharedSpaces,
       assets: assets,
       createdAt: createdAt,
@@ -83,6 +91,8 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> knowledge,
     required Map<String, Object?> derivatives,
     required Map<String, Object?> projects,
+    required Map<String, Object?> study,
+    required Map<String, Object?> documents,
     required SharedSpacesSnapshot sharedSpaces,
     required Map<String, Uint8List> assets,
     int? createdAt,
@@ -112,6 +122,8 @@ abstract final class DisasterRecoveryBundle {
       'knowledge.json': _jsonBytes(knowledge),
       'derivatives.json': _jsonBytes(derivatives),
       'projects.json': _jsonBytes(projects),
+      'study.json': _jsonBytes(study),
+      'documents.json': _jsonBytes(documents),
       'shared-spaces.json': Uint8List.fromList(
         utf8.encode(SharedSpacesCodec.encode(sharedSpaces)),
       ),
@@ -185,6 +197,8 @@ abstract final class DisasterRecoveryBundle {
           entry.name == 'knowledge.json' ||
           entry.name == 'derivatives.json' ||
           entry.name == 'projects.json' ||
+          entry.name == 'study.json' ||
+          entry.name == 'documents.json' ||
           entry.name == 'shared-spaces.json' ||
           (entry.name.startsWith('assets/') &&
               Attachments.validKey(entry.name.substring('assets/'.length)));
@@ -306,6 +320,8 @@ abstract final class DisasterRecoveryBundle {
       knowledge: _jsonMap(raw, 'knowledge.json'),
       derivatives: _jsonMap(raw, 'derivatives.json'),
       projects: _jsonMap(raw, 'projects.json'),
+      study: _jsonMap(raw, 'study.json'),
+      documents: _jsonMap(raw, 'documents.json'),
       sharedSpaces: SharedSpacesCodec.decode(
         utf8.decode(sharedRaw, allowMalformed: false),
       ),
