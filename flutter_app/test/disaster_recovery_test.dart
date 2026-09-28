@@ -69,6 +69,8 @@ void main() {
       },
       derivatives: const {'version': 1, 'derivatives': []},
       projects: const {'version': 1, 'projects': [], 'links': []},
+      study: const {'version': 1, 'items': [], 'logs': []},
+      documents: const {'version': 1, 'annotations': []},
       sharedSpaces: shared,
       assets: {key: asset},
       createdAt: 10,
