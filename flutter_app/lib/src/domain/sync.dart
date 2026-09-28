@@ -117,6 +117,25 @@ SyncDecision decideSync(
   return SyncDecision.conflict;
 }
 
+enum MissingLocalSyncDecision {
+  downloadRemote,
+  propagatePurge,
+  preserveRemoteThenPurge,
+}
+
+MissingLocalSyncDecision decideMissingLocal(
+  SyncDocument? previousBase,
+  SyncDocument remote,
+) {
+  if (previousBase == null) {
+    return MissingLocalSyncDecision.downloadRemote;
+  }
+  if (previousBase == remote) {
+    return MissingLocalSyncDecision.propagatePurge;
+  }
+  return MissingLocalSyncDecision.preserveRemoteThenPurge;
+}
+
 bool shouldPreserveConcurrentLocal({
   required SyncDocument? expectedLocal,
   required SyncDocument? currentLocal,
