@@ -388,22 +388,24 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _connectMode = false;
       _connectFrom = null;
       _workingPoints.clear();
+      _workingVersion++;
       _shapeStart = null;
       _shapeEnd = null;
     });
   }
 
   void _setPaper(WhiteboardPaper paper) {
-    setState(() {
-      _document = _document.copyWith(paper: paper);
-    });
+    if (paper == _document.paper) return;
+    _setDocument(_document.copyWith(paper: paper));
   }
 
   InkPoint _boardPoint(Offset local) {
-    final limit = _origin.toInt();
+    final limit = WhiteboardRules.maxCoordinate;
+    final pressure = (_pointerPressure * 1000).round().clamp(0, 1000);
     return InkPoint(
       (local.dx - _origin).round().clamp(-limit, limit).toInt(),
       (local.dy - _origin).round().clamp(-limit, limit).toInt(),
+      pressure,
     );
   }
 
@@ -413,10 +415,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _workingPoints
         ..clear()
         ..add(point);
-      setState(() {});
+      setState(() => _workingVersion++);
       return;
     }
     if (_tool == _WhiteboardTool.eraser) {
+      _beginGestureHistory();
       _eraseInk(point);
       return;
     }
@@ -434,7 +437,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     final point = _boardPoint(details.localPosition);
     if (_tool == _WhiteboardTool.pen || _tool == _WhiteboardTool.highlighter) {
       _workingPoints.add(point);
-      setState(() {});
+      setState(() => _workingVersion++);
       return;
     }
     if (_tool == _WhiteboardTool.eraser) {
@@ -452,17 +455,27 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
             _tool == _WhiteboardTool.highlighter) &&
         _workingPoints.isNotEmpty) {
       final stroke = InkStroke(
-        color: _tool == _WhiteboardTool.highlighter ? 0x88FFD54F : 0xFF111111,
-        width: _tool == _WhiteboardTool.highlighter ? 24 : 6,
+        color: _workingColor,
+        width: _workingWidth,
         marker: _tool == _WhiteboardTool.highlighter,
         points: [..._workingPoints],
       );
+      final next = _document.copyWith(
+        strokes: [..._document.strokes, stroke],
+      );
+      final accepted = _setDocument(next);
       setState(() {
-        _document = _document.copyWith(
-          strokes: [..._document.strokes, stroke],
-        );
         _workingPoints.clear();
+        _workingVersion++;
       });
+      if (!accepted) {
+        _strokeBounds.remove(stroke.id);
+      }
+      return;
+    }
+
+    if (_tool == _WhiteboardTool.eraser) {
+      _finishGestureHistory();
       return;
     }
 
@@ -477,22 +490,22 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         _ => null,
       };
       if (kind != null) {
-        setState(() {
-          _document = _document.copyWith(
+        _setDocument(
+          _document.copyWith(
             shapes: [
               ..._document.shapes,
               BoardShape(
                 kind: kind,
-                color: 0xFF111111,
-                width: 5,
+                color: _inkColor,
+                width: _shapeWidth,
                 x1: start.dx.round(),
                 y1: start.dy.round(),
                 x2: end.dx.round(),
                 y2: end.dy.round(),
               ),
             ],
-          );
-        });
+          ),
+        );
       }
     }
     _shapeStart = null;
@@ -500,87 +513,268 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     if (mounted) setState(() {});
   }
 
+  void _drawCancel() {
+    if (_tool == _WhiteboardTool.eraser) {
+      _finishGestureHistory();
+    }
+    setState(() {
+      _workingPoints.clear();
+      _workingVersion++;
+      _shapeStart = null;
+      _shapeEnd = null;
+    });
+  }
+
+  Future<_TextEditResult?> _showTextDialog({SketchText? source}) async {
+    final controller = TextEditingController(text: source?.text ?? '');
+    var color = source?.color ?? _inkColor;
+    var size = (source?.size ?? 32).toDouble();
+
+    final result = await showDialog<_TextEditResult>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(source == null ? 'Inserisci testo' : 'Modifica testo'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLength: 4000,
+                  maxLines: 5,
+                  decoration: const InputDecoration(labelText: 'Testo'),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Colore',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _inkPalette
+                      .map(
+                        (value) => InkWell(
+                          onTap: () => setDialogState(() => color = value),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: Color(value),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                width: color == value ? 3 : 1,
+                                color: color == value
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Dimensione'),
+                    Expanded(
+                      child: Slider(
+                        value: size,
+                        min: 16,
+                        max: 72,
+                        divisions: 14,
+                        label: size.round().toString(),
+                        onChanged: (value) =>
+                            setDialogState(() => size = value),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 42,
+                      child: Text('${size.round()}'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (source != null)
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                  _TextEditResult(
+                    text: source.text,
+                    color: source.color,
+                    size: source.size,
+                    delete: true,
+                  ),
+                ),
+                child: Text(
+                  'Elimina',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                context,
+                _TextEditResult(
+                  text: controller.text.trim(),
+                  color: color,
+                  size: size.round(),
+                ),
+              ),
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
   Future<void> _tapCanvas(TapUpDetails details) async {
     if (_tool != _WhiteboardTool.text) return;
     final point = _boardPoint(details.localPosition);
-    final controller = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Inserisci testo'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 4000,
-          maxLines: 5,
-          decoration: const InputDecoration(labelText: 'Testo'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Inserisci'),
+    final value = await _showTextDialog();
+    if (value == null || value.delete || value.text.isEmpty || !mounted) return;
+    _setDocument(
+      _document.copyWith(
+        texts: [
+          ..._document.texts,
+          SketchText(
+            text: value.text,
+            color: value.color,
+            x: point.x,
+            y: point.y,
+            size: value.size,
           ),
         ],
       ),
     );
-    controller.dispose();
-    if (value == null || value.isEmpty || !mounted) return;
-    setState(() {
-      _document = _document.copyWith(
-        texts: [
-          ..._document.texts,
-          SketchText(
-            text: value,
-            color: 0xFF111111,
-            x: point.x,
-            y: point.y,
-          ),
-        ],
+  }
+
+  Future<void> _editText(SketchText text) async {
+    final value = await _showTextDialog(source: text);
+    if (value == null || !mounted) return;
+    if (value.delete) {
+      _setDocument(
+        _document.copyWith(
+          texts: _document.texts.where((item) => item.id != text.id).toList(),
+        ),
       );
-    });
+      return;
+    }
+    if (value.text.isEmpty) return;
+    _setDocument(
+      _document.copyWith(
+        texts: _document.texts
+            .map(
+              (item) => item.id == text.id
+                  ? item.copyWith(
+                      text: value.text,
+                      color: value.color,
+                      size: value.size,
+                    )
+                  : item,
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  void _moveText(SketchText text, DragUpdateDetails details) {
+    final updated = text.copyWith(
+      x: text.x + details.delta.dx.round(),
+      y: text.y + details.delta.dy.round(),
+    );
+    if (_setDocument(
+      _document.copyWith(
+        texts: _document.texts
+            .map((item) => item.id == text.id ? updated : item)
+            .toList(),
+      ),
+      recordHistory: false,
+      ensureCanvas: false,
+    )) {
+      _markGestureChanged();
+    }
   }
 
   void _eraseInk(InkPoint point) {
     const radius = 38.0;
+    final hitRect = Rect.fromCircle(
+      center: Offset(point.x.toDouble(), point.y.toDouble()),
+      radius: radius,
+    );
 
     bool hitsStroke(InkStroke stroke) {
+      if (!_boundsForStroke(stroke).overlaps(hitRect)) return false;
       for (final candidate in stroke.points) {
         final dx = candidate.x - point.x;
         final dy = candidate.y - point.y;
-        if (math.sqrt(dx * dx + dy * dy) <= radius + stroke.width / 2) {
-          return true;
-        }
+        final limit = radius + stroke.width / 2;
+        if (dx * dx + dy * dy <= limit * limit) return true;
       }
       return false;
     }
 
+    final strokes =
+        _document.strokes.where((stroke) => !hitsStroke(stroke)).toList();
+
     final shapes = _document.shapes.where((shape) {
-      final left = math.min(shape.x1, shape.x2) - radius;
-      final right = math.max(shape.x1, shape.x2) + radius;
-      final top = math.min(shape.y1, shape.y2) - radius;
-      final bottom = math.max(shape.y1, shape.y2) + radius;
-      return !(point.x >= left &&
-          point.x <= right &&
-          point.y >= top &&
-          point.y <= bottom);
+      final rect = Rect.fromPoints(
+        Offset(shape.x1.toDouble(), shape.y1.toDouble()),
+        Offset(shape.x2.toDouble(), shape.y2.toDouble()),
+      ).inflate(radius + shape.width / 2);
+      return !rect.contains(Offset(point.x.toDouble(), point.y.toDouble()));
     }).toList();
 
     final texts = _document.texts.where((text) {
-      return !((point.x - text.x).abs() < 260 && (point.y - text.y).abs() < 90);
+      final approxWidth = math.min(
+        800.0,
+        math.max(120.0, text.text.length * text.size * 0.55),
+      );
+      final rect = Rect.fromLTWH(
+        text.x.toDouble(),
+        text.y.toDouble(),
+        approxWidth,
+        math.max(60.0, text.size * 2.5),
+      ).inflate(radius);
+      return !rect.contains(Offset(point.x.toDouble(), point.y.toDouble()));
     }).toList();
 
-    setState(() {
-      _document = _document.copyWith(
-        strokes:
-            _document.strokes.where((stroke) => !hitsStroke(stroke)).toList(),
+    final changed = strokes.length != _document.strokes.length ||
+        shapes.length != _document.shapes.length ||
+        texts.length != _document.texts.length;
+    if (!changed) return;
+
+    if (_setDocument(
+      _document.copyWith(
+        strokes: strokes,
         shapes: shapes,
         texts: texts,
-      );
-    });
+      ),
+      recordHistory: false,
+      ensureCanvas: false,
+    )) {
+      _markGestureChanged();
+    }
   }
 
   BoardShape? get _previewShape {
@@ -595,8 +789,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     if (kind == null) return null;
     return BoardShape(
       kind: kind,
-      color: 0xFF111111,
-      width: 5,
+      color: _inkColor,
+      width: _shapeWidth,
       x1: _shapeStart!.dx.round(),
       y1: _shapeStart!.dy.round(),
       x2: _shapeEnd!.dx.round(),
