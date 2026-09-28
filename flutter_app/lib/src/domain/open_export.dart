@@ -22,6 +22,32 @@ abstract final class OpenExportBundle {
     required Map<String, Object?> documents,
     required AttachmentStore store,
   }) async {
+    final assets = <String, Uint8List>{};
+    for (final key in _referencedAssets(snapshot)) {
+      final bytes = await store.read(key);
+      Attachments.verify(key, bytes);
+      assets[key] = bytes;
+    }
+    return encodeLoaded(
+      snapshot: snapshot,
+      properties: properties,
+      knowledge: knowledge,
+      projects: projects,
+      study: study,
+      documents: documents,
+      assets: assets,
+    );
+  }
+
+  static Uint8List encodeLoaded({
+    required BackupSnapshot snapshot,
+    required Map<String, Object?> properties,
+    required Map<String, Object?> knowledge,
+    required Map<String, Object?> projects,
+    required Map<String, Object?> study,
+    required Map<String, Object?> documents,
+    required Map<String, Uint8List> assets,
+  }) {
     BackupCodec.validate(snapshot);
 
     final synced = <String, SyncedBlock>{};
@@ -126,8 +152,13 @@ abstract final class OpenExportBundle {
     files['study.json'] = _json(study);
     files['documents.json'] = _json(documents);
 
+    if (assets.length != assetKeys.length ||
+        !assets.keys.toSet().containsAll(assetKeys) ||
+        !assetKeys.containsAll(assets.keys)) {
+      throw const FormatException('Media Open Export non coerenti.');
+    }
     for (final key in assetKeys) {
-      final bytes = await store.read(key);
+      final bytes = assets[key]!;
       Attachments.verify(key, bytes);
       files['assets/$key'] = bytes;
     }
@@ -186,6 +217,16 @@ abstract final class OpenExportBundle {
       throw const FormatException('Open Export ZIP oltre 96 MiB.');
     }
     return encoded;
+  }
+
+  static Set<String> _referencedAssets(BackupSnapshot snapshot) {
+    final keys = <String>{};
+    for (final note in snapshot.notes) {
+      if (!note.isVisual) {
+        keys.addAll(Attachments.refs(note.body).map((ref) => ref.key));
+      }
+    }
+    return keys;
   }
 
   static Uint8List _json(Object value) =>
