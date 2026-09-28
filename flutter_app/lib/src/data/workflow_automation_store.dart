@@ -232,7 +232,8 @@ class WorkflowAutomationStore {
       );
       WorkflowAutomationRules.validateRun(run);
       if (!noteIds.contains(run.noteId)) {
-        throw const FormatException('Esecuzione automazione verso nota mancante.');
+        throw const FormatException(
+            'Esecuzione automazione verso nota mancante.');
       }
       return run;
     }).toList(growable: false);
