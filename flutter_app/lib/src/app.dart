@@ -46,9 +46,11 @@ import 'screens/study_screen.dart';
 import 'screens/sketch_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
+import 'state/document_controller.dart';
 import 'state/project_workspace_controller.dart';
 import 'state/shared_live_sync_controller.dart';
 import 'state/shared_spaces_controller.dart';
+import 'state/study_controller.dart';
 import 'state/workspace_controller.dart';
 import 'sync/github_sync_service.dart';
 import 'theme/notes_theme.dart';
@@ -1437,6 +1439,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final derivatives =
           await ref.read(derivativeStoreProvider).exportBackup();
       final projects = await ref.read(projectStoreProvider).exportBackup();
+      final study = await ref.read(studyStoreProvider).exportBackup();
+      final documents = await ref.read(documentStoreProvider).exportBackup();
       final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
       final store = await AttachmentStore.open();
 
@@ -1448,6 +1452,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         knowledge: knowledge,
         derivatives: derivatives,
         projects: projects,
+        study: study,
+        documents: documents,
         sharedSpaces: shared,
         store: store,
       );
@@ -1563,8 +1569,18 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             noteIds: noteIds,
             sharedSpaceIds: sharedIds,
           );
+      await ref.read(studyStoreProvider).restoreBackupExact(
+            recovery.study,
+            noteIds: noteIds,
+          );
+      await ref.read(documentStoreProvider).restoreBackupExact(
+            recovery.documents,
+            noteIds: noteIds,
+            assetKeys: recovery.assets.keys.toSet(),
+          );
 
       await ref.read(workspaceProvider.notifier).refresh();
+      await ref.read(studyProvider.notifier).refresh();
       await ref.read(projectWorkspaceProvider.notifier).refresh();
       await _cleanupAttachments(silent: true);
 
@@ -1601,6 +1617,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         properties: await ref.read(propertyStoreProvider).exportBackup(),
         knowledge: await ref.read(knowledgeStoreProvider).exportBackup(),
         projects: await ref.read(projectStoreProvider).exportBackup(),
+        study: await ref.read(studyStoreProvider).exportBackup(),
+        documents: await ref.read(documentStoreProvider).exportBackup(),
         store: store,
       );
       final now = DateTime.now();
@@ -1826,6 +1844,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
     await ref.read(derivativeStoreProvider).deleteForNote(id);
+    await ref.read(documentStoreProvider).deleteForNote(id);
     await ref.read(projectStoreProvider).deleteLinksForNote(id);
     await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
