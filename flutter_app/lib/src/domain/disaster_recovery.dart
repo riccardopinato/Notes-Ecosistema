@@ -631,8 +631,9 @@ abstract final class DisasterRecoveryBundle {
       throw const FormatException('Backup automazioni recovery non valido.');
     }
     final automationRules = (automations['rules'] as List).map((raw) {
-      if (raw is! Map)
+      if (raw is! Map) {
         throw const FormatException('Regola automazione non valida.');
+      }
       final rule = WorkflowRule.fromMap(
         raw.map((key, value) => MapEntry(key.toString(), value)),
       );
