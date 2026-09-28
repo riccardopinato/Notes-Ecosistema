@@ -1459,6 +1459,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                   );
                   _scheduleInitialCenter(viewportSize);
                   return InteractiveViewer.builder(
+                    key: const ValueKey('whiteboard-viewport'),
                     transformationController: _viewport,
                     minScale: 0.2,
                     maxScale: 3.2,
@@ -1525,6 +1526,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                           child: RepaintBoundary(
                             key: _exportKey,
                             child: SizedBox(
+                              key: const ValueKey('whiteboard-canvas'),
                               width: _canvasSize,
                               height: _canvasSize,
                               child: Stack(
@@ -1538,6 +1540,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                                         workingVersion: _workingVersion,
                                         workingColor: _workingColor,
                                         workingWidth: _workingWidth,
+                                        workingMarker:
+                                            _tool == _WhiteboardTool.highlighter,
                                         previewShape: _previewShape,
                                         visibleRect: visibleRect,
                                         strokeBounds: _strokeBounds,
@@ -1691,6 +1695,7 @@ class _BoardPainter extends CustomPainter {
     required this.workingVersion,
     required this.workingColor,
     required this.workingWidth,
+    required this.workingMarker,
     required this.previewShape,
     required this.visibleRect,
     required this.strokeBounds,
@@ -1702,6 +1707,7 @@ class _BoardPainter extends CustomPainter {
   final int workingVersion;
   final int workingColor;
   final int workingWidth;
+  final bool workingMarker;
   final BoardShape? previewShape;
   final Rect visibleRect;
   final Map<String, Rect> strokeBounds;
@@ -1731,9 +1737,7 @@ class _BoardPainter extends CustomPainter {
         InkStroke(
           color: workingColor,
           width: workingWidth,
-          marker: document.strokes.isNotEmpty &&
-              document.strokes.last.marker &&
-              workingColor == document.strokes.last.color,
+          marker: workingMarker,
           points: working,
         ),
       );
@@ -1867,8 +1871,8 @@ class _BoardPainter extends CustomPainter {
     for (final point in stroke.points.skip(1)) {
       final pressure =
           ((previous.pressure + point.pressure) / 2000).clamp(0.05, 1.0);
-      paint.strokeWidth =
-          stroke.width * (0.30 + pressure * 0.70).clamp(0.30, 1.0);
+      final factor = (0.30 + pressure * 0.70).clamp(0.30, 1.0).toDouble();
+      paint.strokeWidth = stroke.width * factor;
       canvas.drawLine(
         Offset(origin + previous.x, origin + previous.y),
         Offset(origin + point.x, origin + point.y),
@@ -1931,6 +1935,7 @@ class _BoardPainter extends CustomPainter {
       oldDelegate.workingVersion != workingVersion ||
       oldDelegate.workingColor != workingColor ||
       oldDelegate.workingWidth != workingWidth ||
+      oldDelegate.workingMarker != workingMarker ||
       oldDelegate.previewShape != previewShape ||
       oldDelegate.visibleRect != visibleRect;
 }
