@@ -471,8 +471,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       return;
     }
     _objectPointer = event.pointer;
-    final moveSelection =
-        _selectionMode && _selectedNodeIds.contains(node.id);
+    final moveSelection = _selectionMode && _selectedNodeIds.contains(node.id);
     _draggedNodeIds
       ..clear()
       ..addAll(moveSelection ? _selectedNodeIds : <String>{node.id});
@@ -491,8 +490,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       return;
     }
     _objectPointer = event.pointer;
-    final moveSelection =
-        _selectionMode && _selectedTextIds.contains(text.id);
+    final moveSelection = _selectionMode && _selectedTextIds.contains(text.id);
     _draggedTextIds
       ..clear()
       ..addAll(moveSelection ? _selectedTextIds : <String>{text.id});
@@ -505,17 +503,15 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     }
   }
 
-  int _snapValue(int value) =>
-      ((value / _snapGrid).round().clamp(
-                -WhiteboardRules.maxCoordinate ~/ _snapGrid,
-                WhiteboardRules.maxCoordinate ~/ _snapGrid,
-              ) *
-              _snapGrid)
-          .toInt();
+  int _snapValue(int value) => ((value / _snapGrid).round().clamp(
+            -WhiteboardRules.maxCoordinate ~/ _snapGrid,
+            WhiteboardRules.maxCoordinate ~/ _snapGrid,
+          ) *
+          _snapGrid)
+      .toInt();
 
   void _snapDraggedObjects() {
-    if (!_snapToGrid ||
-        (_draggedNodeIds.isEmpty && _draggedTextIds.isEmpty)) {
+    if (!_snapToGrid || (_draggedNodeIds.isEmpty && _draggedTextIds.isEmpty)) {
       return;
     }
     final nextNodes = _document.nodes
@@ -682,9 +678,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     final nextNodes = _document.nodes.map((node) {
       if (!_selectedNodeIds.contains(node.id)) return node;
       final width = (node.width + delta).clamp(120, 720).toInt();
-      final height = (node.height + (delta * 0.65).round())
-          .clamp(80, 520)
-          .toInt();
+      final height =
+          (node.height + (delta * 0.65).round()).clamp(80, 520).toInt();
       return node.copyWith(
         x: node.x - ((width - node.width) / 2).round(),
         y: node.y - ((height - node.height) / 2).round(),
@@ -702,15 +697,14 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         if (_fingerDraw) ui.PointerDeviceKind.touch,
       };
 
-  Set<ui.PointerDeviceKind> get _canvasGestureDevices =>
-      _selectionMode
-          ? {
-              ui.PointerDeviceKind.touch,
-              ui.PointerDeviceKind.stylus,
-              ui.PointerDeviceKind.invertedStylus,
-              ui.PointerDeviceKind.mouse,
-            }
-          : _drawingDevices;
+  Set<ui.PointerDeviceKind> get _canvasGestureDevices => _selectionMode
+      ? {
+          ui.PointerDeviceKind.touch,
+          ui.PointerDeviceKind.stylus,
+          ui.PointerDeviceKind.invertedStylus,
+          ui.PointerDeviceKind.mouse,
+        }
+      : _drawingDevices;
 
   int get _workingColor {
     if (_tool == _WhiteboardTool.highlighter) {
@@ -1908,41 +1902,42 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     icon: const Icon(Icons.done_all),
                   ),
                   IconButton.filledTonal(
-                    onPressed: _selectedNodeIds.isEmpty &&
-                            _selectedTextIds.isEmpty
-                        ? null
-                        : _clearSelection,
+                    onPressed:
+                        _selectedNodeIds.isEmpty && _selectedTextIds.isEmpty
+                            ? null
+                            : _clearSelection,
                     tooltip: 'Deseleziona tutto',
                     icon: const Icon(Icons.deselect),
                   ),
                   const VerticalDivider(),
                   IconButton.filledTonal(
                     key: const ValueKey('whiteboard-duplicate-selection'),
-                    onPressed: _selectedNodeIds.isEmpty &&
-                            _selectedTextIds.isEmpty
-                        ? null
-                        : _duplicateSelection,
+                    onPressed:
+                        _selectedNodeIds.isEmpty && _selectedTextIds.isEmpty
+                            ? null
+                            : _duplicateSelection,
                     tooltip: 'Duplica selezione',
                     icon: const Icon(Icons.copy_all_outlined),
                   ),
                   IconButton.filledTonal(
                     key: const ValueKey('whiteboard-resize-smaller'),
-                    onPressed:
-                        _selectedNodeIds.isEmpty ? null : () => _resizeSelection(-40),
+                    onPressed: _selectedNodeIds.isEmpty
+                        ? null
+                        : () => _resizeSelection(-40),
                     tooltip: 'Riduci post-it',
                     icon: const Icon(Icons.zoom_in_map),
                   ),
                   IconButton.filledTonal(
                     key: const ValueKey('whiteboard-resize-larger'),
-                    onPressed:
-                        _selectedNodeIds.isEmpty ? null : () => _resizeSelection(40),
+                    onPressed: _selectedNodeIds.isEmpty
+                        ? null
+                        : () => _resizeSelection(40),
                     tooltip: 'Ingrandisci post-it',
                     icon: const Icon(Icons.zoom_out_map),
                   ),
                   IconButton.filledTonal(
                     key: const ValueKey('whiteboard-snap-grid'),
-                    onPressed: () =>
-                        setState(() => _snapToGrid = !_snapToGrid),
+                    onPressed: () => setState(() => _snapToGrid = !_snapToGrid),
                     isSelected: _snapToGrid,
                     tooltip: _snapToGrid
                         ? 'Snap griglia attivo'
@@ -1951,10 +1946,10 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                   ),
                   IconButton.filledTonal(
                     key: const ValueKey('whiteboard-delete-selection'),
-                    onPressed: _selectedNodeIds.isEmpty &&
-                            _selectedTextIds.isEmpty
-                        ? null
-                        : _deleteSelection,
+                    onPressed:
+                        _selectedNodeIds.isEmpty && _selectedTextIds.isEmpty
+                            ? null
+                            : _deleteSelection,
                     tooltip: 'Elimina selezione',
                     icon: const Icon(Icons.delete_outline),
                   ),
@@ -2161,9 +2156,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
             child: Align(
               alignment: Alignment.topLeft,
               child: Padding(
-                padding: selected
-                    ? const EdgeInsets.all(4)
-                    : EdgeInsets.zero,
+                padding: selected ? const EdgeInsets.all(4) : EdgeInsets.zero,
                 child: Text(
                   text.text,
                   maxLines: 6,
