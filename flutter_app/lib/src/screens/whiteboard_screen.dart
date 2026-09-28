@@ -1101,22 +1101,35 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     );
   }
 
-  void _moveTextByDelta(SketchText text, Offset delta) {
-    final current = _document.texts.firstWhere(
-      (item) => item.id == text.id,
-      orElse: () => text,
-    );
+  void _moveDraggedByDelta(Offset delta) {
+    if (_draggedNodeIds.isEmpty && _draggedTextIds.isEmpty) return;
     final limit = WhiteboardRules.maxCoordinate;
-    final updated = current.copyWith(
-      x: (current.x + delta.dx.round()).clamp(-limit, limit).toInt(),
-      y: (current.y + delta.dy.round()).clamp(-limit, limit).toInt(),
-    );
+    final dx = delta.dx.round();
+    final dy = delta.dy.round();
+
+    final nextNodes = _document.nodes
+        .map(
+          (node) => _draggedNodeIds.contains(node.id)
+              ? node.copyWith(
+                  x: (node.x + dx).clamp(-limit, limit).toInt(),
+                  y: (node.y + dy).clamp(-limit, limit).toInt(),
+                )
+              : node,
+        )
+        .toList();
+    final nextTexts = _document.texts
+        .map(
+          (text) => _draggedTextIds.contains(text.id)
+              ? text.copyWith(
+                  x: (text.x + dx).clamp(-limit, limit).toInt(),
+                  y: (text.y + dy).clamp(-limit, limit).toInt(),
+                )
+              : text,
+        )
+        .toList();
+
     if (_setDocument(
-      _document.copyWith(
-        texts: _document.texts
-            .map((item) => item.id == text.id ? updated : item)
-            .toList(),
-      ),
+      _document.copyWith(nodes: nextNodes, texts: nextTexts),
       recordHistory: false,
       ensureCanvas: false,
       validate: false,
@@ -1124,6 +1137,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     )) {
       _markGestureChanged();
     }
+  }
+
+  void _moveTextByDelta(SketchText text, Offset delta) {
+    if (!_draggedTextIds.contains(text.id)) return;
+    _moveDraggedByDelta(delta);
   }
 
   void _eraseInk(InkPoint point) {
@@ -1439,24 +1457,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   void _moveNodeByDelta(BoardNode node, Offset delta) {
-    final current = _document.nodes.firstWhere(
-      (item) => item.id == node.id,
-      orElse: () => node,
-    );
-    final limit = WhiteboardRules.maxCoordinate;
-    final updated = current.copyWith(
-      x: (current.x + delta.dx.round()).clamp(-limit, limit).toInt(),
-      y: (current.y + delta.dy.round()).clamp(-limit, limit).toInt(),
-    );
-    if (_setDocument(
-      WhiteboardOps.updateNode(_document, updated),
-      recordHistory: false,
-      ensureCanvas: false,
-      validate: false,
-      rebuildStrokeBounds: false,
-    )) {
-      _markGestureChanged();
-    }
+    if (!_draggedNodeIds.contains(node.id)) return;
+    _moveDraggedByDelta(delta);
   }
 
   void _setMode(WhiteboardMode mode) {
