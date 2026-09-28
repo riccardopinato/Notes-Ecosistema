@@ -334,8 +334,7 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                     maxLength: DocumentRules.maxComment,
                     minLines: 2,
                     maxLines: 5,
-                    decoration:
-                        const InputDecoration(labelText: 'Commento'),
+                    decoration: const InputDecoration(labelText: 'Commento'),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
