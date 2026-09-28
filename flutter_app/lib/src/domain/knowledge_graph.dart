@@ -399,7 +399,7 @@ abstract final class KnowledgeGraphProjection {
     }
 
     final ranked = graph.nodes
-        .where((node) => scopedIds == null || scopedIds!.contains(node.id))
+        .where((node) => scopedIds == null || scopedIds.contains(node.id))
         .map(
           (node) => (
             node: node,
