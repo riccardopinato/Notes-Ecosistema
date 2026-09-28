@@ -877,7 +877,7 @@ abstract final class WhiteboardCodec {
     for (final value in (root['texts'] as List? ?? const [])) {
       final text = value as Map<String, dynamic>;
       texts.add(
-        BoardText(
+        SketchText(
           id: text['id']?.toString(),
           text: text['text']?.toString() ?? '',
           color: (text['color'] as num?)?.toInt() ?? 0xFF111111,
