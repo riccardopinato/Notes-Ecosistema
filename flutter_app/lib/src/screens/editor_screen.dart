@@ -18,6 +18,7 @@ import '../domain/attachments.dart';
 import '../domain/backup.dart';
 import '../domain/blocks.dart';
 import '../domain/diary.dart';
+import '../domain/derivatives.dart';
 import '../domain/editing.dart';
 import '../domain/knowledge.dart';
 import '../domain/note.dart';
@@ -30,6 +31,7 @@ import '../domain/visual_documents.dart';
 import '../platform/attachment_bridge.dart';
 import '../screens/sketch_screen.dart';
 import '../screens/whiteboard_screen.dart';
+import 'pdf_workspace_screen.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
@@ -91,6 +93,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _focusEditor = false;
   bool _autoRecordStarted = false;
   Map<String, SyncedBlock> _syncedBlocks = const {};
+  final List<({String assetKey, String text, String engine})> _pendingOcr = [];
 
   bool get _readOnlyVisual => widget.note?.isVisual == true;
   bool get _readOnly => widget.readOnly || _readOnlyVisual;
@@ -413,6 +416,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             );
 
       await ref.read(workspaceProvider.notifier).save(note);
+      if (_pendingOcr.isNotEmpty) {
+        final derivativeStore = ref.read(derivativeStoreProvider);
+        for (final pending in _pendingOcr) {
+          await derivativeStore.add(
+            sourceNoteId: _id,
+            sourceAssetKey: pending.assetKey,
+            kind: DerivativeKind.ocrText,
+            content: pending.text,
+            sourceText: pending.text,
+            sourceFingerprint: pending.assetKey.split('.').first,
+            engine: pending.engine,
+          );
+        }
+        _pendingOcr.clear();
+      }
       if (_propertiesLoaded) {
         await ref.read(propertyStoreProvider).replaceValues(
               _id,
@@ -685,6 +703,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       expand: true,
       builder: (_) => SmartCaptureSheet(
         body: _body.text,
+        onOcrCaptured: (assetKey, text, engine) {
+          final duplicate = _pendingOcr.any(
+            (item) =>
+                item.assetKey == assetKey &&
+                item.text == text &&
+                item.engine == engine,
+          );
+          if (!duplicate) {
+            _pendingOcr.add(
+              (assetKey: assetKey, text: text, engine: engine),
+            );
+          }
+        },
         onBodyChanged: (body) {
           if (!mounted || body == _body.text) return;
           setState(() {
@@ -981,6 +1012,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             : 'Apri',
                       ),
                     ),
+                    if (ref.type == AttachmentType.pdf)
+                      FilledButton.tonalIcon(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await Navigator.of(this.context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PdfWorkspaceScreen(
+                                noteId: _id,
+                                attachment: ref,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.document_scanner_outlined),
+                        label: const Text('Workspace PDF'),
+                      ),
                     FilledButton.tonalIcon(
                       onPressed: () async {
                         try {
