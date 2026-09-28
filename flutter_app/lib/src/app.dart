@@ -1113,6 +1113,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           control: true,
           shift: true,
         ): () => _selectSection(5),
+        const SingleActivator(
+          LogicalKeyboardKey.keyG,
+          control: true,
+          shift: true,
+        ): () => unawaited(_openKnowledgeGraph()),
       },
       child: Focus(
         autofocus: true,
