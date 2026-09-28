@@ -110,10 +110,17 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byTooltip('Annulla'));
+    final undoFinder = find.byKey(const ValueKey('whiteboard-undo'));
+    final redoFinder = find.byKey(const ValueKey('whiteboard-redo'));
+    expect(tester.widget<IconButton>(undoFinder).onPressed, isNotNull);
+
+    await tester.tap(undoFinder);
     await tester.pump();
-    await tester.tap(find.byTooltip('Ripristina'));
+    expect(tester.widget<IconButton>(redoFinder).onPressed, isNotNull);
+
+    await tester.tap(redoFinder);
     await tester.pump();
+    expect(tester.widget<IconButton>(undoFinder).onPressed, isNotNull);
 
     await tester.tap(find.text('Salva'));
     await tester.pumpAndSettle();
