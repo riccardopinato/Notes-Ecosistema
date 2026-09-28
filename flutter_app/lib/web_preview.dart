@@ -12,6 +12,7 @@ import 'src/domain/app_locale.dart';
 import 'src/domain/diary.dart';
 import 'src/domain/editing.dart';
 import 'src/domain/library.dart';
+import 'src/domain/local_intelligence.dart';
 import 'src/domain/knowledge_graph.dart';
 import 'src/domain/note.dart';
 import 'src/domain/planner.dart';
@@ -67,7 +68,7 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notes Ecosistema 0.54 · Web',
+      title: 'Notes Ecosistema 0.55 · Web',
       theme: NotesTheme.light(),
       darkTheme: NotesTheme.dark(),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
@@ -731,6 +732,18 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           Navigator.pop(context);
           unawaited(_openAutomations());
         },
+        onLocalIntelligence: () {
+          Navigator.pop(context);
+          unawaited(_openLocalIntelligenceAudit());
+        },
+      ),
+    );
+  }
+
+  Future<void> _openLocalIntelligenceAudit() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const _WebLocalIntelligenceAudit(),
       ),
     );
   }
@@ -744,7 +757,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('Notes Ecosistema 0.54'),
+              title: Text('Notes Ecosistema 0.55'),
               subtitle: Text(
                 'Web Preview fedele · stato demo locale alla sessione browser.',
               ),
@@ -785,6 +798,17 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
                     selected == 'system' ? null : selected,
                   );
                 }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('Intelligence locale'),
+              subtitle: const Text(
+                'Audit modelli, benchmark multilingua e fallback deterministico.',
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _openLocalIntelligenceAudit();
               },
             ),
             SwitchListTile(
@@ -938,7 +962,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               appBar: AppBar(
                 title: EditorialAppTitle(
                   section == 'Home' ? 'Il tuo spazio' : section,
-                  eyebrow: 'NOTES · WEB PREVIEW 0.54',
+                  eyebrow: 'NOTES · WEB PREVIEW 0.55',
                 ),
                 actions: [
                   IconButton(
@@ -2134,6 +2158,55 @@ class _WebKnowledgeSearchState extends State<_WebKnowledgeSearch> {
   }
 }
 
+class _WebLocalIntelligenceAudit extends StatelessWidget {
+  const _WebLocalIntelligenceAudit();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Intelligence locale')),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+          children: [
+            const EditorialEyebrow('LOCAL INTELLIGENCE · 0.55'),
+            const SizedBox(height: 4),
+            Text(
+              'Semantic search opzionale, fallback sempre disponibile.',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'La Web Preview non simula un runtime nativo: mostra il contratto '
+              'prodotto e l’audit. Il ranking resta deterministico nel browser.',
+            ),
+            const SizedBox(height: 18),
+            for (final candidate in LocalModelAudit.candidates)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        candidate.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${(candidate.minWeightBytes / 1024 / 1024).toStringAsFixed(0)}–'
+                        '${(candidate.maxWeightBytes / 1024 / 1024).toStringAsFixed(0)} MB · '
+                        '${candidate.license}',
+                      ),
+                      const SizedBox(height: 6),
+                      Text(candidate.summary),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
 class _WebAutomationScreen extends StatelessWidget {
   const _WebAutomationScreen({
     required this.rules,
@@ -2217,6 +2290,7 @@ class _WebQuickSwitcher extends StatefulWidget {
     required this.onProjects,
     required this.onStudy,
     required this.onAutomations,
+    required this.onLocalIntelligence,
   });
 
   final List<Note> notes;
@@ -2225,6 +2299,7 @@ class _WebQuickSwitcher extends StatefulWidget {
   final VoidCallback onProjects;
   final VoidCallback onStudy;
   final VoidCallback onAutomations;
+  final VoidCallback onLocalIntelligence;
 
   @override
   State<_WebQuickSwitcher> createState() => _WebQuickSwitcherState();
@@ -2298,6 +2373,11 @@ class _WebQuickSwitcherState extends State<_WebQuickSwitcher> {
                       leading: const Icon(Icons.auto_mode_outlined),
                       title: const Text('Apri Automazioni'),
                       onTap: widget.onAutomations,
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.auto_awesome_outlined),
+                      title: const Text('Apri Intelligence locale'),
+                      onTap: widget.onLocalIntelligence,
                     ),
                     const Divider(),
                   ],
