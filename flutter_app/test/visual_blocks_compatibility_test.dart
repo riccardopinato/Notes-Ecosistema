@@ -167,6 +167,68 @@ void main() {
     expect(decoded.edges.single.kind, BoardEdgeKind.arrow);
   });
 
+  test('Whiteboard persists sketch-like paper, shapes and typed text', () {
+    final source = WhiteboardDocument(
+      paper: WhiteboardPaper.dots,
+      strokes: [
+        InkStroke(
+          id: 'ink-1',
+          color: 0xFF111111,
+          width: 6,
+          marker: false,
+          points: const [InkPoint(-20, -10), InkPoint(30, 40)],
+        ),
+      ],
+      shapes: [
+        BoardShape(
+          id: 'arrow-1',
+          kind: BoardShapeKind.arrow,
+          color: 0xFF111111,
+          width: 5,
+          x1: -100,
+          y1: -50,
+          x2: 100,
+          y2: 50,
+        ),
+      ],
+      texts: [
+        BoardText(
+          id: 'text-1',
+          text: 'Appunto',
+          color: 0xFF111111,
+          x: 12,
+          y: 34,
+        ),
+      ],
+    );
+
+    final raw = WhiteboardCodec.encode(source);
+    final decoded = WhiteboardCodec.decode(raw);
+
+    expect(decoded.paper, WhiteboardPaper.dots);
+    expect(decoded.strokes.single.id, 'ink-1');
+    expect(decoded.shapes.single.kind, BoardShapeKind.arrow);
+    expect(decoded.texts.single.text, 'Appunto');
+  });
+
+  test('Legacy whiteboard without paper keeps historical grid default', () {
+    final legacy = jsonEncode({
+      'format': 'notes-whiteboard',
+      'version': 1,
+      'mode': 'FREEFORM',
+      'camera': {'x': 0, 'y': 0, 'zoom': 1},
+      'nodes': <Object?>[],
+      'edges': <Object?>[],
+      'strokes': <Object?>[],
+      'shapes': <Object?>[],
+    });
+
+    expect(
+      WhiteboardCodec.decode(legacy).paper,
+      WhiteboardPaper.grid,
+    );
+  });
+
   test('Visual metadata remains compatible with Note visual kind', () {
     final raw = const VisualInfo(
       linkedNoteId: 'note-1',
