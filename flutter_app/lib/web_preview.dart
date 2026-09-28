@@ -645,7 +645,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('Notes Ecosistema 0.52'),
+              title: Text('Notes Ecosistema 0.53'),
               subtitle: Text(
                 'Web Preview fedele · stato demo locale alla sessione browser.',
               ),
@@ -780,6 +780,11 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           control: true,
           shift: true,
         ): () => _selectSection(5),
+        const SingleActivator(
+          LogicalKeyboardKey.keyG,
+          control: true,
+          shift: true,
+        ): () => unawaited(_openKnowledgeGraph()),
       },
       child: Focus(
         autofocus: true,
@@ -790,7 +795,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               appBar: AppBar(
                 title: EditorialAppTitle(
                   section == 'Home' ? 'Il tuo spazio' : section,
-                  eyebrow: 'NOTES · WEB PREVIEW 0.52',
+                  eyebrow: 'NOTES · WEB PREVIEW 0.53',
                 ),
                 actions: [
                   IconButton(
