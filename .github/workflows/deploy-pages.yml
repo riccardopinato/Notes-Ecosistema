@@ -61,9 +61,7 @@ jobs:
           path: flutter_app/build/web
 
   deploy:
-    # The connected GitHub App cannot enable Pages for this repository.
-    # Set repository variable ENABLE_PAGES=true after Pages is enabled in GitHub.
-    if: github.event_name != 'pull_request' && vars.ENABLE_PAGES == 'true'
+    if: github.event_name != 'pull_request'
     needs: build-web
     runs-on: ubuntu-latest
     environment:
