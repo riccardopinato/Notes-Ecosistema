@@ -112,6 +112,112 @@ void main() {
     expect(joined.roleFor(viewer.id), SharedRole.editor);
   });
 
+  test('viewer can comment without editing shared content', () {
+    var space = spaceAt(100);
+    space = SharedSpaces.updateMember(
+      space,
+      owner,
+      viewer.id,
+      role: SharedRole.viewer,
+      displayName: viewer.displayName,
+      now: 200,
+    );
+
+    expect(space.canEdit(viewer.id), isFalse);
+    final commented = SharedSpaces.addComment(
+      space,
+      viewer,
+      body: 'Posso commentare senza modificare la nota.',
+      now: 300,
+      id: 'comment-1',
+    );
+
+    expect(commented.comments.single.body, contains('commentare'));
+    expect(commented.comments.single.authorId, viewer.id);
+    expect(commented.canRead(viewer.id), isTrue);
+  });
+
+  test('comment merge preserves edits and tombstones deterministically', () {
+    var base = spaceAt(100);
+    base = SharedSpaces.addComment(
+      base,
+      owner,
+      body: 'Versione iniziale',
+      now: 200,
+      id: 'comment-1',
+    );
+
+    final edited = SharedSpaces.editComment(
+      base,
+      owner,
+      'comment-1',
+      body: 'Versione aggiornata',
+      now: 300,
+    );
+    final removed = SharedSpaces.removeComment(
+      base,
+      owner,
+      'comment-1',
+      now: 400,
+    );
+
+    final merged = SharedSpaces.merge(edited, removed);
+    expect(merged.comments.single.active, isFalse);
+    expect(merged.comments.single.deletedAt, 400);
+  });
+
+  test('member can leave while owner cannot abandon the workspace', () {
+    var space = spaceAt(100);
+    space = SharedSpaces.updateMember(
+      space,
+      owner,
+      viewer.id,
+      role: SharedRole.editor,
+      displayName: viewer.displayName,
+      now: 200,
+    );
+
+    final left = SharedSpaces.leave(space, viewer, now: 300);
+    expect(left.canRead(viewer.id), isFalse);
+    expect(left.member(viewer.id), isNull);
+    expect(
+      () => SharedSpaces.leave(space, owner, now: 300),
+      throwsFormatException,
+    );
+  });
+
+  test('invite history remains private snapshot metadata and roundtrips', () {
+    final space = spaceAt(100);
+    final invite = SharedSpaces.invite(
+      space,
+      owner,
+      role: SharedRole.editor,
+      now: 200,
+    );
+    final record = SharedInviteRecord(
+      id: 'invite-history-1',
+      spaceId: space.id,
+      spaceName: space.name,
+      role: invite.role,
+      code: invite.encode(),
+      issuedAt: invite.issuedAt,
+      expiresAt: invite.expiresAt,
+    );
+
+    final raw = SharedSpacesCodec.encode(
+      SharedSpacesSnapshot(
+        identity: owner,
+        spaces: [space],
+        inviteHistory: [record],
+      ),
+    );
+    final decoded = SharedSpacesCodec.decode(raw);
+
+    expect(decoded.inviteHistory, hasLength(1));
+    expect(decoded.inviteHistory.single.code, record.code);
+    expect(space.toJson().containsKey('inviteHistory'), isFalse);
+  });
+
   test('expired invite is rejected', () {
     final invite = SharedSpaceInvite(
       spaceId: 'space-1',
