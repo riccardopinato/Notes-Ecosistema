@@ -1096,8 +1096,7 @@ abstract final class SharedSpaces {
         'Trasferisci o chiudi il workspace prima.',
       );
     }
-    final index =
-        space.members.indexWhere((member) => member.id == actor.id);
+    final index = space.members.indexWhere((member) => member.id == actor.id);
     if (index < 0 || !space.members[index].active) {
       throw const FormatException('Non appartieni a questo spazio.');
     }
