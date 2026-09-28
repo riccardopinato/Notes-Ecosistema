@@ -277,6 +277,661 @@ class GitHubApi {
     return sha;
   }
 
+  Future<void> deleteNote(String id, String expectedSha) async {
+    if (!RegExp(r'^[a-f0-9]{40}
+    if (_assets != null) return _assets!;
+    final path = _path('${config.folder}/assets');
+    String text;
+    try {
+      text = await _request(
+        'GET',
+        '$_root/contents/$path?ref=${Uri.encodeQueryComponent(ref)}',
+      );
+    } on GitHubHttpFailure catch (error) {
+      if (error.status == 404) {
+        _assets = {};
+        return _assets!;
+      }
+      rethrow;
+    }
+    final decoded = jsonDecode(text);
+    if (decoded is! List || decoded.length >= 1000) {
+      throw const FormatException('Cartella allegati GitHub troppo grande.');
+    }
+    final result = <String, RemoteAsset>{};
+    for (final item in decoded) {
+      if (item is! Map) continue;
+      final name = item['name']?.toString() ?? '';
+      if (!Attachments.validKey(name)) continue;
+      final size = (item['size'] as num?)?.toInt() ?? -1;
+      final sha = item['sha']?.toString() ?? '';
+      if (item['type'] != 'file' ||
+          size < 1 ||
+          size > Attachments.fileLimit ||
+          !RegExp(r'^[a-f0-9]{40}$').hasMatch(sha)) {
+        throw const FormatException('Allegato remoto non valido.');
+      }
+      result[name] = RemoteAsset(name, sha, size);
+    }
+    if (result.length > Attachments.maxFiles) {
+      throw const FormatException('Repository oltre 500 allegati.');
+    }
+    _assets = result;
+    return result;
+  }
+
+  String _gitSha(Uint8List bytes) {
+    final prefix = utf8.encode('blob ${bytes.length}\u0000');
+    return sha1.convert([...prefix, ...bytes]).toString();
+  }
+
+  Future<void> ensureAssetUploaded(
+    String key,
+    Uint8List bytes,
+  ) async {
+    Attachments.verify(key, bytes);
+    final index = await _assetIndex(config.branch);
+    final existing = index[key];
+    final expectedSha = _gitSha(bytes);
+    if (existing != null) {
+      if (existing.sha != expectedSha || existing.size != bytes.length) {
+        throw const FormatException(
+          'Allegato remoto con lo stesso nome ma contenuto diverso.',
+        );
+      }
+      return;
+    }
+    if (index.length >= Attachments.maxFiles) {
+      throw const FormatException('Repository oltre 500 allegati.');
+    }
+
+    final path = _path('${config.folder}/assets/$key');
+    final decoded = jsonDecode(
+      await _request(
+        'PUT',
+        '$_root/contents/$path',
+        body: {
+          'message': 'Notes: aggiungi allegato',
+          'branch': config.branch,
+          'content': base64Encode(bytes),
+        },
+      ),
+    );
+    if (decoded is! Map || decoded['content'] is! Map) {
+      throw const FormatException('Upload allegato non verificabile.');
+    }
+    final content = decoded['content'] as Map;
+    final sha = content['sha']?.toString() ?? '';
+    if (sha != expectedSha) {
+      throw const FormatException(
+        'Verifica allegato caricato non riuscita.',
+      );
+    }
+    index[key] = RemoteAsset(key, sha, bytes.length);
+  }
+
+  Future<Uint8List> downloadAsset(String key, String ref) async {
+    final index = await _assetIndex(ref);
+    final info = index[key];
+    if (info == null) {
+      throw const FormatException(
+        'Allegato remoto non disponibile.',
+      );
+    }
+    final decoded = jsonDecode(
+      await _request(
+        'GET',
+        '$_root/git/blobs/${Uri.encodeComponent(info.sha)}',
+        limit: 12 * 1024 * 1024,
+      ),
+    );
+    if (decoded is! Map ||
+        decoded['encoding'] != 'base64' ||
+        decoded['sha'] != info.sha) {
+      throw const FormatException('Blob allegato GitHub non valido.');
+    }
+    final bytes = Uint8List.fromList(
+      base64Decode(
+        (decoded['content']?.toString() ?? '').replaceAll(RegExp(r'\s'), ''),
+      ),
+    );
+    if (bytes.length != info.size) {
+      throw const FormatException('Dimensione allegato remota non valida.');
+    }
+    Attachments.verify(key, bytes);
+    return bytes;
+  }
+
+  void close() => _client.close(force: true);
+}
+
+class GitHubSyncRecord {
+  const GitHubSyncRecord({
+    this.base,
+    this.sha,
+    this.conflict = false,
+    this.local,
+    this.remote,
+  });
+
+  final SyncDocument? base;
+  final String? sha;
+  final bool conflict;
+  final SyncDocument? local;
+  final SyncDocument? remote;
+
+  Map<String, Object?> toJson() => {
+        'base': base == null ? null : SyncCodec.encode(base!),
+        'sha': sha,
+        'conflict': conflict,
+        'local': local == null ? null : SyncCodec.encode(local!),
+        'remote': remote == null ? null : SyncCodec.encode(remote!),
+      };
+
+  factory GitHubSyncRecord.fromJson(Map<String, Object?> map) {
+    SyncDocument? document(Object? value) =>
+        value is String ? SyncCodec.decode(value) : null;
+    return GitHubSyncRecord(
+      base: document(map['base']),
+      sha: map['sha']?.toString(),
+      conflict: map['conflict'] == true,
+      local: document(map['local']),
+      remote: document(map['remote']),
+    );
+  }
+}
+
+class GitHubSyncStatus {
+  const GitHubSyncStatus({
+    this.connection,
+    this.message = 'GitHub non collegato',
+    this.busy = false,
+    this.conflicts = const {},
+  });
+
+  final String? connection;
+  final String message;
+  final bool busy;
+  final Map<String, GitHubSyncRecord> conflicts;
+}
+
+class GitHubSyncService {
+  GitHubSyncService(this.database);
+
+  final LegacyNotesDatabase database;
+  GitHubSyncStatus status = const GitHubSyncStatus();
+
+  static const _ownerKey = 'github_owner';
+  static const _repoKey = 'github_repo';
+  static const _branchKey = 'github_branch';
+  static const _folderKey = 'github_folder';
+  static const _publicKey = 'github_allow_public';
+
+  Future<GitHubConfig?> config() async {
+    final prefs = await SharedPreferences.getInstance();
+    final owner = prefs.getString(_ownerKey);
+    final repo = prefs.getString(_repoKey);
+    final branch = prefs.getString(_branchKey);
+    final folder = prefs.getString(_folderKey);
+    final token = await SecureTokenBridge.readGitHubToken();
+    if (owner == null ||
+        repo == null ||
+        branch == null ||
+        folder == null ||
+        token == null) {
+      return null;
+    }
+    final value = GitHubConfig(
+      owner: owner,
+      repo: repo,
+      branch: branch,
+      folder: folder,
+      token: token,
+      allowPublic: prefs.getBool(_publicKey) ?? false,
+    );
+    value.validate();
+    return value;
+  }
+
+  Future<void> connect(GitHubConfig value) async {
+    value.validate();
+    final api = GitHubApi(value);
+    try {
+      final private = await api.verify();
+      if (!private && !value.allowPublic) {
+        throw const FormatException(
+          'Il repository è pubblico. Abilita esplicitamente la pubblicazione oppure usa un repository privato.',
+        );
+      }
+    } finally {
+      api.close();
+    }
+
+    await SecureTokenBridge.saveGitHubToken(value.token);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_ownerKey, value.owner);
+    await prefs.setString(_repoKey, value.repo);
+    await prefs.setString(_branchKey, value.branch);
+    await prefs.setString(_folderKey, value.folder);
+    await prefs.setBool(_publicKey, value.allowPublic);
+    status = GitHubSyncStatus(
+      connection: value.label,
+      message: 'Collegato. Sincronizzazione pronta.',
+    );
+  }
+
+  Future<void> disconnect() async {
+    final current = await config();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_ownerKey);
+    await prefs.remove(_repoKey);
+    await prefs.remove(_branchKey);
+    await prefs.remove(_folderKey);
+    await prefs.remove(_publicKey);
+    await SecureTokenBridge.deleteGitHubToken();
+    if (current != null) {
+      final file = await _stateFile(current);
+      if (await file.exists()) await file.delete();
+    }
+    status = const GitHubSyncStatus(
+      message: 'GitHub scollegato. Note locali conservate.',
+    );
+  }
+
+  Future<bool> loadStatus() async {
+    final current = await config();
+    if (current == null) {
+      status = const GitHubSyncStatus();
+      return false;
+    }
+    final records = await _loadRecords(current);
+    status = GitHubSyncStatus(
+      connection: current.label,
+      message: 'Pronto per sincronizzare.',
+      conflicts: {
+        for (final entry in records.entries)
+          if (entry.value.conflict) entry.key: entry.value,
+      },
+    );
+    return true;
+  }
+
+  Future<GitHubSyncStatus> run() async {
+    final current = await config();
+    if (current == null) {
+      throw const FormatException('Collega GitHub.');
+    }
+    current.validate();
+
+    status = GitHubSyncStatus(
+      connection: current.label,
+      message: 'Sincronizzazione in corso…',
+      busy: true,
+      conflicts: status.conflicts,
+    );
+
+    final api = GitHubApi(current);
+    try {
+      final private = await api.verify(checkHead: false);
+      if (!private && !current.allowPublic) {
+        throw const FormatException(
+          'Il repository ora è pubblico. Sincronizzazione sospesa.',
+        );
+      }
+
+      final localIds = await database.syncDocumentIds();
+      final records = await _loadRecords(current);
+      final head = await api.head();
+      final files = await api.listNotes(head);
+      final remote = <String, SyncDocument>{};
+      final remoteSha = <String, String>{};
+
+      for (final file in files) {
+        final document = await api.readNote(file, head);
+        if (remote.containsKey(document.id)) {
+          throw const FormatException('ID remoto duplicato.');
+        }
+        remote[document.id] = document;
+        remoteSha[document.id] = file.sha;
+      }
+
+      final attachmentStore = await AttachmentStore.open();
+      final ids = <String>{
+        ...localIds,
+        ...remote.keys,
+        ...records.keys,
+      };
+
+      for (final id in ids) {
+        final localDocument = await database.syncDocument(id);
+        final remoteDocument = remote[id];
+        final previous = records[id];
+
+        if (localDocument == null && remoteDocument == null) {
+          records.remove(id);
+          continue;
+        }
+
+        if (remoteDocument == null && localDocument != null) {
+          await _publishAssets(
+            localDocument,
+            api,
+            attachmentStore,
+          );
+          final sha = await api.writeNote(localDocument, null);
+          records[id] = GitHubSyncRecord(
+            base: localDocument,
+            sha: sha,
+          );
+          continue;
+        }
+
+        if (localDocument == null && remoteDocument != null) {
+          final missingDecision = decideMissingLocal(
+            previous?.base,
+            remoteDocument,
+          );
+          if (missingDecision != MissingLocalSyncDecision.downloadRemote) {
+            final sha = remoteSha[id];
+            if (sha == null) {
+              throw const FormatException(
+                'SHA remoto mancante durante eliminazione.',
+              );
+            }
+            if (missingDecision ==
+                MissingLocalSyncDecision.preserveRemoteThenPurge) {
+              await _receiveAssets(
+                remoteDocument,
+                api,
+                attachmentStore,
+                head,
+              );
+              await database.saveSyncCopy(
+                remoteDocument,
+                suffix: ' (conflitto remoto dopo eliminazione)',
+              );
+            }
+            await api.deleteNote(id, sha);
+            records.remove(id);
+            continue;
+          }
+
+          await _receiveAssets(
+            remoteDocument,
+            api,
+            attachmentStore,
+            head,
+          );
+          final concurrent = await _concurrentLocalEdit(
+            expectedLocal: localDocument,
+            remote: remoteDocument,
+          );
+          if (concurrent != null) {
+            records[id] = GitHubSyncRecord(
+              base: previous?.base,
+              sha: remoteSha[id],
+              conflict: true,
+              local: concurrent,
+              remote: remoteDocument,
+            );
+            continue;
+          }
+          await database.applySyncDocument(remoteDocument);
+          records[id] = GitHubSyncRecord(
+            base: remoteDocument,
+            sha: remoteSha[id],
+          );
+          continue;
+        }
+
+        final decision = decideSync(
+          previous?.base,
+          localDocument,
+          remoteDocument,
+        );
+
+        switch (decision) {
+          case SyncDecision.same:
+            records[id] = GitHubSyncRecord(
+              base: localDocument,
+              sha: remoteSha[id],
+            );
+            break;
+          case SyncDecision.upload:
+            await _publishAssets(
+              localDocument!,
+              api,
+              attachmentStore,
+            );
+            final sha = await api.writeNote(
+              localDocument,
+              remoteSha[id],
+            );
+            records[id] = GitHubSyncRecord(
+              base: localDocument,
+              sha: sha,
+            );
+            break;
+          case SyncDecision.download:
+            await _receiveAssets(
+              remoteDocument!,
+              api,
+              attachmentStore,
+              head,
+            );
+            final concurrent = await _concurrentLocalEdit(
+              expectedLocal: localDocument,
+              remote: remoteDocument,
+            );
+            if (concurrent != null) {
+              records[id] = GitHubSyncRecord(
+                base: previous?.base,
+                sha: remoteSha[id],
+                conflict: true,
+                local: concurrent,
+                remote: remoteDocument,
+              );
+              break;
+            }
+            await database.applySyncDocument(remoteDocument);
+            records[id] = GitHubSyncRecord(
+              base: remoteDocument,
+              sha: remoteSha[id],
+            );
+            break;
+          case SyncDecision.conflict:
+            final currentLocal =
+                await database.syncDocument(id) ?? localDocument;
+            records[id] = GitHubSyncRecord(
+              base: previous?.base,
+              sha: remoteSha[id],
+              conflict: true,
+              local: currentLocal,
+              remote: remoteDocument,
+            );
+            break;
+        }
+      }
+
+      await _saveRecords(current, records);
+      final conflicts = {
+        for (final entry in records.entries)
+          if (entry.value.conflict) entry.key: entry.value,
+      };
+      status = GitHubSyncStatus(
+        connection: current.label,
+        message: conflicts.isEmpty
+            ? 'Sincronizzazione completata'
+            : 'Conflitti da risolvere: entrambe le versioni sono conservate.',
+        conflicts: conflicts,
+      );
+      return status;
+    } catch (error) {
+      status = GitHubSyncStatus(
+        connection: current.label,
+        message: error.toString().replaceFirst('FormatException: ', ''),
+        conflicts: status.conflicts,
+      );
+      rethrow;
+    } finally {
+      api.close();
+    }
+  }
+
+  Future<void> resolve(String id, String choice) async {
+    if (!const {'local', 'remote', 'both'}.contains(choice)) {
+      throw const FormatException('Scelta conflitto non valida.');
+    }
+    final current = await config();
+    if (current == null) {
+      throw const FormatException('Collega GitHub.');
+    }
+    final records = await _loadRecords(current);
+    final record = records[id];
+    if (record == null ||
+        !record.conflict ||
+        record.local == null ||
+        record.remote == null) {
+      throw const FormatException('Conflitto non più disponibile.');
+    }
+
+    if (choice == 'both') {
+      await database.saveSyncCopy(record.local!);
+      await database.applySyncDocument(record.remote!);
+    } else if (choice == 'remote') {
+      await database.applySyncDocument(record.remote!);
+    } else {
+      await database.applySyncDocument(record.local!);
+    }
+
+    records[id] = GitHubSyncRecord(
+      base: choice == 'local' ? record.local : record.remote,
+      sha: record.sha,
+    );
+    await _saveRecords(current, records);
+    await run();
+  }
+
+  Future<SyncDocument?> _concurrentLocalEdit({
+    required SyncDocument? expectedLocal,
+    required SyncDocument remote,
+  }) async {
+    final currentLocal = await database.syncDocument(remote.id);
+    return shouldPreserveConcurrentLocal(
+      expectedLocal: expectedLocal,
+      currentLocal: currentLocal,
+      remote: remote,
+    )
+        ? currentLocal
+        : null;
+  }
+
+  Future<void> _publishAssets(
+    SyncDocument document,
+    GitHubApi api,
+    AttachmentStore store,
+  ) async {
+    if (document.sketchJson != null) return;
+    final refs = Attachments.refs(document.body).map((ref) => ref.key).toSet();
+    var bytesThisPass = 0;
+    for (final key in refs) {
+      final bytes = await store.read(key);
+      bytesThisPass += bytes.length;
+      if (bytesThisPass > 64 * 1024 * 1024) {
+        throw const FormatException(
+          'Allegati oltre 64 MiB nello stesso passaggio.',
+        );
+      }
+      await api.ensureAssetUploaded(key, bytes);
+    }
+  }
+
+  Future<void> _receiveAssets(
+    SyncDocument document,
+    GitHubApi api,
+    AttachmentStore store,
+    String head,
+  ) async {
+    if (document.sketchJson != null) return;
+    final keys = Attachments.refs(document.body).map((ref) => ref.key).toSet();
+    for (final key in keys) {
+      if (await store.contains(key)) continue;
+      final bytes = await api.downloadAsset(key, head);
+      await store.put(key, bytes);
+    }
+  }
+
+  Future<File> _stateFile(GitHubConfig config) async {
+    final root = await getApplicationSupportDirectory();
+    final dir = Directory(p.join(root.path, 'github-sync'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return File(
+      p.join(dir.path, '${SyncCodec.hash(config.key)}.json'),
+    );
+  }
+
+  Future<Map<String, GitHubSyncRecord>> _loadRecords(
+    GitHubConfig config,
+  ) async {
+    final file = await _stateFile(config);
+    if (!await file.exists()) return {};
+    final bytes = await file.readAsBytes();
+    if (bytes.length > 64 * 1024 * 1024) {
+      throw const FormatException('Stato sync locale troppo grande.');
+    }
+    final decoded = jsonDecode(utf8.decode(bytes, allowMalformed: false));
+    if (decoded is! Map || decoded['version'] != 1) {
+      throw const FormatException('Stato sync locale non valido.');
+    }
+    final rows = decoded['records'];
+    if (rows is! Map) {
+      throw const FormatException('Record sync locali non validi.');
+    }
+    return rows.map(
+      (key, value) => MapEntry(
+        key.toString(),
+        GitHubSyncRecord.fromJson(
+          (value as Map).map(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveRecords(
+    GitHubConfig config,
+    Map<String, GitHubSyncRecord> records,
+  ) async {
+    final file = await _stateFile(config);
+    final temp = File('${file.path}.tmp');
+    final text = jsonEncode({
+      'version': 1,
+      'records': {
+        for (final entry in records.entries) entry.key: entry.value.toJson(),
+      },
+    });
+    await temp.writeAsString(text, encoding: utf8, flush: true);
+    await temp.rename(file.path);
+  }
+}
+).hasMatch(expectedSha)) {
+      throw const FormatException('SHA eliminazione non valido.');
+    }
+    final path = _path(
+      '${config.folder}/${SyncCodec.filename(id)}',
+    );
+    await _request(
+      'DELETE',
+      '$_root/contents/$path',
+      body: {
+        'message': 'Notes: elimina definitivamente nota',
+        'branch': config.branch,
+        'sha': expectedSha,
+      },
+    );
+  }
+
   Future<Map<String, RemoteAsset>> _assetIndex(String ref) async {
     if (_assets != null) return _assets!;
     final path = _path('${config.folder}/assets');
