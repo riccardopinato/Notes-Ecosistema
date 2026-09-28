@@ -13,6 +13,7 @@ import '../widgets/ui_resilience.dart';
 
 enum _WhiteboardTool {
   navigate,
+  select,
   pen,
   highlighter,
   eraser,
@@ -58,6 +59,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   static const _canvasGrowth = 4000.0;
   static const _canvasContentMargin = 1600.0;
   static const _historyLimit = 50;
+  static const _snapGrid = 40;
 
   late final TextEditingController _title;
   late WhiteboardDocument _document;
@@ -79,6 +81,14 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   int _workingVersion = 0;
   Offset? _shapeStart;
   Offset? _shapeEnd;
+  Offset? _lassoStart;
+  Offset? _lassoEnd;
+
+  final Set<String> _selectedNodeIds = {};
+  final Set<String> _selectedTextIds = {};
+  final Set<String> _draggedNodeIds = {};
+  final Set<String> _draggedTextIds = {};
+  bool _snapToGrid = false;
 
   final List<WhiteboardDocument> _undoStack = [];
   final List<WhiteboardDocument> _redoStack = [];
@@ -95,6 +105,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   bool _stylusInContact = false;
   bool _objectPointerActive = false;
   int? _objectPointer;
+  int? _lassoPointer;
   int? _stylusPointer;
   double _pointerPressure = 1;
 
@@ -401,22 +412,334 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     }
   }
 
-  void _onObjectPointerDown(PointerDownEvent event) {
-    if (widget.readOnly || _tool != _WhiteboardTool.navigate) return;
+  void _onCanvasPointerDown(PointerDownEvent event) {
+    _onPointerDown(event);
+    if (!_selectionMode || widget.readOnly) return;
+    if (_objectPointer == event.pointer) return;
+    final point = _boardPoint(event.localPosition);
+    final offset = Offset(point.x.toDouble(), point.y.toDouble());
+    _lassoPointer = event.pointer;
+    setState(() {
+      _lassoStart = offset;
+      _lassoEnd = offset;
+    });
+  }
+
+  void _onCanvasPointerMove(PointerMoveEvent event) {
+    _onPointerMove(event);
+    if (event.pointer != _lassoPointer || !_selectionMode) return;
+    final point = _boardPoint(event.localPosition);
+    setState(() {
+      _lassoEnd = Offset(point.x.toDouble(), point.y.toDouble());
+    });
+  }
+
+  void _finishRawLasso(PointerEvent event) {
+    if (event.pointer != _lassoPointer) return;
+    final rect = _lassoWorldRect;
+    _lassoPointer = null;
+    if (rect != null) _selectLasso(rect);
+    if (mounted) {
+      setState(() {
+        _lassoStart = null;
+        _lassoEnd = null;
+      });
+    }
+  }
+
+  void _onCanvasPointerUp(PointerUpEvent event) {
+    _finishRawLasso(event);
+    _onPointerEnd(event);
+  }
+
+  void _onCanvasPointerCancel(PointerCancelEvent event) {
+    if (event.pointer == _lassoPointer) {
+      _lassoPointer = null;
+      setState(() {
+        _lassoStart = null;
+        _lassoEnd = null;
+      });
+    }
+    _onPointerEnd(event);
+  }
+
+  bool get _selectionMode => _tool == _WhiteboardTool.select;
+
+  Rect _nodeWorldRect(BoardNode node) => Rect.fromLTWH(
+        node.x.toDouble(),
+        node.y.toDouble(),
+        node.width.toDouble(),
+        node.height.toDouble(),
+      );
+
+  Rect _textWorldRect(SketchText text) => Rect.fromLTWH(
+        text.x.toDouble(),
+        text.y.toDouble(),
+        math.min(
+          800.0,
+          math.max(140.0, text.text.length * text.size * 0.55),
+        ),
+        math.max(72.0, text.size * 2.8),
+      );
+
+  void _clearSelection() {
+    if (_selectedNodeIds.isEmpty && _selectedTextIds.isEmpty) return;
+    setState(() {
+      _selectedNodeIds.clear();
+      _selectedTextIds.clear();
+    });
+  }
+
+  void _selectAllObjects() {
+    setState(() {
+      _selectedNodeIds
+        ..clear()
+        ..addAll(_document.nodes.map((node) => node.id));
+      _selectedTextIds
+        ..clear()
+        ..addAll(_document.texts.map((text) => text.id));
+    });
+  }
+
+  void _toggleNodeSelection(BoardNode node) {
+    setState(() {
+      if (!_selectedNodeIds.remove(node.id)) {
+        _selectedNodeIds.add(node.id);
+      }
+    });
+  }
+
+  void _toggleTextSelection(SketchText text) {
+    setState(() {
+      if (!_selectedTextIds.remove(text.id)) {
+        _selectedTextIds.add(text.id);
+      }
+    });
+  }
+
+  void _onNodePointerDown(BoardNode node, PointerDownEvent event) {
+    if (widget.readOnly ||
+        (_tool != _WhiteboardTool.navigate && !_selectionMode)) {
+      return;
+    }
     _objectPointer = event.pointer;
+    final moveSelection = _selectionMode && _selectedNodeIds.contains(node.id);
+    _draggedNodeIds
+      ..clear()
+      ..addAll(moveSelection ? _selectedNodeIds : <String>{node.id});
+    _draggedTextIds
+      ..clear()
+      ..addAll(moveSelection ? _selectedTextIds : const <String>{});
     _beginGestureHistory();
     if (!_objectPointerActive) {
       setState(() => _objectPointerActive = true);
     }
   }
 
+  void _onTextPointerDown(SketchText text, PointerDownEvent event) {
+    if (widget.readOnly ||
+        (_tool != _WhiteboardTool.navigate && !_selectionMode)) {
+      return;
+    }
+    _objectPointer = event.pointer;
+    final moveSelection = _selectionMode && _selectedTextIds.contains(text.id);
+    _draggedTextIds
+      ..clear()
+      ..addAll(moveSelection ? _selectedTextIds : <String>{text.id});
+    _draggedNodeIds
+      ..clear()
+      ..addAll(moveSelection ? _selectedNodeIds : const <String>{});
+    _beginGestureHistory();
+    if (!_objectPointerActive) {
+      setState(() => _objectPointerActive = true);
+    }
+  }
+
+  int _snapValue(int value) => ((value / _snapGrid).round().clamp(
+                -WhiteboardRules.maxCoordinate ~/ _snapGrid,
+                WhiteboardRules.maxCoordinate ~/ _snapGrid,
+              ) *
+          _snapGrid)
+      .toInt();
+
+  void _snapDraggedObjects() {
+    if (!_snapToGrid || (_draggedNodeIds.isEmpty && _draggedTextIds.isEmpty)) {
+      return;
+    }
+    final nextNodes = _document.nodes
+        .map(
+          (node) => _draggedNodeIds.contains(node.id)
+              ? node.copyWith(
+                  x: _snapValue(node.x),
+                  y: _snapValue(node.y),
+                )
+              : node,
+        )
+        .toList();
+    final nextTexts = _document.texts
+        .map(
+          (text) => _draggedTextIds.contains(text.id)
+              ? text.copyWith(
+                  x: _snapValue(text.x),
+                  y: _snapValue(text.y),
+                )
+              : text,
+        )
+        .toList();
+    _setDocument(
+      _document.copyWith(nodes: nextNodes, texts: nextTexts),
+      recordHistory: false,
+      ensureCanvas: false,
+      validate: false,
+      rebuildStrokeBounds: false,
+    );
+    _markGestureChanged();
+  }
+
   void _onObjectPointerEnd(PointerEvent event) {
     if (event.pointer != _objectPointer) return;
     _objectPointer = null;
+    _snapDraggedObjects();
     _finishGestureHistory();
+    _draggedNodeIds.clear();
+    _draggedTextIds.clear();
     if (_objectPointerActive) {
       setState(() => _objectPointerActive = false);
     }
+  }
+
+  void _selectLasso(Rect worldRect) {
+    final normalized = Rect.fromLTRB(
+      math.min(worldRect.left, worldRect.right),
+      math.min(worldRect.top, worldRect.bottom),
+      math.max(worldRect.left, worldRect.right),
+      math.max(worldRect.top, worldRect.bottom),
+    );
+    setState(() {
+      _selectedNodeIds
+        ..clear()
+        ..addAll(
+          _document.nodes
+              .where((node) => _nodeWorldRect(node).overlaps(normalized))
+              .map((node) => node.id),
+        );
+      _selectedTextIds
+        ..clear()
+        ..addAll(
+          _document.texts
+              .where((text) => _textWorldRect(text).overlaps(normalized))
+              .map((text) => text.id),
+        );
+    });
+  }
+
+  void _duplicateSelection() {
+    if (_selectedNodeIds.isEmpty && _selectedTextIds.isEmpty) return;
+    const offset = 48;
+    final idMap = <String, String>{};
+    final duplicates = <BoardNode>[];
+
+    for (final node in _document.nodes) {
+      if (!_selectedNodeIds.contains(node.id)) continue;
+      final clone = BoardNode(
+        kind: node.kind,
+        text: node.text,
+        x: node.x + offset,
+        y: node.y + offset,
+        width: node.width,
+        height: node.height,
+        color: node.color,
+        linkedNoteId: node.linkedNoteId,
+      );
+      idMap[node.id] = clone.id;
+      duplicates.add(clone);
+    }
+
+    final duplicateTexts = <SketchText>[];
+    for (final source in _document.texts) {
+      if (!_selectedTextIds.contains(source.id)) continue;
+      duplicateTexts.add(
+        SketchText(
+          text: source.text,
+          color: source.color,
+          x: source.x + offset,
+          y: source.y + offset,
+          size: source.size,
+        ),
+      );
+    }
+
+    final duplicateEdges = _document.edges
+        .where(
+          (edge) =>
+              idMap.containsKey(edge.fromNodeId) &&
+              idMap.containsKey(edge.toNodeId),
+        )
+        .map(
+          (edge) => BoardEdge(
+            fromNodeId: idMap[edge.fromNodeId]!,
+            toNodeId: idMap[edge.toNodeId]!,
+            kind: edge.kind,
+            color: edge.color,
+            width: edge.width,
+            label: edge.label,
+          ),
+        )
+        .toList();
+
+    final next = _document.copyWith(
+      nodes: [..._document.nodes, ...duplicates],
+      texts: [..._document.texts, ...duplicateTexts],
+      edges: [..._document.edges, ...duplicateEdges],
+    );
+    if (!_setDocument(next)) return;
+    setState(() {
+      _selectedNodeIds
+        ..clear()
+        ..addAll(duplicates.map((node) => node.id));
+      _selectedTextIds
+        ..clear()
+        ..addAll(duplicateTexts.map((text) => text.id));
+    });
+  }
+
+  void _deleteSelection() {
+    if (_selectedNodeIds.isEmpty && _selectedTextIds.isEmpty) return;
+    final removedNodes = Set<String>.from(_selectedNodeIds);
+    final next = _document.copyWith(
+      nodes: _document.nodes
+          .where((node) => !removedNodes.contains(node.id))
+          .toList(),
+      texts: _document.texts
+          .where((text) => !_selectedTextIds.contains(text.id))
+          .toList(),
+      edges: _document.edges
+          .where(
+            (edge) =>
+                !removedNodes.contains(edge.fromNodeId) &&
+                !removedNodes.contains(edge.toNodeId),
+          )
+          .toList(),
+    );
+    if (!_setDocument(next)) return;
+    _clearSelection();
+  }
+
+  void _resizeSelection(int delta) {
+    if (_selectedNodeIds.isEmpty) return;
+    final nextNodes = _document.nodes.map((node) {
+      if (!_selectedNodeIds.contains(node.id)) return node;
+      final width = (node.width + delta).clamp(120, 720).toInt();
+      final height =
+          (node.height + (delta * 0.65).round()).clamp(80, 520).toInt();
+      return node.copyWith(
+        x: node.x - ((width - node.width) / 2).round(),
+        y: node.y - ((height - node.height) / 2).round(),
+        width: width,
+        height: height,
+      );
+    }).toList();
+    _setDocument(_document.copyWith(nodes: nextNodes));
   }
 
   Set<ui.PointerDeviceKind> get _drawingDevices => {
@@ -425,6 +748,15 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         ui.PointerDeviceKind.mouse,
         if (_fingerDraw) ui.PointerDeviceKind.touch,
       };
+
+  Set<ui.PointerDeviceKind> get _canvasGestureDevices => _selectionMode
+      ? {
+          ui.PointerDeviceKind.touch,
+          ui.PointerDeviceKind.stylus,
+          ui.PointerDeviceKind.invertedStylus,
+          ui.PointerDeviceKind.mouse,
+        }
+      : _drawingDevices;
 
   int get _workingColor {
     if (_tool == _WhiteboardTool.highlighter) {
@@ -452,7 +784,20 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _workingVersion++;
       _shapeStart = null;
       _shapeEnd = null;
+      _lassoStart = null;
+      _lassoEnd = null;
+      if (tool != _WhiteboardTool.select) {
+        _selectedNodeIds.clear();
+        _selectedTextIds.clear();
+      }
     });
+  }
+
+  Rect? get _lassoWorldRect {
+    final start = _lassoStart;
+    final end = _lassoEnd;
+    if (start == null || end == null) return null;
+    return Rect.fromPoints(start, end);
   }
 
   void _setPaper(WhiteboardPaper paper) {
@@ -583,6 +928,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       _workingVersion++;
       _shapeStart = null;
       _shapeEnd = null;
+      _lassoStart = null;
+      _lassoEnd = null;
     });
   }
 
@@ -759,22 +1106,35 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     );
   }
 
-  void _moveTextByDelta(SketchText text, Offset delta) {
-    final current = _document.texts.firstWhere(
-      (item) => item.id == text.id,
-      orElse: () => text,
-    );
+  void _moveDraggedByDelta(Offset delta) {
+    if (_draggedNodeIds.isEmpty && _draggedTextIds.isEmpty) return;
     final limit = WhiteboardRules.maxCoordinate;
-    final updated = current.copyWith(
-      x: (current.x + delta.dx.round()).clamp(-limit, limit).toInt(),
-      y: (current.y + delta.dy.round()).clamp(-limit, limit).toInt(),
-    );
+    final dx = delta.dx.round();
+    final dy = delta.dy.round();
+
+    final nextNodes = _document.nodes
+        .map(
+          (node) => _draggedNodeIds.contains(node.id)
+              ? node.copyWith(
+                  x: (node.x + dx).clamp(-limit, limit).toInt(),
+                  y: (node.y + dy).clamp(-limit, limit).toInt(),
+                )
+              : node,
+        )
+        .toList();
+    final nextTexts = _document.texts
+        .map(
+          (text) => _draggedTextIds.contains(text.id)
+              ? text.copyWith(
+                  x: (text.x + dx).clamp(-limit, limit).toInt(),
+                  y: (text.y + dy).clamp(-limit, limit).toInt(),
+                )
+              : text,
+        )
+        .toList();
+
     if (_setDocument(
-      _document.copyWith(
-        texts: _document.texts
-            .map((item) => item.id == text.id ? updated : item)
-            .toList(),
-      ),
+      _document.copyWith(nodes: nextNodes, texts: nextTexts),
       recordHistory: false,
       ensureCanvas: false,
       validate: false,
@@ -782,6 +1142,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     )) {
       _markGestureChanged();
     }
+  }
+
+  void _moveTextByDelta(SketchText text, Offset delta) {
+    if (!_draggedTextIds.contains(text.id)) return;
+    _moveDraggedByDelta(delta);
   }
 
   void _eraseInk(InkPoint point) {
@@ -1097,24 +1462,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   void _moveNodeByDelta(BoardNode node, Offset delta) {
-    final current = _document.nodes.firstWhere(
-      (item) => item.id == node.id,
-      orElse: () => node,
-    );
-    final limit = WhiteboardRules.maxCoordinate;
-    final updated = current.copyWith(
-      x: (current.x + delta.dx.round()).clamp(-limit, limit).toInt(),
-      y: (current.y + delta.dy.round()).clamp(-limit, limit).toInt(),
-    );
-    if (_setDocument(
-      WhiteboardOps.updateNode(_document, updated),
-      recordHistory: false,
-      ensureCanvas: false,
-      validate: false,
-      rebuildStrokeBounds: false,
-    )) {
-      _markGestureChanged();
-    }
+    if (!_draggedNodeIds.contains(node.id)) return;
+    _moveDraggedByDelta(delta);
   }
 
   void _setMode(WhiteboardMode mode) {
@@ -1267,6 +1616,96 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         ),
       );
 
+  Rect _overviewBounds() {
+    Rect? bounds;
+
+    void include(Rect rect) {
+      final current = bounds;
+      if (current == null) {
+        bounds = rect;
+        return;
+      }
+      bounds = Rect.fromLTRB(
+        math.min(current.left, rect.left),
+        math.min(current.top, rect.top),
+        math.max(current.right, rect.right),
+        math.max(current.bottom, rect.bottom),
+      );
+    }
+
+    for (final node in _document.nodes) {
+      include(_nodeWorldRect(node));
+    }
+    for (final text in _document.texts) {
+      include(_textWorldRect(text));
+    }
+    for (final shape in _document.shapes) {
+      include(
+        Rect.fromPoints(
+          Offset(shape.x1.toDouble(), shape.y1.toDouble()),
+          Offset(shape.x2.toDouble(), shape.y2.toDouble()),
+        ).inflate(shape.width.toDouble() + 12),
+      );
+    }
+    for (final stroke in _document.strokes) {
+      include(_boundsForStroke(stroke));
+    }
+
+    final content = bounds ??
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: 1800,
+          height: 1200,
+        );
+    return content.inflate(280);
+  }
+
+  Rect _currentVisibleWorldRect() {
+    final size = _lastViewportSize;
+    if (size == null || size.isEmpty) {
+      return Rect.fromCenter(
+        center: Offset.zero,
+        width: 1200,
+        height: 800,
+      );
+    }
+    final points = <Offset>[
+      _viewport.toScene(Offset.zero),
+      _viewport.toScene(Offset(size.width, 0)),
+      _viewport.toScene(Offset(0, size.height)),
+      _viewport.toScene(Offset(size.width, size.height)),
+    ].map((point) => point - Offset(_origin, _origin)).toList();
+    return Rect.fromLTRB(
+      points.map((point) => point.dx).reduce(math.min),
+      points.map((point) => point.dy).reduce(math.min),
+      points.map((point) => point.dx).reduce(math.max),
+      points.map((point) => point.dy).reduce(math.max),
+    );
+  }
+
+  Widget _miniMapWidget() => IgnorePointer(
+        child: Material(
+          elevation: 3,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            key: const ValueKey('whiteboard-minimap'),
+            width: 168,
+            height: 112,
+            child: AnimatedBuilder(
+              animation: _viewport,
+              builder: (context, _) => CustomPaint(
+                painter: _MiniMapPainter(
+                  document: _document,
+                  bounds: _overviewBounds(),
+                  viewport: _currentVisibleWorldRect(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1385,6 +1824,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     'Naviga',
                     _WhiteboardTool.navigate,
                   ),
+                  _toolButton(
+                    Icons.select_all,
+                    'Seleziona',
+                    _WhiteboardTool.select,
+                  ),
                   _toolButton(Icons.edit, 'Penna', _WhiteboardTool.pen),
                   _toolButton(
                     Icons.border_color,
@@ -1424,6 +1868,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                   if (_isInkTool) _colorControl(),
                   if (_isInkTool) _widthControl(),
                   if (_tool != _WhiteboardTool.navigate &&
+                      _tool != _WhiteboardTool.select &&
                       _tool != _WhiteboardTool.text)
                     IconButton.filledTonal(
                       onPressed: () =>
@@ -1461,6 +1906,85 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                 ],
               ),
             ),
+          if (!widget.readOnly && _selectionMode)
+            SizedBox(
+              height: 52,
+              child: ListView(
+                key: const ValueKey('whiteboard-selection-bar'),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        '${_selectedNodeIds.length + _selectedTextIds.length} selezionati',
+                        key: const ValueKey('whiteboard-selection-count'),
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-select-all'),
+                    onPressed: _selectAllObjects,
+                    tooltip: 'Seleziona tutto',
+                    icon: const Icon(Icons.done_all),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed:
+                        _selectedNodeIds.isEmpty && _selectedTextIds.isEmpty
+                            ? null
+                            : _clearSelection,
+                    tooltip: 'Deseleziona tutto',
+                    icon: const Icon(Icons.deselect),
+                  ),
+                  const VerticalDivider(),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-duplicate-selection'),
+                    onPressed:
+                        _selectedNodeIds.isEmpty && _selectedTextIds.isEmpty
+                            ? null
+                            : _duplicateSelection,
+                    tooltip: 'Duplica selezione',
+                    icon: const Icon(Icons.copy_all_outlined),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-resize-smaller'),
+                    onPressed: _selectedNodeIds.isEmpty
+                        ? null
+                        : () => _resizeSelection(-40),
+                    tooltip: 'Riduci post-it',
+                    icon: const Icon(Icons.zoom_in_map),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-resize-larger'),
+                    onPressed: _selectedNodeIds.isEmpty
+                        ? null
+                        : () => _resizeSelection(40),
+                    tooltip: 'Ingrandisci post-it',
+                    icon: const Icon(Icons.zoom_out_map),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-snap-grid'),
+                    onPressed: () => setState(() => _snapToGrid = !_snapToGrid),
+                    isSelected: _snapToGrid,
+                    tooltip: _snapToGrid
+                        ? 'Snap griglia attivo'
+                        : 'Snap griglia disattivo',
+                    icon: const Icon(Icons.grid_4x4),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-delete-selection'),
+                    onPressed:
+                        _selectedNodeIds.isEmpty && _selectedTextIds.isEmpty
+                            ? null
+                            : _deleteSelection,
+                    tooltip: 'Elimina selezione',
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
+            ),
           if (_connectMode)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -1481,106 +2005,123 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     constraints.maxHeight,
                   );
                   _scheduleInitialCenter(viewportSize);
-                  return InteractiveViewer.builder(
-                    key: const ValueKey('whiteboard-viewport'),
-                    transformationController: _viewport,
-                    minScale: 0.2,
-                    maxScale: 3.2,
-                    boundaryMargin: const EdgeInsets.all(double.infinity),
-                    panEnabled: !_stylusInContact &&
-                        !_objectPointerActive &&
-                        (widget.readOnly ||
-                            _tool == _WhiteboardTool.navigate ||
-                            _tool == _WhiteboardTool.text ||
-                            !_fingerDraw),
-                    scaleEnabled: !_stylusInContact && !_objectPointerActive,
-                    onInteractionEnd: (_) => _growCanvasForViewport(),
-                    builder: (context, viewport) {
-                      final xs = <double>[
-                        viewport.point0.x,
-                        viewport.point1.x,
-                        viewport.point2.x,
-                        viewport.point3.x,
-                      ];
-                      final ys = <double>[
-                        viewport.point0.y,
-                        viewport.point1.y,
-                        viewport.point2.y,
-                        viewport.point3.y,
-                      ];
-                      final visibleRect = Rect.fromLTRB(
-                        xs.reduce(math.min),
-                        ys.reduce(math.min),
-                        xs.reduce(math.max),
-                        ys.reduce(math.max),
-                      ).inflate(160);
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: InteractiveViewer.builder(
+                          key: const ValueKey('whiteboard-viewport'),
+                          transformationController: _viewport,
+                          minScale: 0.2,
+                          maxScale: 3.2,
+                          boundaryMargin: const EdgeInsets.all(double.infinity),
+                          panEnabled: !_stylusInContact &&
+                              !_objectPointerActive &&
+                              (widget.readOnly ||
+                                  _tool == _WhiteboardTool.navigate ||
+                                  _tool == _WhiteboardTool.text ||
+                                  (!_selectionMode && !_fingerDraw)),
+                          scaleEnabled:
+                              !_stylusInContact && !_objectPointerActive,
+                          onInteractionEnd: (_) => _growCanvasForViewport(),
+                          builder: (context, viewport) {
+                            final xs = <double>[
+                              viewport.point0.x,
+                              viewport.point1.x,
+                              viewport.point2.x,
+                              viewport.point3.x,
+                            ];
+                            final ys = <double>[
+                              viewport.point0.y,
+                              viewport.point1.y,
+                              viewport.point2.y,
+                              viewport.point3.y,
+                            ];
+                            final visibleRect = Rect.fromLTRB(
+                              xs.reduce(math.min),
+                              ys.reduce(math.min),
+                              xs.reduce(math.max),
+                              ys.reduce(math.max),
+                            ).inflate(160);
 
-                      return Listener(
-                        onPointerDown: _onPointerDown,
-                        onPointerMove: _onPointerMove,
-                        onPointerUp: _onPointerEnd,
-                        onPointerCancel: _onPointerEnd,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          supportedDevices: _drawingDevices,
-                          onPanStart: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawStart,
-                          onPanUpdate: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawUpdate,
-                          onPanEnd: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawEnd,
-                          onPanCancel: widget.readOnly ||
-                                  _tool == _WhiteboardTool.navigate ||
-                                  _tool == _WhiteboardTool.text
-                              ? null
-                              : _drawCancel,
-                          onTapUp:
-                              widget.readOnly || _tool != _WhiteboardTool.text
-                                  ? null
-                                  : _tapCanvas,
-                          child: RepaintBoundary(
-                            key: _exportKey,
-                            child: SizedBox(
-                              key: const ValueKey('whiteboard-canvas'),
-                              width: _canvasSize,
-                              height: _canvasSize,
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter: _BoardPainter(
-                                        document: _document,
-                                        origin: _origin,
-                                        working: _workingPoints,
-                                        workingVersion: _workingVersion,
-                                        workingColor: _workingColor,
-                                        workingWidth: _workingWidth,
-                                        workingMarker: _tool ==
-                                            _WhiteboardTool.highlighter,
-                                        previewShape: _previewShape,
-                                        visibleRect: visibleRect,
-                                        strokeBounds: _strokeBounds,
-                                      ),
+                            return Listener(
+                              onPointerDown: _onCanvasPointerDown,
+                              onPointerMove: _onCanvasPointerMove,
+                              onPointerUp: _onCanvasPointerUp,
+                              onPointerCancel: _onCanvasPointerCancel,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                supportedDevices: _canvasGestureDevices,
+                                onPanStart: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawStart,
+                                onPanUpdate: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawUpdate,
+                                onPanEnd: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawEnd,
+                                onPanCancel: widget.readOnly ||
+                                        _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
+                                        _tool == _WhiteboardTool.text
+                                    ? null
+                                    : _drawCancel,
+                                onTapUp: widget.readOnly ||
+                                        _tool != _WhiteboardTool.text
+                                    ? null
+                                    : _tapCanvas,
+                                child: RepaintBoundary(
+                                  key: _exportKey,
+                                  child: SizedBox(
+                                    key: const ValueKey('whiteboard-canvas'),
+                                    width: _canvasSize,
+                                    height: _canvasSize,
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: CustomPaint(
+                                            painter: _BoardPainter(
+                                              document: _document,
+                                              origin: _origin,
+                                              working: _workingPoints,
+                                              workingVersion: _workingVersion,
+                                              workingColor: _workingColor,
+                                              workingWidth: _workingWidth,
+                                              workingMarker: _tool ==
+                                                  _WhiteboardTool.highlighter,
+                                              previewShape: _previewShape,
+                                              lassoWorldRect: _lassoWorldRect,
+                                              visibleRect: visibleRect,
+                                              strokeBounds: _strokeBounds,
+                                            ),
+                                          ),
+                                        ),
+                                        ..._document.texts.map(_textWidget),
+                                        ..._document.nodes.map(_nodeWidget),
+                                      ],
                                     ),
                                   ),
-                                  ..._document.texts.map(_textWidget),
-                                  ..._document.nodes.map(_nodeWidget),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: _miniMapWidget(),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -1604,7 +2145,9 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       );
 
   Widget _textWidget(SketchText text) {
-    final canEdit = !widget.readOnly && _tool == _WhiteboardTool.navigate;
+    final canManipulate = !widget.readOnly &&
+        (_tool == _WhiteboardTool.navigate || _selectionMode);
+    final selected = _selectedTextIds.contains(text.id);
     final width = math.min(
       800.0,
       math.max(140.0, text.text.length * text.size * 0.55),
@@ -1616,24 +2159,47 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       width: width,
       height: height,
       child: Listener(
-        onPointerDown: canEdit ? _onObjectPointerDown : null,
-        onPointerMove: canEdit
+        onPointerDown:
+            canManipulate ? (event) => _onTextPointerDown(text, event) : null,
+        onPointerMove: canManipulate
             ? (event) => _moveTextByDelta(text, event.localDelta)
             : null,
-        onPointerUp: canEdit ? _onObjectPointerEnd : null,
-        onPointerCancel: canEdit ? _onObjectPointerEnd : null,
+        onPointerUp: canManipulate ? _onObjectPointerEnd : null,
+        onPointerCancel: canManipulate ? _onObjectPointerEnd : null,
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
-          onTap: canEdit ? () => _editText(text) : null,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Text(
-              text.text,
-              maxLines: 6,
-              overflow: TextOverflow.fade,
-              style: TextStyle(
-                color: Color(text.color),
-                fontSize: text.size.toDouble(),
+          onTap: canManipulate
+              ? () {
+                  if (_selectionMode) {
+                    _toggleTextSelection(text);
+                  } else {
+                    _editText(text);
+                  }
+                }
+              : null,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: selected
+                  ? Border.all(
+                      width: 2,
+                      color: Theme.of(context).colorScheme.primary,
+                    )
+                  : null,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: selected ? const EdgeInsets.all(4) : EdgeInsets.zero,
+                child: Text(
+                  text.text,
+                  maxLines: 6,
+                  overflow: TextOverflow.fade,
+                  style: TextStyle(
+                    color: Color(text.color),
+                    fontSize: text.size.toDouble(),
+                  ),
+                ),
               ),
             ),
           ),
@@ -1643,23 +2209,34 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   Widget _nodeWidget(BoardNode node) {
-    final selected = _connectFrom == node.id;
-    final canEditNode = !widget.readOnly && _tool == _WhiteboardTool.navigate;
+    final connectSelected = _connectFrom == node.id;
+    final selected = _selectedNodeIds.contains(node.id);
+    final canManipulate = !widget.readOnly &&
+        (_tool == _WhiteboardTool.navigate || _selectionMode);
     return Positioned(
       left: _origin + node.x,
       top: _origin + node.y,
       width: node.width.toDouble(),
       height: node.height.toDouble(),
       child: Listener(
-        onPointerDown: canEditNode ? _onObjectPointerDown : null,
-        onPointerMove: canEditNode
+        onPointerDown:
+            canManipulate ? (event) => _onNodePointerDown(node, event) : null,
+        onPointerMove: canManipulate
             ? (event) => _moveNodeByDelta(node, event.localDelta)
             : null,
-        onPointerUp: canEditNode ? _onObjectPointerEnd : null,
-        onPointerCancel: canEditNode ? _onObjectPointerEnd : null,
+        onPointerUp: canManipulate ? _onObjectPointerEnd : null,
+        onPointerCancel: canManipulate ? _onObjectPointerEnd : null,
         child: GestureDetector(
-          onTap: canEditNode ? () => _nodeTap(node) : null,
-          onLongPress: canEditNode
+          onTap: canManipulate
+              ? () {
+                  if (_selectionMode) {
+                    _toggleNodeSelection(node);
+                  } else {
+                    _nodeTap(node);
+                  }
+                }
+              : null,
+          onLongPress: !widget.readOnly && _tool == _WhiteboardTool.navigate
               ? () {
                   if (_document.mode == WhiteboardMode.mindMap) {
                     _addNode(kind: BoardNodeKind.mindNode, parent: node);
@@ -1673,8 +2250,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
               side: BorderSide(
-                width: selected ? 4 : 1,
-                color: selected
+                width: selected || connectSelected ? 4 : 1,
+                color: selected || connectSelected
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.outlineVariant,
               ),
@@ -1729,6 +2306,7 @@ class _BoardPainter extends CustomPainter {
     required this.workingWidth,
     required this.workingMarker,
     required this.previewShape,
+    required this.lassoWorldRect,
     required this.visibleRect,
     required this.strokeBounds,
   });
@@ -1741,6 +2319,7 @@ class _BoardPainter extends CustomPainter {
   final int workingWidth;
   final bool workingMarker;
   final BoardShape? previewShape;
+  final Rect? lassoWorldRect;
   final Rect visibleRect;
   final Map<String, Rect> strokeBounds;
 
@@ -1784,6 +2363,19 @@ class _BoardPainter extends CustomPainter {
       _shape(canvas, shape);
     }
     if (previewShape != null) _shape(canvas, previewShape!);
+
+    if (lassoWorldRect != null) {
+      final rect = lassoWorldRect!.shift(Offset(origin, origin));
+      final fill = Paint()
+        ..color = const Color(0x1A1976D2)
+        ..style = PaintingStyle.fill;
+      final border = Paint()
+        ..color = const Color(0xFF1976D2)
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke;
+      canvas.drawRect(rect, fill);
+      canvas.drawRect(rect, border);
+    }
 
     for (final edge in document.edges) {
       BoardNode? from;
@@ -1961,7 +2553,114 @@ class _BoardPainter extends CustomPainter {
       oldDelegate.workingWidth != workingWidth ||
       oldDelegate.workingMarker != workingMarker ||
       oldDelegate.previewShape != previewShape ||
+      oldDelegate.lassoWorldRect != lassoWorldRect ||
       oldDelegate.visibleRect != visibleRect;
+}
+
+class _MiniMapPainter extends CustomPainter {
+  const _MiniMapPainter({
+    required this.document,
+    required this.bounds,
+    required this.viewport,
+  });
+
+  final WhiteboardDocument document;
+  final Rect bounds;
+  final Rect viewport;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final background = Paint()..color = const Color(0xFFF7F8FA);
+    canvas.drawRect(Offset.zero & size, background);
+
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    const padding = 8.0;
+    final scale = math.min(
+      (size.width - padding * 2) / bounds.width,
+      (size.height - padding * 2) / bounds.height,
+    );
+    if (!scale.isFinite || scale <= 0) return;
+
+    final usedWidth = bounds.width * scale;
+    final usedHeight = bounds.height * scale;
+    final dx = (size.width - usedWidth) / 2;
+    final dy = (size.height - usedHeight) / 2;
+
+    Offset mapPoint(Offset point) => Offset(
+          dx + (point.dx - bounds.left) * scale,
+          dy + (point.dy - bounds.top) * scale,
+        );
+
+    Rect mapRect(Rect rect) => Rect.fromPoints(
+          mapPoint(rect.topLeft),
+          mapPoint(rect.bottomRight),
+        );
+
+    final inkPaint = Paint()
+      ..color = const Color(0x8052606D)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    for (final stroke in document.strokes) {
+      if (stroke.points.isEmpty) continue;
+      final step = math.max(1, stroke.points.length ~/ 60).toInt();
+      final path = Path();
+      final first = stroke.points.first;
+      path.moveTo(
+        mapPoint(Offset(first.x.toDouble(), first.y.toDouble())).dx,
+        mapPoint(Offset(first.x.toDouble(), first.y.toDouble())).dy,
+      );
+      for (var i = step; i < stroke.points.length; i += step) {
+        final point = stroke.points[i];
+        final mapped = mapPoint(
+          Offset(point.x.toDouble(), point.y.toDouble()),
+        );
+        path.lineTo(mapped.dx, mapped.dy);
+      }
+      canvas.drawPath(path, inkPaint);
+    }
+
+    final nodePaint = Paint()
+      ..color = const Color(0xFF90A4AE)
+      ..style = PaintingStyle.fill;
+    for (final node in document.nodes) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          mapRect(
+            Rect.fromLTWH(
+              node.x.toDouble(),
+              node.y.toDouble(),
+              node.width.toDouble(),
+              node.height.toDouble(),
+            ),
+          ),
+          const Radius.circular(2),
+        ),
+        nodePaint,
+      );
+    }
+
+    final textPaint = Paint()
+      ..color = const Color(0xFF607D8B)
+      ..style = PaintingStyle.fill;
+    for (final text in document.texts) {
+      final point = mapPoint(Offset(text.x.toDouble(), text.y.toDouble()));
+      canvas.drawCircle(point, 1.8, textPaint);
+    }
+
+    final viewportPaint = Paint()
+      ..color = const Color(0xFF1976D2)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawRect(mapRect(viewport), viewportPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniMapPainter oldDelegate) =>
+      oldDelegate.document != document ||
+      oldDelegate.bounds != bounds ||
+      oldDelegate.viewport != viewport;
 }
 
 Color _contrast(Color background) {

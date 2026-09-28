@@ -1,5 +1,19 @@
 # Notes Ecosistema — Roadmap
 
+## 0.54.3 — Whiteboard Device QA & Polish
+
+**Implementato in 0.54.3+68.**
+
+- multi-select/lazo per nodi e testo;
+- move group + Undo atomico;
+- duplicazione, resize e snap opzionale;
+- mini-map live per canvas grandi;
+- toolbar contestuale per editing tablet;
+- stress test automatici 20k/50k punti;
+- checklist hardware dedicata per stylus, palm rejection e fluidità reale.
+
+La release può superare il gate FULL automatico; il verdetto CERTIFIED resta subordinato ai test real-device descritti in `WHITEBOARD_DEVICE_QA_0_54_3.md`.
+
 ## 0.54.2 — Whiteboard Pro Hardening
 
 **Implementato in 0.54.2+67.**
@@ -205,7 +219,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.54.1+66**
+- Versione: **0.54.3+68**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
