@@ -1325,6 +1325,27 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           hits: knowledgeHits,
         );
       },
+      unifiedRelated: (source) async {
+        final hits = await service.related(
+          source: source,
+          notes: notes,
+          semanticEnabled: _semanticSearchEnabled,
+        );
+        final byId = {for (final note in notes) note.id: note};
+        final related = <KnowledgeHit>[];
+        for (final hit in hits) {
+          final note = byId[hit.document.noteId];
+          if (note == null) continue;
+          related.add(
+            KnowledgeHit(
+              note: note,
+              score: hit.score,
+              excerpt: hit.excerpt,
+            ),
+          );
+        }
+        return related;
+      },
     );
   }
 
