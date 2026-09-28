@@ -1,8 +1,21 @@
-# Notes — Ecosistema 0.51.0
+# Notes — Ecosistema 0.52.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.52 — Collaborative Workspace
+
+- Shared Spaces resta il workspace collaborativo canonico;
+- commenti workspace-level sincronizzati e merge-safe;
+- Viewer può commentare senza modificare i contenuti;
+- edit/delete commenti con tombstone contro resurrection offline;
+- cronologia locale degli inviti recenti, non esposta agli altri membri;
+- `Lascia spazio` distinto da `Rimuovi dal dispositivo`;
+- Project Workspace team mostra membri, commenti e ruolo;
+- nessun CRDT globale, chat parallela, ACL per blocco o secondo sync engine.
+
+Dettagli: `flutter_app/COLLABORATIVE_WORKSPACE_0_52.md`.
 
 ## 0.51 — Product & UX Polish
 
@@ -90,7 +103,7 @@ Validazione funzionale prima del bump release: **140 test**, analyze pulito, APK
 
 ## Stato corrente
 
-- Versione Flutter: **0.51.0+62**
+- Versione Flutter: **0.52.0+63**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
