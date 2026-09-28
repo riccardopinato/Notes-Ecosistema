@@ -308,6 +308,74 @@ class ProjectStore {
     };
   }
 
+  Future<void> restoreExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+  }) async {
+    if (payload['version'] != 1 ||
+        payload['projects'] is! List ||
+        payload['links'] is! List) {
+      throw const FormatException('Backup progetti non valido.');
+    }
+
+    final projects = (payload['projects'] as List).map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Progetto backup non valido.');
+      }
+      return ProjectWorkspace.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }).toList(growable: false);
+    final links = (payload['links'] as List).map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Collegamento progetto non valido.');
+      }
+      return ProjectItemLink.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }).toList(growable: false);
+
+    if (projects.length > ProjectWorkspaceRules.maxProjects ||
+        links.length >
+            ProjectWorkspaceRules.maxProjects *
+                ProjectWorkspaceRules.maxItemsPerProject ||
+        projects.map((item) => item.id).toSet().length != projects.length) {
+      throw const FormatException('Backup progetti non valido.');
+    }
+    final projectIds = projects.map((item) => item.id).toSet();
+    final linkKeys = <String>{};
+    for (final link in links) {
+      ProjectWorkspaceRules.validateLink(link);
+      final key = link.projectId + '\u0000' + link.noteId;
+      if (!projectIds.contains(link.projectId) ||
+          !noteIds.contains(link.noteId) ||
+          !linkKeys.add(key)) {
+        throw const FormatException(
+          'Collegamento progetto con riferimento mancante o duplicato.',
+        );
+      }
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('project_items');
+      await txn.delete('projects');
+      for (final project in projects) {
+        await txn.insert(
+          'projects',
+          project.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final link in links) {
+        await txn.insert(
+          'project_items',
+          link.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
   Future<void> importBackup(
     Map<String, Object?> payload, {
     required Map<String, String> noteIdMap,
