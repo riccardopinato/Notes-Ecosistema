@@ -13,6 +13,7 @@ import '../widgets/ui_resilience.dart';
 
 enum _WhiteboardTool {
   navigate,
+  select,
   pen,
   highlighter,
   eraser,
@@ -58,6 +59,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   static const _canvasGrowth = 4000.0;
   static const _canvasContentMargin = 1600.0;
   static const _historyLimit = 50;
+  static const _snapGrid = 40;
 
   late final TextEditingController _title;
   late WhiteboardDocument _document;
@@ -79,6 +81,14 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   int _workingVersion = 0;
   Offset? _shapeStart;
   Offset? _shapeEnd;
+  Offset? _lassoStart;
+  Offset? _lassoEnd;
+
+  final Set<String> _selectedNodeIds = {};
+  final Set<String> _selectedTextIds = {};
+  final Set<String> _draggedNodeIds = {};
+  final Set<String> _draggedTextIds = {};
+  bool _snapToGrid = false;
 
   final List<WhiteboardDocument> _undoStack = [];
   final List<WhiteboardDocument> _redoStack = [];
