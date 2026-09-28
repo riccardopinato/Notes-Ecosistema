@@ -109,10 +109,8 @@ class DisasterRecoveryService {
     Map<String, Map<String, Object?>> components,
   ) async {
     await database.restoreRecoveryState(components['workspace']!);
-    final noteIds = (await database.snapshot())
-        .notes
-        .map((note) => note.id)
-        .toSet();
+    final noteIds =
+        (await database.snapshot()).notes.map((note) => note.id).toSet();
     await propertyStore.restoreExact(
       components['properties']!,
       noteIds: noteIds,
