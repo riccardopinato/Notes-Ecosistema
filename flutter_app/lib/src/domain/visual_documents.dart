@@ -30,15 +30,20 @@ enum SketchPaper { plain, ruled, grid, dots, cornell }
 
 enum SketchShapeKind { line, rectangle, ellipse, arrow }
 
-class InkPoint {
-  const InkPoint(this.x, this.y, [this.pressure = 1000]);
+class VisualPoint {
+  const VisualPoint(this.x, this.y, [this.pressure = 1000]);
+
   final int x;
   final int y;
   final int pressure;
 }
 
-class InkStroke {
-  InkStroke({
+class InkPoint extends VisualPoint {
+  const InkPoint(super.x, super.y, [super.pressure = 1000]);
+}
+
+abstract class VisualStroke<P extends VisualPoint> {
+  VisualStroke({
     required this.color,
     required this.width,
     required this.marker,
@@ -50,7 +55,17 @@ class InkStroke {
   final int color;
   final int width;
   final bool marker;
-  final List<InkPoint> points;
+  final List<P> points;
+}
+
+class InkStroke extends VisualStroke<InkPoint> {
+  InkStroke({
+    required super.color,
+    required super.width,
+    required super.marker,
+    required super.points,
+    super.id,
+  });
 }
 
 class SketchShape {
@@ -406,11 +421,8 @@ enum BoardShapeKind { rectangle, ellipse }
 
 enum BoardEdgeKind { line, arrow }
 
-class BoardPoint {
-  const BoardPoint(this.x, this.y, [this.pressure = 1000]);
-  final int x;
-  final int y;
-  final int pressure;
+class BoardPoint extends VisualPoint {
+  const BoardPoint(super.x, super.y, [super.pressure = 1000]);
 }
 
 class BoardNode {
@@ -469,20 +481,14 @@ class BoardEdge {
   final String label;
 }
 
-class BoardStroke {
+class BoardStroke extends VisualStroke<BoardPoint> {
   BoardStroke({
-    required this.color,
-    required this.width,
-    required this.marker,
-    required this.points,
-    String? id,
-  }) : id = id ?? const Uuid().v4();
-
-  final String id;
-  final int color;
-  final int width;
-  final bool marker;
-  final List<BoardPoint> points;
+    required super.color,
+    required super.width,
+    required super.marker,
+    required super.points,
+    super.id,
+  });
 }
 
 class BoardShape {
