@@ -160,10 +160,8 @@ abstract final class UnifiedRetrieval {
     return result;
   }
 
-  static String normalize(String value) => value
-      .trim()
-      .toLowerCase()
-      .replaceAll(RegExp(r'\s+'), ' ');
+  static String normalize(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
   static List<String> tokenize(String value) => normalize(value)
       .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
