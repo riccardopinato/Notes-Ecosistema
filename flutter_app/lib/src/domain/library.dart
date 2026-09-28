@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import 'editing.dart';
 import 'note.dart';
+import 'unified_retrieval.dart';
 
 enum NoteScope { all, inbox, favorites, trash, archive }
 
@@ -71,14 +72,8 @@ List<Note> searchNotes(
     }
 
     if (needle.isNotEmpty) {
-      final inText = note.title.toLowerCase().contains(needle) ||
-          (!note.isVisual && note.body.toLowerCase().contains(needle)) ||
-          note.tags.any(
-            (tag) => tag.toLowerCase().contains(
-                  needle.startsWith('#') ? needle.substring(1) : needle,
-                ),
-          );
-      if (!inText) return false;
+      final normalized = needle.startsWith('#') ? needle.substring(1) : needle;
+      if (!UnifiedRetrieval.matchesNote(note, normalized)) return false;
     }
 
     if (options.favoritesOnly && !note.favorite) return false;
