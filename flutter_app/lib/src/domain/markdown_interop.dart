@@ -266,7 +266,10 @@ abstract final class MarkdownWorkspaceBundle {
             : document.fileName.toLowerCase())
         .toList(growable: false)
       ..sort();
-    return sha256.convert(utf8.encode(ids.join('\n'))).toString().substring(0, 24);
+    return sha256
+        .convert(utf8.encode(ids.join('\n')))
+        .toString()
+        .substring(0, 24);
   }
 
   static ({
