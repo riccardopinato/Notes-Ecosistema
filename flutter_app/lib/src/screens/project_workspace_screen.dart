@@ -553,11 +553,17 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                 label:
                     '${allItems.where((item) => item.kind == ProjectWorkItemKind.task).length} task',
               ),
-              if (space != null)
+              if (space != null) ...[
                 _CountChip(
                   icon: Icons.people_outline,
                   label: '${space.activeMembers.length} membri',
                 ),
+                _CountChip(
+                  icon: Icons.forum_outlined,
+                  label:
+                      '${space.comments.where((comment) => comment.active).length} commenti',
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 18),
@@ -1305,7 +1311,8 @@ class _TeamBanner extends StatelessWidget {
                       role == null
                           ? 'Accesso team non disponibile'
                           : '${role!.label} · ${space.activeMembers.length} membri · '
-                              'contenuti gestiti da Shared Spaces',
+                              '${space.comments.where((comment) => comment.active).length} commenti · '
+                              'contenuti e discussioni gestiti da Shared Spaces',
                     ),
                   ],
                 ),
