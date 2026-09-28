@@ -8,11 +8,13 @@ class GitHubSyncScreen extends StatefulWidget {
   const GitHubSyncScreen({
     required this.database,
     required this.onLocalChanged,
+    this.excludedIds = const {},
     super.key,
   });
 
   final LegacyNotesDatabase database;
   final Future<void> Function() onLocalChanged;
+  final Set<String> excludedIds;
 
   @override
   State<GitHubSyncScreen> createState() => _GitHubSyncScreenState();
@@ -36,7 +38,10 @@ class _GitHubSyncScreenState extends State<GitHubSyncScreen> {
   @override
   void initState() {
     super.initState();
-    _sync = GitHubSyncService(widget.database);
+    _sync = GitHubSyncService(
+      widget.database,
+      excludedIds: widget.excludedIds,
+    );
     _load();
   }
 
