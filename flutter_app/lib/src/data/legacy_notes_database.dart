@@ -435,9 +435,7 @@ class LegacyNotesDatabase {
     for (final value in collections) {
       final id = value['id']?.toString() ?? '';
       final name = value['name']?.toString() ?? '';
-      if (id.trim().isEmpty ||
-          name.trim().isEmpty ||
-          !collectionIds.add(id)) {
+      if (id.trim().isEmpty || name.trim().isEmpty || !collectionIds.add(id)) {
         throw const FormatException('Raccolta backup non valida.');
       }
       collectionModels.add(NoteCollection(id: id, name: name));
