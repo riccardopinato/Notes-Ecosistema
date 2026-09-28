@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../domain/shared_spaces.dart';
 
@@ -7,12 +8,14 @@ class SharedSpacesState {
   const SharedSpacesState({
     this.identity,
     this.spaces = const [],
+    this.inviteHistory = const [],
     this.loading = true,
     this.error,
   });
 
   final SharedIdentity? identity;
   final List<SharedSpace> spaces;
+  final List<SharedInviteRecord> inviteHistory;
   final bool loading;
   final Object? error;
 
@@ -23,9 +26,18 @@ class SharedSpacesState {
     return null;
   }
 
+  List<SharedInviteRecord> invitesFor(String spaceId) {
+    final result = inviteHistory
+        .where((invite) => invite.spaceId == spaceId)
+        .toList(growable: false)
+      ..sort((a, b) => b.issuedAt.compareTo(a.issuedAt));
+    return result;
+  }
+
   SharedSpacesState copyWith({
     SharedIdentity? identity,
     List<SharedSpace>? spaces,
+    List<SharedInviteRecord>? inviteHistory,
     bool? loading,
     Object? error,
     bool clearError = false,
@@ -33,6 +45,7 @@ class SharedSpacesState {
       SharedSpacesState(
         identity: identity ?? this.identity,
         spaces: spaces ?? this.spaces,
+        inviteHistory: inviteHistory ?? this.inviteHistory,
         loading: loading ?? this.loading,
         error: clearError ? null : error ?? this.error,
       );
@@ -64,6 +77,7 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
       state = SharedSpacesState(
         identity: snapshot.identity,
         spaces: snapshot.spaces,
+        inviteHistory: snapshot.inviteHistory,
         loading: false,
       );
     } catch (error) {
@@ -83,6 +97,7 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
       SharedSpacesSnapshot(
         identity: identity,
         spaces: state.spaces,
+        inviteHistory: state.inviteHistory,
       ),
     );
     final prefs = await SharedPreferences.getInstance();
@@ -146,6 +161,7 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     state = SharedSpacesState(
       identity: snapshot.identity,
       spaces: List.unmodifiable(snapshot.spaces),
+      inviteHistory: List.unmodifiable(snapshot.inviteHistory),
       loading: false,
     );
     await _persist();
@@ -191,6 +207,7 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
       SharedSpacesSnapshot(
         identity: _identity,
         spaces: state.spaces,
+        inviteHistory: state.inviteHistory,
       ),
       userId: userId,
       login: login,
@@ -304,6 +321,105 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
       role: role,
       now: _clock(current),
     ).encode();
+  }
+
+  Future<String> createPersistentInvite(
+    String spaceId, {
+    SharedRole role = SharedRole.editor,
+  }) async {
+    final current = _space(spaceId);
+    final at = _clock(current);
+    final invite = SharedSpaces.invite(
+      current,
+      _identity,
+      role: role,
+      now: at,
+    );
+    final code = invite.encode();
+    final record = SharedInviteRecord(
+      id: const Uuid().v4(),
+      spaceId: current.id,
+      spaceName: current.name,
+      role: role,
+      code: code,
+      issuedAt: invite.issuedAt,
+      expiresAt: invite.expiresAt,
+    );
+    SharedSpaces.validateInviteRecord(record);
+    final history = [record, ...state.inviteHistory]
+      ..sort((a, b) => b.issuedAt.compareTo(a.issuedAt));
+    state = state.copyWith(
+      inviteHistory: history.take(SharedSpaces.maxInviteHistory).toList(),
+      clearError: true,
+    );
+    await _persist();
+    return code;
+  }
+
+  Future<void> clearExpiredInvites({int? now}) async {
+    final clock = now ?? DateTime.now().millisecondsSinceEpoch;
+    final next = state.inviteHistory
+        .where((invite) => !invite.isExpiredAt(clock))
+        .toList(growable: false);
+    if (next.length == state.inviteHistory.length) return;
+    state = state.copyWith(inviteHistory: next, clearError: true);
+    await _persist();
+  }
+
+  Future<void> addComment(
+    String spaceId, {
+    required String body,
+    String? subjectId,
+  }) async {
+    final current = _space(spaceId);
+    final next = SharedSpaces.addComment(
+      current,
+      _identity,
+      body: body,
+      subjectId: subjectId,
+      now: _clock(current),
+    );
+    await _replace(next);
+  }
+
+  Future<void> editComment(
+    String spaceId,
+    String commentId, {
+    required String body,
+  }) async {
+    final current = _space(spaceId);
+    final next = SharedSpaces.editComment(
+      current,
+      _identity,
+      commentId,
+      body: body,
+      now: _clock(current),
+    );
+    await _replace(next);
+  }
+
+  Future<void> removeComment(
+    String spaceId,
+    String commentId,
+  ) async {
+    final current = _space(spaceId);
+    final next = SharedSpaces.removeComment(
+      current,
+      _identity,
+      commentId,
+      now: _clock(current),
+    );
+    await _replace(next);
+  }
+
+  Future<void> leaveSpace(String spaceId) async {
+    final current = _space(spaceId);
+    final next = SharedSpaces.leave(
+      current,
+      _identity,
+      now: _clock(current),
+    );
+    await _replace(next);
   }
 
   Future<String> joinInvite(String code) async {

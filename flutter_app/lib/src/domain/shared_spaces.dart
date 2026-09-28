@@ -146,6 +146,81 @@ class SharedMember {
   }
 }
 
+class SharedComment {
+  const SharedComment({
+    required this.id,
+    required this.authorId,
+    required this.authorName,
+    required this.body,
+    required this.createdAt,
+    required this.updatedAt,
+    this.subjectId,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String authorId;
+  final String authorName;
+  final String body;
+  final String? subjectId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+
+  bool get active => deletedAt == null || updatedAt > deletedAt!;
+
+  int get clock =>
+      deletedAt == null || updatedAt >= deletedAt! ? updatedAt : deletedAt!;
+
+  SharedComment copyWith({
+    String? body,
+    int? updatedAt,
+    Object? deletedAt = _sharedUnset,
+  }) =>
+      SharedComment(
+        id: id,
+        authorId: authorId,
+        authorName: authorName,
+        body: body ?? this.body,
+        subjectId: subjectId,
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: identical(deletedAt, _sharedUnset)
+            ? this.deletedAt
+            : deletedAt as int?,
+      );
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'authorId': authorId,
+        'authorName': authorName,
+        'body': body,
+        if (subjectId != null) 'subjectId': subjectId,
+        'createdAt': createdAt,
+        'updatedAt': updatedAt,
+        'deletedAt': deletedAt,
+      };
+
+  factory SharedComment.fromJson(Map<String, Object?> map) {
+    final comment = SharedComment(
+      id: _requiredId(map['id'], 'commento'),
+      authorId: _requiredId(map['authorId'], 'autore commento'),
+      authorName: _displayName(map['authorName']),
+      body: _commentBody(map['body']),
+      subjectId: map['subjectId'] == null
+          ? null
+          : _requiredId(map['subjectId'], 'soggetto commento'),
+      createdAt: _timestamp(map['createdAt'], 'creazione commento'),
+      updatedAt: _timestamp(map['updatedAt'], 'aggiornamento commento'),
+      deletedAt: map['deletedAt'] == null
+          ? null
+          : _timestamp(map['deletedAt'], 'rimozione commento'),
+    );
+    SharedSpaces.validateComment(comment);
+    return comment;
+  }
+}
+
 class SharedSpace {
   const SharedSpace({
     required this.id,
@@ -158,6 +233,7 @@ class SharedSpace {
     required this.members,
     required this.contentAddedAt,
     required this.contentRemovedAt,
+    this.comments = const [],
   });
 
   final String id;
@@ -170,6 +246,7 @@ class SharedSpace {
   final List<SharedMember> members;
   final Map<String, int> contentAddedAt;
   final Map<String, int> contentRemovedAt;
+  final List<SharedComment> comments;
 
   List<SharedMember> get activeMembers =>
       members.where((member) => member.active).toList(growable: false);
@@ -194,6 +271,9 @@ class SharedSpace {
     }
     for (final value in contentRemovedAt.values) {
       if (value > result) result = value;
+    }
+    for (final comment in comments) {
+      if (comment.clock > result) result = comment.clock;
     }
     return result;
   }
@@ -222,6 +302,7 @@ class SharedSpace {
     List<SharedMember>? members,
     Map<String, int>? contentAddedAt,
     Map<String, int>? contentRemovedAt,
+    List<SharedComment>? comments,
   }) =>
       SharedSpace(
         id: id,
@@ -234,6 +315,7 @@ class SharedSpace {
         members: members ?? this.members,
         contentAddedAt: contentAddedAt ?? this.contentAddedAt,
         contentRemovedAt: contentRemovedAt ?? this.contentRemovedAt,
+        comments: comments ?? this.comments,
       );
 
   Map<String, Object?> toJson() => {
@@ -247,13 +329,19 @@ class SharedSpace {
         'members': members.map((member) => member.toJson()).toList(),
         'contentAddedAt': contentAddedAt,
         'contentRemovedAt': contentRemovedAt,
+        if (comments.isNotEmpty)
+          'comments': comments.map((comment) => comment.toJson()).toList(),
       };
 
   factory SharedSpace.fromJson(Map<String, Object?> map) {
     final membersRaw = map['members'];
     final addedRaw = map['contentAddedAt'];
     final removedRaw = map['contentRemovedAt'];
-    if (membersRaw is! List || addedRaw is! Map || removedRaw is! Map) {
+    final commentsRaw = map['comments'];
+    if (membersRaw is! List ||
+        addedRaw is! Map ||
+        removedRaw is! Map ||
+        (commentsRaw != null && commentsRaw is! List)) {
       throw const FormatException('Spazio condiviso non valido.');
     }
     final space = SharedSpace(
@@ -274,6 +362,15 @@ class SharedSpace {
           .toList(growable: false),
       contentAddedAt: _clockMap(addedRaw, 'contenuti aggiunti'),
       contentRemovedAt: _clockMap(removedRaw, 'contenuti rimossi'),
+      comments: commentsRaw == null
+          ? const []
+          : (commentsRaw as List)
+              .map(
+                (item) => SharedComment.fromJson(
+                  _stringMap(item, 'commento'),
+                ),
+              )
+              .toList(growable: false),
     );
     SharedSpaces.validateSpace(space);
     return space;
@@ -381,14 +478,71 @@ class SharedSpaceInvite {
   }
 }
 
+class SharedInviteRecord {
+  const SharedInviteRecord({
+    required this.id,
+    required this.spaceId,
+    required this.spaceName,
+    required this.role,
+    required this.code,
+    required this.issuedAt,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final String spaceId;
+  final String spaceName;
+  final SharedRole role;
+  final String code;
+  final int issuedAt;
+  final int expiresAt;
+
+  bool isExpiredAt(int now) => expiresAt < now;
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'spaceId': spaceId,
+        'spaceName': spaceName,
+        'role': role.name,
+        'code': code,
+        'issuedAt': issuedAt,
+        'expiresAt': expiresAt,
+      };
+
+  factory SharedInviteRecord.fromJson(Map<String, Object?> map) {
+    final roleName = map['role']?.toString();
+    final roles = SharedRole.values.where((value) => value.name == roleName);
+    if (roles.isEmpty || roles.first == SharedRole.owner) {
+      throw const FormatException('Ruolo cronologia invito non valido.');
+    }
+    final code = map['code']?.toString() ?? '';
+    if (!code.startsWith(SharedSpaceInvite.prefix) || code.length > 12000) {
+      throw const FormatException('Codice cronologia invito non valido.');
+    }
+    final record = SharedInviteRecord(
+      id: _requiredId(map['id'], 'cronologia invito'),
+      spaceId: _requiredId(map['spaceId'], 'spazio invito'),
+      spaceName: _spaceName(map['spaceName']),
+      role: roles.first,
+      code: code,
+      issuedAt: _timestamp(map['issuedAt'], 'invito'),
+      expiresAt: _timestamp(map['expiresAt'], 'scadenza invito'),
+    );
+    SharedSpaces.validateInviteRecord(record);
+    return record;
+  }
+}
+
 class SharedSpacesSnapshot {
   const SharedSpacesSnapshot({
     required this.identity,
     required this.spaces,
+    this.inviteHistory = const [],
   });
 
   final SharedIdentity identity;
   final List<SharedSpace> spaces;
+  final List<SharedInviteRecord> inviteHistory;
 }
 
 abstract final class SharedSpacesCodec {
@@ -408,11 +562,20 @@ abstract final class SharedSpacesCodec {
         throw const FormatException('Spazio condiviso duplicato.');
       }
     }
+    if (snapshot.inviteHistory.length > SharedSpaces.maxInviteHistory) {
+      throw const FormatException('Cronologia inviti troppo grande.');
+    }
+    for (final invite in snapshot.inviteHistory) {
+      SharedSpaces.validateInviteRecord(invite);
+    }
     final raw = jsonEncode({
       'format': format,
       'version': version,
       'identity': snapshot.identity.toJson(),
       'spaces': snapshot.spaces.map((space) => space.toJson()).toList(),
+      if (snapshot.inviteHistory.isNotEmpty)
+        'inviteHistory':
+            snapshot.inviteHistory.map((invite) => invite.toJson()).toList(),
     });
     if (utf8.encode(raw).length > maxBytes) {
       throw const FormatException('Dati Shared Spaces troppo grandi.');
@@ -435,7 +598,10 @@ abstract final class SharedSpacesCodec {
       throw const FormatException('Formato Shared Spaces non supportato.');
     }
     final spacesRaw = map['spaces'];
-    if (spacesRaw is! List || spacesRaw.length > SharedSpaces.maxSpaces) {
+    final inviteHistoryRaw = map['inviteHistory'];
+    if (spacesRaw is! List ||
+        spacesRaw.length > SharedSpaces.maxSpaces ||
+        (inviteHistoryRaw != null && inviteHistoryRaw is! List)) {
       throw const FormatException('Elenco Shared Spaces non valido.');
     }
     final snapshot = SharedSpacesSnapshot(
@@ -449,6 +615,15 @@ abstract final class SharedSpacesCodec {
             ),
           )
           .toList(growable: false),
+      inviteHistory: inviteHistoryRaw == null
+          ? const []
+          : (inviteHistoryRaw as List)
+              .map(
+                (item) => SharedInviteRecord.fromJson(
+                  _stringMap(item, 'cronologia invito'),
+                ),
+              )
+              .toList(growable: false),
     );
     encode(snapshot);
     return snapshot;
@@ -459,6 +634,9 @@ abstract final class SharedSpaces {
   static const maxSpaces = 30;
   static const maxMembers = 50;
   static const maxContentPerSpace = 500;
+  static const maxCommentsPerSpace = 500;
+  static const maxCommentLength = 2000;
+  static const maxInviteHistory = 50;
   static const maxLegacyIdentityIds = 8;
 
   static SharedIdentity newIdentity({String displayName = 'Io'}) =>
@@ -511,7 +689,11 @@ abstract final class SharedSpaces {
     final spaces = snapshot.spaces
         .map((space) => canonicalizeIdentity(space, identity))
         .toList(growable: false);
-    return SharedSpacesSnapshot(identity: identity, spaces: spaces);
+    return SharedSpacesSnapshot(
+      identity: identity,
+      spaces: spaces,
+      inviteHistory: snapshot.inviteHistory,
+    );
   }
 
   static SharedSpace canonicalizeIdentity(
@@ -762,6 +944,17 @@ abstract final class SharedSpaces {
       );
     }
 
+    final comments = <String, SharedComment>{};
+    for (final source in [...local.comments, ...remote.comments]) {
+      final current = comments[source.id];
+      if (current == null ||
+          source.clock > current.clock ||
+          (source.clock == current.clock &&
+              source.updatedAt > current.updatedAt)) {
+        comments[source.id] = source;
+      }
+    }
+
     final useRemoteName = remote.nameUpdatedAt > local.nameUpdatedAt;
     final useRemoteDescription =
         remote.descriptionUpdatedAt > local.descriptionUpdatedAt;
@@ -786,9 +979,138 @@ abstract final class SharedSpaces {
         local.contentRemovedAt,
         remote.contentRemovedAt,
       ),
+      comments: comments.values.toList(growable: false),
     );
     validateSpace(merged);
     return merged;
+  }
+
+  static SharedSpace addComment(
+    SharedSpace space,
+    SharedIdentity actor, {
+    required String body,
+    String? subjectId,
+    int? now,
+    String? id,
+  }) {
+    validateIdentity(actor);
+    if (!space.canRead(actor.id)) {
+      throw const FormatException(
+        'Devi appartenere allo spazio per commentare.',
+      );
+    }
+    if (space.comments.length >= maxCommentsPerSpace) {
+      throw const FormatException('Limite commenti dello spazio raggiunto.');
+    }
+    final at = now ?? DateTime.now().millisecondsSinceEpoch;
+    final comment = SharedComment(
+      id: id ?? const Uuid().v4(),
+      authorId: actor.id,
+      authorName: actor.displayName,
+      body: _commentBody(body),
+      subjectId: subjectId == null
+          ? null
+          : _requiredId(subjectId, 'soggetto commento'),
+      createdAt: at,
+      updatedAt: at,
+    );
+    validateComment(comment);
+    final next = space.copyWith(comments: [...space.comments, comment]);
+    validateSpace(next);
+    return next;
+  }
+
+  static SharedSpace editComment(
+    SharedSpace space,
+    SharedIdentity actor,
+    String commentId, {
+    required String body,
+    int? now,
+  }) {
+    validateIdentity(actor);
+    if (!space.canRead(actor.id)) {
+      throw const FormatException(
+        'Devi appartenere allo spazio per commentare.',
+      );
+    }
+    final index =
+        space.comments.indexWhere((comment) => comment.id == commentId);
+    if (index < 0 || !space.comments[index].active) {
+      throw const FormatException('Commento non disponibile.');
+    }
+    final current = space.comments[index];
+    if (current.authorId != actor.id && !space.canManage(actor.id)) {
+      throw const FormatException(
+        'Puoi modificare solo i tuoi commenti.',
+      );
+    }
+    final at = now ?? DateTime.now().millisecondsSinceEpoch;
+    final comments = [...space.comments];
+    comments[index] = current.copyWith(
+      body: _commentBody(body),
+      updatedAt: at > current.clock ? at : current.clock + 1,
+      deletedAt: null,
+    );
+    final next = space.copyWith(comments: comments);
+    validateSpace(next);
+    return next;
+  }
+
+  static SharedSpace removeComment(
+    SharedSpace space,
+    SharedIdentity actor,
+    String commentId, {
+    int? now,
+  }) {
+    validateIdentity(actor);
+    final index =
+        space.comments.indexWhere((comment) => comment.id == commentId);
+    if (index < 0 || !space.comments[index].active) return space;
+    final current = space.comments[index];
+    if (current.authorId != actor.id && !space.canManage(actor.id)) {
+      throw const FormatException(
+        'Puoi rimuovere solo i tuoi commenti.',
+      );
+    }
+    final at = now ?? DateTime.now().millisecondsSinceEpoch;
+    final clock = at > current.clock ? at : current.clock + 1;
+    final comments = [...space.comments];
+    comments[index] = current.copyWith(
+      updatedAt: clock,
+      deletedAt: clock,
+    );
+    final next = space.copyWith(comments: comments);
+    validateSpace(next);
+    return next;
+  }
+
+  static SharedSpace leave(
+    SharedSpace space,
+    SharedIdentity actor, {
+    int? now,
+  }) {
+    validateIdentity(actor);
+    if (space.ownerId == actor.id) {
+      throw const FormatException(
+        'Il proprietario non può lasciare lo spazio. '
+        'Trasferisci o chiudi il workspace prima.',
+      );
+    }
+    final index = space.members.indexWhere((member) => member.id == actor.id);
+    if (index < 0 || !space.members[index].active) {
+      throw const FormatException('Non appartieni a questo spazio.');
+    }
+    final current = space.members[index];
+    final at = now ?? DateTime.now().millisecondsSinceEpoch;
+    final clock = at > current.clock ? at : current.clock + 1;
+    final members = [...space.members];
+    members[index] = current.copyWith(
+      updatedAt: clock,
+      removedAt: clock,
+    );
+    final next = space.copyWith(members: members);
+    validateSpace(next);
+    return next;
   }
 
   static SharedSpace joinInvite(
@@ -968,6 +1290,61 @@ abstract final class SharedSpaces {
       _requiredId(entry.key, 'contenuto');
       _timestamp(entry.value, 'contenuto');
     }
+
+    if (space.comments.length > maxCommentsPerSpace) {
+      throw const FormatException('Troppi commenti nello spazio.');
+    }
+    final commentIds = <String>{};
+    for (final comment in space.comments) {
+      validateComment(comment);
+      if (!commentIds.add(comment.id)) {
+        throw const FormatException('Commento duplicato.');
+      }
+      if (!memberIds.contains(comment.authorId)) {
+        throw const FormatException(
+          'Autore commento non appartenente alla cronologia membri.',
+        );
+      }
+    }
+  }
+
+  static void validateComment(SharedComment comment) {
+    _requiredId(comment.id, 'commento');
+    _requiredId(comment.authorId, 'autore commento');
+    _displayName(comment.authorName);
+    _commentBody(comment.body);
+    if (comment.subjectId != null) {
+      _requiredId(comment.subjectId, 'soggetto commento');
+    }
+    _timestamp(comment.createdAt, 'creazione commento');
+    _timestamp(comment.updatedAt, 'aggiornamento commento');
+    if (comment.updatedAt < comment.createdAt) {
+      throw const FormatException('Cronologia commento non valida.');
+    }
+    if (comment.deletedAt != null) {
+      _timestamp(comment.deletedAt, 'rimozione commento');
+      if (comment.deletedAt! < comment.createdAt) {
+        throw const FormatException('Rimozione commento non valida.');
+      }
+    }
+  }
+
+  static void validateInviteRecord(SharedInviteRecord record) {
+    _requiredId(record.id, 'cronologia invito');
+    _requiredId(record.spaceId, 'spazio invito');
+    _spaceName(record.spaceName);
+    if (record.role == SharedRole.owner) {
+      throw const FormatException('Ruolo cronologia invito non valido.');
+    }
+    if (!record.code.startsWith(SharedSpaceInvite.prefix) ||
+        record.code.length > 12000) {
+      throw const FormatException('Codice cronologia invito non valido.');
+    }
+    _timestamp(record.issuedAt, 'invito');
+    _timestamp(record.expiresAt, 'scadenza invito');
+    if (record.expiresAt <= record.issuedAt) {
+      throw const FormatException('Scadenza invito non valida.');
+    }
   }
 
   static void requireEdit(SharedSpace space, String actorId) {
@@ -1048,6 +1425,21 @@ String _spaceName(Object? value) {
       clean.length > 100 ||
       clean.codeUnits.any((value) => value < 32)) {
     throw const FormatException('Nome spazio tra 1 e 100 caratteri.');
+  }
+  return clean;
+}
+
+String _commentBody(Object? value) {
+  if (value is! String) {
+    throw const FormatException('Commento non valido.');
+  }
+  final clean = value.trim();
+  if (clean.isEmpty ||
+      clean.length > SharedSpaces.maxCommentLength ||
+      clean.codeUnits.any((value) => value == 0)) {
+    throw const FormatException(
+      'Commento tra 1 e 2000 caratteri.',
+    );
   }
   return clean;
 }

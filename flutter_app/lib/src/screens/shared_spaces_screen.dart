@@ -483,7 +483,7 @@ class _SharedSpaceDetailScreenState
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
                 ),
-                title: const Text('Solo lettura'),
+                title: const Text('Solo lettura · può commentare'),
                 onTap: () => setDialogState(() => role = SharedRole.viewer),
               ),
             ],
@@ -504,9 +504,9 @@ class _SharedSpaceDetailScreenState
     if (choice == null) return;
 
     await _run(() async {
-      final code = ref
+      final code = await ref
           .read(sharedSpacesProvider.notifier)
-          .createInvite(space.id, role: choice);
+          .createPersistentInvite(space.id, role: choice);
       await Clipboard.setData(ClipboardData(text: code));
       if (!mounted) return;
       await showDialog<void>(
@@ -577,6 +577,141 @@ class _SharedSpaceDetailScreenState
     );
   }
 
+  Future<void> _leaveSpace(SharedSpace space) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lasciare lo spazio?'),
+        content: const Text(
+          'La tua membership verrà rimossa e sincronizzata con gli altri '
+          'membri. Le note già presenti nel tuo archivio locale non verranno '
+          'eliminate.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Lascia spazio'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _run(
+      () => ref.read(sharedSpacesProvider.notifier).leaveSpace(space.id),
+    );
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _addComment(SharedSpace space) async {
+    final controller = TextEditingController();
+    final body = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nuovo commento'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: SharedSpaces.maxCommentLength,
+          minLines: 3,
+          maxLines: 8,
+          decoration: const InputDecoration(
+            hintText: 'Scrivi un commento per il workspace…',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Pubblica'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (body == null || body.trim().isEmpty) return;
+    await _run(
+      () => ref
+          .read(sharedSpacesProvider.notifier)
+          .addComment(space.id, body: body),
+    );
+  }
+
+  Future<void> _editComment(
+    SharedSpace space,
+    SharedComment comment,
+  ) async {
+    final controller = TextEditingController(text: comment.body);
+    final body = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modifica commento'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: SharedSpaces.maxCommentLength,
+          minLines: 3,
+          maxLines: 8,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Salva'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (body == null || body.trim().isEmpty) return;
+    await _run(
+      () => ref
+          .read(sharedSpacesProvider.notifier)
+          .editComment(space.id, comment.id, body: body),
+    );
+  }
+
+  Future<void> _removeComment(
+    SharedSpace space,
+    SharedComment comment,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rimuovere il commento?'),
+        content: const Text(
+          'La rimozione viene sincronizzata senza cancellare altri contenuti '
+          'del workspace.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Rimuovi'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _run(
+      () => ref
+          .read(sharedSpacesProvider.notifier)
+          .removeComment(space.id, comment.id),
+    );
+  }
+
   Future<void> _forget(SharedSpace space) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -639,6 +774,9 @@ class _SharedSpaceDetailScreenState
     final canEdit = role.canEdit;
     final canManage = role.canManage;
     final activity = live.activitiesBySpace[space.id] ?? const [];
+    final comments = space.comments.where((comment) => comment.active).toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final inviteHistory = shared.invitesFor(space.id);
     final unread = live.unreadFor(space.id, identity.id);
     final lastReadAt = live.lastReadAt[space.id] ?? 0;
     if (unread > 0) {
@@ -667,6 +805,8 @@ class _SharedSpaceDetailScreenState
                 widget.onImportBundle();
               } else if (value == 'settings') {
                 _editDetails(space);
+              } else if (value == 'leave') {
+                _leaveSpace(space);
               } else if (value == 'forget') {
                 _forget(space);
               }
@@ -684,6 +824,11 @@ class _SharedSpaceDetailScreenState
                 const PopupMenuItem(
                   value: 'settings',
                   child: Text('Impostazioni spazio'),
+                ),
+              if (!canManage)
+                const PopupMenuItem(
+                  value: 'leave',
+                  child: Text('Lascia spazio'),
                 ),
               const PopupMenuItem(
                 value: 'forget',
@@ -721,6 +866,64 @@ class _SharedSpaceDetailScreenState
             const SizedBox(height: 12),
             _InlineError(message: _error!),
           ],
+          const SizedBox(height: 20),
+          _SectionTitle(
+            title: 'Discussione · ${comments.length}',
+            trailing: TextButton.icon(
+              onPressed: () => _addComment(space),
+              icon: const Icon(Icons.add_comment_outlined),
+              label: const Text('Commenta'),
+            ),
+          ),
+          if (comments.isEmpty)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.forum_outlined),
+                title: const Text('Nessun commento'),
+                subtitle: Text(
+                  role == SharedRole.viewer
+                      ? 'Puoi partecipare alla discussione senza modificare i contenuti.'
+                      : 'Usa i commenti per decisioni e coordinamento rapido.',
+                ),
+              ),
+            )
+          else
+            ...comments.take(30).map(
+                  (comment) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        child: Text(
+                          comment.authorName.characters.first.toUpperCase(),
+                        ),
+                      ),
+                      title: Text(comment.authorName),
+                      subtitle: Text(comment.body),
+                      trailing: comment.authorId == identity.id || canManage
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _editComment(space, comment);
+                                } else if (value == 'remove') {
+                                  _removeComment(space, comment);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                if (comment.authorId == identity.id)
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Modifica'),
+                                  ),
+                                const PopupMenuItem(
+                                  value: 'remove',
+                                  child: Text('Rimuovi'),
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
           const SizedBox(height: 20),
           _SectionTitle(
             title: 'Contenuti condivisi',
@@ -842,6 +1045,59 @@ class _SharedSpaceDetailScreenState
               ),
             ),
           ),
+          if (canManage && inviteHistory.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _SectionTitle(
+              title: 'Inviti recenti · ${inviteHistory.length}',
+              trailing: TextButton(
+                onPressed: () => _run(
+                  () => ref
+                      .read(sharedSpacesProvider.notifier)
+                      .clearExpiredInvites(),
+                ),
+                child: const Text('Pulisci scaduti'),
+              ),
+            ),
+            ...inviteHistory.take(5).map(
+              (invite) {
+                final expired = invite.isExpiredAt(
+                  DateTime.now().millisecondsSinceEpoch,
+                );
+                return Card(
+                  child: ListTile(
+                    leading: Icon(
+                      expired
+                          ? Icons.link_off_outlined
+                          : Icons.person_add_alt_1_outlined,
+                    ),
+                    title: Text(invite.role.label),
+                    subtitle: Text(
+                      expired
+                          ? 'Scaduto'
+                          : 'Invito disponibile fino alla scadenza',
+                    ),
+                    trailing: expired
+                        ? null
+                        : IconButton(
+                            tooltip: 'Copia di nuovo',
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                ClipboardData(text: invite.code),
+                              );
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Invito copiato.'),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.copy_outlined),
+                          ),
+                  ),
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 22),
           _SyncInfoCard(
             onExport: () => widget.onExportBundle(space),
