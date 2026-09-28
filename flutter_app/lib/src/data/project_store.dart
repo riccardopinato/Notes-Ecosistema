@@ -376,6 +376,7 @@ class ProjectStore {
       }
     });
   }
+
   Future<void> importBackup(
     Map<String, Object?> payload, {
     required Map<String, String> noteIdMap,
