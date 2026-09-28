@@ -238,7 +238,8 @@ abstract final class KnowledgeGraph {
       );
     }
 
-    final pdfById = <String, ({String noteId, String assetKey, int updatedAt})>{};
+    final pdfById =
+        <String, ({String noteId, String assetKey, int updatedAt})>{};
     for (final annotation in input.pdfAnnotations) {
       if (!liveNotes.containsKey(annotation.noteId)) continue;
       final id = 'pdf:${annotation.noteId}:${annotation.assetKey}';
@@ -315,7 +316,7 @@ abstract final class KnowledgeGraph {
 
   static Set<String> _stableObjectLinks(String text) {
     final result = <String>{};
-    final regex = RegExp(r'notes://object/([^\s)\]>"'']+)');
+    final regex = RegExp(r'notes://object/([^\\s)\\]]+)');
     for (final match in regex.allMatches(text)) {
       final raw = match.group(0);
       if (raw == null) continue;
@@ -447,18 +448,18 @@ abstract final class KnowledgeGraphProjection {
       degree.update(edge.sourceId, (value) => value + 1, ifAbsent: () => 1);
       degree.update(edge.targetId, (value) => value + 1, ifAbsent: () => 1);
     }
-    final center = focusNodeId != null &&
-            nodes.any((node) => node.id == focusNodeId)
-        ? focusNodeId
-        : (nodes.toList()
-              ..sort((a, b) {
-                final byDegree =
-                    (degree[b.id] ?? 0).compareTo(degree[a.id] ?? 0);
-                if (byDegree != 0) return byDegree;
-                return b.updatedAt.compareTo(a.updatedAt);
-              }))
-            .first
-            .id;
+    final center =
+        focusNodeId != null && nodes.any((node) => node.id == focusNodeId)
+            ? focusNodeId
+            : (nodes.toList()
+                  ..sort((a, b) {
+                    final byDegree =
+                        (degree[b.id] ?? 0).compareTo(degree[a.id] ?? 0);
+                    if (byDegree != 0) return byDegree;
+                    return b.updatedAt.compareTo(a.updatedAt);
+                  }))
+                .first
+                .id;
 
     const cx = 1100.0;
     const cy = 800.0;
