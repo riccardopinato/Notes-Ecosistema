@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/visual_documents.dart';
 
 void main() {
-  test('whiteboard codec handles a 20k-point stress document within budget', () {
+  test('whiteboard codec handles a 20k-point stress document within budget',
+      () {
     final strokes = List.generate(
       200,
       (strokeIndex) => InkStroke(
