@@ -60,7 +60,7 @@ void main() {
         ArchiveFile.string(
           'manifest.json',
           '{"format":"notes-ecosystem-disaster-recovery",'
-          '"version":1,"exportedAt":1,"entries":{}}',
+              '"version":1,"exportedAt":1,"entries":{}}',
         ),
       );
     final bytes = Uint8List.fromList(ZipEncoder().encodeBytes(archive));
