@@ -230,6 +230,25 @@ void main() {
     );
   });
 
+  test('WhiteboardRules bound aggregate text before codec overflow', () {
+    final document = WhiteboardDocument(
+      texts: List.generate(
+        31,
+        (index) => SketchText(
+          text: 'x' * 4000,
+          color: 0xFF111111,
+          x: index,
+          y: index,
+        ),
+      ),
+    );
+
+    expect(
+      () => WhiteboardCodec.encode(document),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
   test('shared Digital Ink defaults stay available to both visual surfaces',
       () {
     expect(VisualInkDefaults.palette, isNotEmpty);
