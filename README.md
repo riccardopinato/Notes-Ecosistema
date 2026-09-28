@@ -1,8 +1,19 @@
-# Notes — Ecosistema 0.45.0
+# Notes — Ecosistema 0.46.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.46 — Consolidation & Quality Sweep
+
+- Universal Delete & Lifecycle audit formalizzato senza introdurre un nuovo lifecycle engine;
+- confermate le cascade esistenti per Properties, Knowledge/Relations, Derivatives, PDF annotations e Project links;
+- Study mantiene intenzionalmente LearningItem e source snapshot quando la nota sorgente viene purgata;
+- cleanup allegati reso **sidecar-aware**: un asset resta raggiungibile anche se è referenziato da OCR/Derivatives o PDF annotations e non più dal solo Markdown;
+- riallineata la documentazione roadmap alla baseline corrente;
+- nessun nuovo database, schema, AI, renderer o Feature Pack runtime.
+
+Dettagli: `flutter_app/CONSOLIDATION_0_46.md`.
 
 ## 0.45 — Consolidated Integrity, Portability, Study, Documents & Visual Foundations
 
@@ -43,7 +54,7 @@ Validazione funzionale prima del bump release: **140 test**, analyze pulito, APK
 
 ## Stato corrente
 
-- Versione Flutter: **0.45.0+56**
+- Versione Flutter: **0.46.0+57**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
