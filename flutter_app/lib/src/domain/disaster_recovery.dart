@@ -15,6 +15,7 @@ import 'properties.dart';
 import 'research.dart';
 import 'shared_spaces.dart';
 import 'study.dart';
+import 'workflow_automation.dart';
 
 class DisasterRecoveryPreview {
   const DisasterRecoveryPreview({
@@ -28,6 +29,11 @@ class DisasterRecoveryPreview {
     required this.study,
     required this.documents,
     required this.importProvenance,
+    this.automations = const {
+      'version': 1,
+      'rules': <Object?>[],
+      'runs': <Object?>[],
+    },
     required this.sharedSpaces,
     required this.assets,
     required this.createdAt,
@@ -43,6 +49,7 @@ class DisasterRecoveryPreview {
   final Map<String, Object?> study;
   final Map<String, Object?> documents;
   final Map<String, Object?> importProvenance;
+  final Map<String, Object?> automations;
   final SharedSpacesSnapshot sharedSpaces;
   final Map<String, Uint8List> assets;
   final int createdAt;
@@ -50,7 +57,8 @@ class DisasterRecoveryPreview {
 
 abstract final class DisasterRecoveryBundle {
   static const format = 'notes-disaster-recovery';
-  static const version = 1;
+  static const version = 2;
+  static const legacyVersion = 1;
   static const maxArchiveBytes = 96 * 1024 * 1024;
   static const maxExpandedBytes = 128 * 1024 * 1024;
   static const maxJsonBytes = 12 * 1024 * 1024;
@@ -67,6 +75,11 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
     required Map<String, Object?> importProvenance,
+    Map<String, Object?> automations = const {
+      'version': 1,
+      'rules': <Object?>[],
+      'runs': <Object?>[],
+    },
     required SharedSpacesSnapshot sharedSpaces,
     required AttachmentStore store,
     int? createdAt,
@@ -92,6 +105,7 @@ abstract final class DisasterRecoveryBundle {
       study: study,
       documents: documents,
       importProvenance: importProvenance,
+      automations: automations,
       sharedSpaces: sharedSpaces,
       assets: assets,
       createdAt: createdAt,
@@ -109,6 +123,11 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
     required Map<String, Object?> importProvenance,
+    Map<String, Object?> automations = const {
+      'version': 1,
+      'rules': <Object?>[],
+      'runs': <Object?>[],
+    },
     required SharedSpacesSnapshot sharedSpaces,
     required Map<String, Uint8List> assets,
     int? createdAt,
@@ -145,6 +164,7 @@ abstract final class DisasterRecoveryBundle {
       'study.json': _jsonBytes(study),
       'documents.json': _jsonBytes(documents),
       'imports.json': _jsonBytes(importProvenance),
+      'automations.json': _jsonBytes(automations),
       'shared-spaces.json': Uint8List.fromList(
         utf8.encode(SharedSpacesCodec.encode(sharedSpaces)),
       ),
@@ -220,6 +240,7 @@ abstract final class DisasterRecoveryBundle {
           entry.name == 'study.json' ||
           entry.name == 'documents.json' ||
           entry.name == 'imports.json' ||
+          entry.name == 'automations.json' ||
           entry.name == 'shared-spaces.json' ||
           (entry.name.startsWith('assets/') &&
               Attachments.validKey(entry.name.substring('assets/'.length)));
@@ -247,7 +268,9 @@ abstract final class DisasterRecoveryBundle {
       jsonDecode(utf8.decode(manifestBytes, allowMalformed: false)),
       'manifest',
     );
-    if (manifest['format'] != format || manifest['version'] != version) {
+    final bundleVersion = _integer(manifest['version'], 'version');
+    if (manifest['format'] != format ||
+        (bundleVersion != legacyVersion && bundleVersion != version)) {
       throw const FormatException(
         'Versione backup di ripristino non supportata.',
       );
@@ -323,6 +346,13 @@ abstract final class DisasterRecoveryBundle {
     final study = _jsonMap(raw, 'study.json');
     final documents = _jsonMap(raw, 'documents.json');
     final importProvenance = _jsonMap(raw, 'imports.json');
+    final automations = bundleVersion >= 2
+        ? _jsonMap(raw, 'automations.json')
+        : <String, Object?>{
+            'version': 1,
+            'rules': <Object?>[],
+            'runs': <Object?>[],
+          };
     final referenced = _referencedAssets(
       snapshot,
       derivatives: derivatives,
@@ -347,6 +377,7 @@ abstract final class DisasterRecoveryBundle {
       study: study,
       documents: documents,
       importProvenance: importProvenance,
+      automations: automations,
       sharedSpaces: sharedSpaces,
       assetKeys: assets.keys.toSet(),
     );
@@ -362,6 +393,7 @@ abstract final class DisasterRecoveryBundle {
       study: study,
       documents: documents,
       importProvenance: importProvenance,
+      automations: automations,
       sharedSpaces: sharedSpaces,
       assets: Map.unmodifiable(assets),
       createdAt: createdAt,
@@ -377,6 +409,7 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
     required Map<String, Object?> importProvenance,
+    required Map<String, Object?> automations,
     required SharedSpacesSnapshot sharedSpaces,
     required Set<String> assetKeys,
   }) {
@@ -592,6 +625,44 @@ abstract final class DisasterRecoveryBundle {
         throw const FormatException('Batch provenance recovery non valido.');
       }
     }
+    if (automations['version'] != 1 ||
+        automations['rules'] is! List ||
+        automations['runs'] is! List) {
+      throw const FormatException('Backup automazioni recovery non valido.');
+    }
+    final automationRules = (automations['rules'] as List).map((raw) {
+      if (raw is! Map) throw const FormatException('Regola automazione non valida.');
+      final rule = WorkflowRule.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      WorkflowAutomationRules.validateRule(rule);
+      return rule;
+    }).toList(growable: false);
+    final automationRuleIds = automationRules.map((item) => item.id).toSet();
+    if (automationRuleIds.length != automationRules.length ||
+        automationRules.length > WorkflowAutomationRules.maxRules) {
+      throw const FormatException('Regole automazione recovery non valide.');
+    }
+    final automationRunIds = <String>{};
+    final automationRuns = automations['runs'] as List;
+    if (automationRuns.length > WorkflowAutomationRules.maxRuns) {
+      throw const FormatException('Troppe esecuzioni automazione nel recovery.');
+    }
+    for (final raw in automationRuns) {
+      if (raw is! Map) {
+        throw const FormatException('Esecuzione automazione non valida.');
+      }
+      final run = WorkflowRun.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      WorkflowAutomationRules.validateRun(run);
+      if (!automationRunIds.add(run.id) ||
+          !automationRuleIds.contains(run.ruleId) ||
+          !noteIds.contains(run.noteId)) {
+        throw const FormatException('Esecuzione automazione recovery non valida.');
+      }
+    }
+
   }
 
   static Set<String> _referencedAssets(
