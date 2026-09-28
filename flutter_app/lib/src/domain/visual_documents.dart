@@ -142,6 +142,22 @@ class SketchText {
   final int x;
   final int y;
   final int size;
+
+  SketchText copyWith({
+    String? text,
+    int? color,
+    int? x,
+    int? y,
+    int? size,
+  }) =>
+      SketchText(
+        id: id,
+        text: text ?? this.text,
+        color: color ?? this.color,
+        x: x ?? this.x,
+        y: y ?? this.y,
+        size: size ?? this.size,
+      );
 }
 
 class SketchPage {
@@ -550,6 +566,94 @@ class WhiteboardDocument {
       );
 }
 
+abstract final class WhiteboardRules {
+  static const maxNodes = 1200;
+  static const maxEdges = 3600;
+  static const maxStrokes = 3000;
+  static const maxPoints = 50000;
+  static const maxShapes = 1200;
+  static const maxTexts = 800;
+  static const maxCoordinate = 100000;
+
+  static WhiteboardDocument validate(WhiteboardDocument document) {
+    if (document.nodes.length > maxNodes ||
+        document.edges.length > maxEdges ||
+        document.strokes.length > maxStrokes ||
+        document.shapes.length > maxShapes ||
+        document.texts.length > maxTexts) {
+      throw const FormatException('Lavagna troppo complessa.');
+    }
+
+    final pointCount = document.strokes.fold<int>(
+      0,
+      (sum, stroke) => sum + stroke.points.length,
+    );
+    if (pointCount > maxPoints) {
+      throw const FormatException('Troppi punti disegnati nella lavagna.');
+    }
+
+    bool coordinateOk(int value) => value.abs() <= maxCoordinate;
+
+    for (final stroke in document.strokes) {
+      if (stroke.id.isEmpty ||
+          stroke.width < 1 ||
+          stroke.width > 80 ||
+          stroke.points.isEmpty) {
+        throw const FormatException('Tratto lavagna non valido.');
+      }
+      for (final point in stroke.points) {
+        if (!coordinateOk(point.x) ||
+            !coordinateOk(point.y) ||
+            point.pressure < 0 ||
+            point.pressure > 1000) {
+          throw const FormatException('Punto lavagna non valido.');
+        }
+      }
+    }
+
+    for (final shape in document.shapes) {
+      if (shape.id.isEmpty ||
+          shape.width < 1 ||
+          shape.width > 80 ||
+          !coordinateOk(shape.x1) ||
+          !coordinateOk(shape.y1) ||
+          !coordinateOk(shape.x2) ||
+          !coordinateOk(shape.y2)) {
+        throw const FormatException('Forma lavagna non valida.');
+      }
+    }
+
+    for (final text in document.texts) {
+      if (text.id.isEmpty ||
+          text.text.length > 4000 ||
+          text.size < 10 ||
+          text.size > 120 ||
+          !coordinateOk(text.x) ||
+          !coordinateOk(text.y)) {
+        throw const FormatException('Testo lavagna non valido.');
+      }
+    }
+
+    for (final node in document.nodes) {
+      if (node.id.isEmpty ||
+          !coordinateOk(node.x) ||
+          !coordinateOk(node.y) ||
+          node.width < 80 ||
+          node.height < 60) {
+        throw const FormatException('Nodo lavagna non valido.');
+      }
+    }
+
+    return document;
+  }
+
+  static int pointCount(WhiteboardDocument document) =>
+      document.strokes.fold<int>(
+        0,
+        (sum, stroke) => sum + stroke.points.length,
+      );
+}
+
 abstract final class WhiteboardOps {
   static WhiteboardDocument empty(WhiteboardMode mode) {
     if (mode == WhiteboardMode.mindMap) {
@@ -715,6 +819,7 @@ abstract final class WhiteboardCodec {
   static const maxBytes = 2 * 1024 * 1024;
 
   static String encode(WhiteboardDocument document) {
+    WhiteboardRules.validate(document);
     final raw = jsonEncode({
       'format': 'notes-whiteboard',
       'version': 1,
@@ -893,20 +998,22 @@ abstract final class WhiteboardCodec {
           (root['paper']?.toString() ?? 'GRID').toUpperCase(),
       orElse: () => WhiteboardPaper.grid,
     );
-    return WhiteboardDocument(
-      mode: root['mode']?.toString() == 'MIND_MAP'
-          ? WhiteboardMode.mindMap
-          : WhiteboardMode.freeform,
-      paper: paper,
-      nodes: nodes,
-      edges: edges,
-      strokes: strokes,
-      shapes: shapes,
-      texts: texts,
-      camera: WhiteboardCamera(
-        x: (camera['x'] as num?)?.toDouble() ?? 0,
-        y: (camera['y'] as num?)?.toDouble() ?? 0,
-        zoom: (camera['zoom'] as num?)?.toDouble() ?? 1,
+    return WhiteboardRules.validate(
+      WhiteboardDocument(
+        mode: root['mode']?.toString() == 'MIND_MAP'
+            ? WhiteboardMode.mindMap
+            : WhiteboardMode.freeform,
+        paper: paper,
+        nodes: nodes,
+        edges: edges,
+        strokes: strokes,
+        shapes: shapes,
+        texts: texts,
+        camera: WhiteboardCamera(
+          x: (camera['x'] as num?)?.toDouble() ?? 0,
+          y: (camera['y'] as num?)?.toDouble() ?? 0,
+          zoom: (camera['zoom'] as num?)?.toDouble() ?? 1,
+        ),
       ),
     );
   }
