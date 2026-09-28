@@ -35,8 +35,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final viewportFinder =
-        find.byKey(const ValueKey('whiteboard-viewport'));
+    final viewportFinder = find.byKey(const ValueKey('whiteboard-viewport'));
     final canvasFinder = find.byKey(const ValueKey('whiteboard-canvas'));
     expect(viewportFinder, findsOneWidget);
     expect(canvasFinder, findsOneWidget);
@@ -141,8 +140,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final viewportFinder =
-        find.byKey(const ValueKey('whiteboard-viewport'));
+    final viewportFinder = find.byKey(const ValueKey('whiteboard-viewport'));
     final canvasFinder = find.byKey(const ValueKey('whiteboard-canvas'));
     final viewer = tester.widget<InteractiveViewer>(viewportFinder);
     final controller = viewer.transformationController!;
