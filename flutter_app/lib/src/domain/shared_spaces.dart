@@ -689,7 +689,11 @@ abstract final class SharedSpaces {
     final spaces = snapshot.spaces
         .map((space) => canonicalizeIdentity(space, identity))
         .toList(growable: false);
-    return SharedSpacesSnapshot(identity: identity, spaces: spaces);
+    return SharedSpacesSnapshot(
+      identity: identity,
+      spaces: spaces,
+      inviteHistory: snapshot.inviteHistory,
+    );
   }
 
   static SharedSpace canonicalizeIdentity(
