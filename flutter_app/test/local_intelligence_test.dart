@@ -25,6 +25,13 @@ void main() {
     expect(needle.maxWeightMb, lessThan(40));
     expect(needle.supportsAllProductLanguages, isFalse);
 
+    final compressed = LocalModelAudit.candidates.firstWhere(
+      (candidate) => candidate.id == 'me5s-compressed-v3-distilled',
+    );
+    expect(compressed.role, LocalModelRole.shipCandidate);
+    expect(compressed.supportsAllProductLanguages, isTrue);
+    expect(compressed.maxWeightMb, lessThan(55));
+
     final e5 = LocalModelAudit.candidates.firstWhere(
       (candidate) => candidate.id == 'multilingual-e5-small-int8',
     );
