@@ -14,6 +14,7 @@ Future<void> showIntelligenceSheet({
   ValueChanged<Note>? onOpenNote,
   ValueChanged<String>? onInsertMarkdown,
   Future<KnowledgeQueryResult> Function(String query)? unifiedSearch,
+  bool semanticEnabled = true,
 }) =>
     showNotesBottomSheet<void>(
       context: context,
@@ -25,6 +26,7 @@ Future<void> showIntelligenceSheet({
         onOpenNote: onOpenNote,
         onInsertMarkdown: onInsertMarkdown,
         unifiedSearch: unifiedSearch,
+        semanticEnabled: semanticEnabled,
       ),
     );
 
@@ -36,6 +38,7 @@ class _IntelligenceSheet extends StatefulWidget {
     this.onOpenNote,
     this.onInsertMarkdown,
     this.unifiedSearch,
+    this.semanticEnabled = true,
   });
 
   final List<Note> notes;
@@ -44,6 +47,7 @@ class _IntelligenceSheet extends StatefulWidget {
   final ValueChanged<Note>? onOpenNote;
   final ValueChanged<String>? onInsertMarkdown;
   final Future<KnowledgeQueryResult> Function(String query)? unifiedSearch;
+  final bool semanticEnabled;
 
   @override
   State<_IntelligenceSheet> createState() => _IntelligenceSheetState();
@@ -287,8 +291,10 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                       : 'Intelligence · opzionale',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const Text(
-                  'Fallback locale e verificabile. Nessuna funzione core dipende da provider AI.',
+                Text(
+                  widget.semanticEnabled
+                      ? 'Ricerca ibrida locale: ranking classico + indice semantico ricostruibile. Nessuna rete richiesta.'
+                      : 'Ricerca classica locale. L’indice semantico è disattivato nelle Impostazioni.',
                 ),
                 const SizedBox(height: 12),
                 Row(
