@@ -7,7 +7,8 @@ void main() {
   const imageKey =
       'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.jpg';
 
-  test('attachment reachability includes note draft and sidecar references', () {
+  test('attachment reachability includes note draft and sidecar references',
+      () {
     final keys = Attachments.referencedKeys(
       noteBodies: const [
         '[Documento](notes-asset://$pdfKey)',
