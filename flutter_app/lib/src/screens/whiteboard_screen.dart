@@ -1540,6 +1540,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                                         workingWidth: _workingWidth,
                                         previewShape: _previewShape,
                                         visibleRect: visibleRect,
+                                        strokeBounds: _strokeBounds,
                                       ),
                                     ),
                                   ),
@@ -1687,13 +1688,25 @@ class _BoardPainter extends CustomPainter {
     required this.document,
     required this.origin,
     required this.working,
+    required this.workingVersion,
+    required this.workingColor,
+    required this.workingWidth,
     required this.previewShape,
+    required this.visibleRect,
+    required this.strokeBounds,
   });
 
   final WhiteboardDocument document;
   final double origin;
   final List<InkPoint> working;
+  final int workingVersion;
+  final int workingColor;
+  final int workingWidth;
   final BoardShape? previewShape;
+  final Rect visibleRect;
+  final Map<String, Rect> strokeBounds;
+
+  Rect get _worldVisible => visibleRect.shift(Offset(-origin, -origin));
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1701,43 +1714,40 @@ class _BoardPainter extends CustomPainter {
       Offset.zero & size,
       Paint()..color = Colors.white,
     );
-    _paper(canvas, size);
+
+    final canvasRect = Offset.zero & size;
+    final visible = visibleRect.intersect(canvasRect);
+    if (!visible.isEmpty) _paper(canvas, visible);
 
     for (final stroke in document.strokes) {
+      final bounds = strokeBounds[stroke.id];
+      if (bounds != null && !bounds.overlaps(_worldVisible)) continue;
       _stroke(canvas, stroke);
     }
+
     if (working.isNotEmpty) {
       _stroke(
         canvas,
         InkStroke(
-          color: 0xFF111111,
-          width: 6,
-          marker: false,
+          color: workingColor,
+          width: workingWidth,
+          marker: document.strokes.isNotEmpty &&
+              document.strokes.last.marker &&
+              workingColor == document.strokes.last.color,
           points: working,
         ),
       );
     }
+
     for (final shape in document.shapes) {
+      final bounds = Rect.fromPoints(
+        Offset(shape.x1.toDouble(), shape.y1.toDouble()),
+        Offset(shape.x2.toDouble(), shape.y2.toDouble()),
+      ).inflate(shape.width.toDouble() + 30);
+      if (!bounds.overlaps(_worldVisible)) continue;
       _shape(canvas, shape);
     }
     if (previewShape != null) _shape(canvas, previewShape!);
-
-    for (final text in document.texts) {
-      final painter = TextPainter(
-        text: TextSpan(
-          text: text.text,
-          style: TextStyle(
-            color: Color(text.color),
-            fontSize: text.size.toDouble(),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: 800);
-      painter.paint(
-        canvas,
-        Offset(origin + text.x, origin + text.y),
-      );
-    }
 
     for (final edge in document.edges) {
       BoardNode? from;
@@ -1756,9 +1766,13 @@ class _BoardPainter extends CustomPainter {
         origin + to.x + to.width / 2,
         origin + to.y + to.height / 2,
       );
+      if (!Rect.fromPoints(start, end).inflate(40).overlaps(visibleRect)) {
+        continue;
+      }
       final paint = Paint()
         ..color = Color(edge.color)
         ..strokeWidth = edge.width.toDouble()
+        ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
       canvas.drawLine(start, end, paint);
 
@@ -1768,30 +1782,56 @@ class _BoardPainter extends CustomPainter {
     }
   }
 
-  void _paper(Canvas canvas, Size size) {
+  void _paper(Canvas canvas, Rect visible) {
     final line = Paint()
       ..color = const Color(0x1A455A64)
       ..strokeWidth = 1;
+
+    double first(double value, double spacing) =>
+        (value / spacing).floorToDouble() * spacing;
+
     switch (document.paper) {
       case WhiteboardPaper.plain:
         return;
       case WhiteboardPaper.ruled:
-        for (double y = 0; y < size.height; y += 70) {
-          canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
+        for (double y = first(visible.top, 70);
+            y <= visible.bottom;
+            y += 70) {
+          canvas.drawLine(
+            Offset(visible.left, y),
+            Offset(visible.right, y),
+            line,
+          );
         }
         return;
       case WhiteboardPaper.grid:
-        for (double x = 0; x < size.width; x += 80) {
-          canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
+        for (double x = first(visible.left, 80);
+            x <= visible.right;
+            x += 80) {
+          canvas.drawLine(
+            Offset(x, visible.top),
+            Offset(x, visible.bottom),
+            line,
+          );
         }
-        for (double y = 0; y < size.height; y += 80) {
-          canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
+        for (double y = first(visible.top, 80);
+            y <= visible.bottom;
+            y += 80) {
+          canvas.drawLine(
+            Offset(visible.left, y),
+            Offset(visible.right, y),
+            line,
+          );
         }
         return;
       case WhiteboardPaper.dots:
         final dot = Paint()..color = const Color(0x33455A64);
-        for (double x = 40; x < size.width; x += 40) {
-          for (double y = 40; y < size.height; y += 40) {
+        for (double x = first(visible.left, 40);
+            x <= visible.right;
+            x += 40) {
+          for (double y = first(visible.top, 40);
+              y <= visible.bottom;
+              y += 40) {
             canvas.drawCircle(Offset(x, y), 1.8, dot);
           }
         }
@@ -1807,15 +1847,35 @@ class _BoardPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
-    final path = Path()
-      ..moveTo(
-        origin + stroke.points.first.x,
-        origin + stroke.points.first.y,
-      );
-    for (final point in stroke.points.skip(1)) {
-      path.lineTo(origin + point.x, origin + point.y);
+
+    final variablePressure =
+        !stroke.marker && stroke.points.any((point) => point.pressure < 990);
+    if (!variablePressure) {
+      final path = Path()
+        ..moveTo(
+          origin + stroke.points.first.x,
+          origin + stroke.points.first.y,
+        );
+      for (final point in stroke.points.skip(1)) {
+        path.lineTo(origin + point.x, origin + point.y);
+      }
+      canvas.drawPath(path, paint);
+      return;
     }
-    canvas.drawPath(path, paint);
+
+    var previous = stroke.points.first;
+    for (final point in stroke.points.skip(1)) {
+      final pressure =
+          ((previous.pressure + point.pressure) / 2000).clamp(0.05, 1.0);
+      paint.strokeWidth =
+          stroke.width * (0.30 + pressure * 0.70).clamp(0.30, 1.0);
+      canvas.drawLine(
+        Offset(origin + previous.x, origin + previous.y),
+        Offset(origin + point.x, origin + point.y),
+        paint,
+      );
+      previous = point;
+    }
   }
 
   void _shape(Canvas canvas, BoardShape shape) {
@@ -1865,7 +1925,14 @@ class _BoardPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _BoardPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _BoardPainter oldDelegate) =>
+      oldDelegate.document != document ||
+      oldDelegate.origin != origin ||
+      oldDelegate.workingVersion != workingVersion ||
+      oldDelegate.workingColor != workingColor ||
+      oldDelegate.workingWidth != workingWidth ||
+      oldDelegate.previewShape != previewShape ||
+      oldDelegate.visibleRect != visibleRect;
 }
 
 Color _contrast(Color background) {
