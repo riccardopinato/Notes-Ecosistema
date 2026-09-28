@@ -1557,14 +1557,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final stamp =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       await FilePicker.platform.saveFile(
-        dialogTitle: 'Esporta backup completo Notes',
+        dialogTitle: 'Esporta pacchetto Notes',
         fileName: 'notes-ecosistema-$stamp.zip',
         bytes: bytes,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Backup completo esportato con allegati.'),
+          content: Text('Pacchetto Notes esportato con allegati.'),
         ),
       );
     } catch (error) {
@@ -1637,7 +1637,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Importare il backup?'),
+          title: const Text('Importare il pacchetto Notes?'),
           content: Text(
             'Verranno create copie separate: '
             '${snapshot.notes.length} elementi, '
@@ -1724,8 +1724,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         SnackBar(
           content: Text(
             bundle == null
-                ? 'Backup JSON importato come copie.'
-                : 'Backup completo importato con allegati e metadati sidecar.',
+                ? 'JSON compatibile importato come copie.'
+                : 'Pacchetto Notes importato con allegati e metadati sidecar.',
           ),
         ),
       );
@@ -1778,6 +1778,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
     await ref.read(derivativeStoreProvider).deleteForNote(id);
+    await ref.read(studyStoreProvider).deleteForNote(id);
+    await ref.read(documentStoreProvider).deleteForNote(id);
     await ref.read(projectStoreProvider).deleteLinksForNote(id);
     await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
