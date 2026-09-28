@@ -105,6 +105,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   bool _stylusInContact = false;
   bool _objectPointerActive = false;
   int? _objectPointer;
+  int? _lassoPointer;
   int? _stylusPointer;
   double _pointerPressure = 1;
 
@@ -409,6 +410,57 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     if (_stylusInContact) {
       setState(() => _stylusInContact = false);
     }
+  }
+
+  void _onCanvasPointerDown(PointerDownEvent event) {
+    _onPointerDown(event);
+    if (!_selectionMode || widget.readOnly) return;
+    if (_objectPointer == event.pointer) return;
+    final point = _boardPoint(event.localPosition);
+    final offset = Offset(point.x.toDouble(), point.y.toDouble());
+    _lassoPointer = event.pointer;
+    setState(() {
+      _lassoStart = offset;
+      _lassoEnd = offset;
+    });
+  }
+
+  void _onCanvasPointerMove(PointerMoveEvent event) {
+    _onPointerMove(event);
+    if (event.pointer != _lassoPointer || !_selectionMode) return;
+    final point = _boardPoint(event.localPosition);
+    setState(() {
+      _lassoEnd = Offset(point.x.toDouble(), point.y.toDouble());
+    });
+  }
+
+  void _finishRawLasso(PointerEvent event) {
+    if (event.pointer != _lassoPointer) return;
+    final rect = _lassoWorldRect;
+    _lassoPointer = null;
+    if (rect != null) _selectLasso(rect);
+    if (mounted) {
+      setState(() {
+        _lassoStart = null;
+        _lassoEnd = null;
+      });
+    }
+  }
+
+  void _onCanvasPointerUp(PointerUpEvent event) {
+    _finishRawLasso(event);
+    _onPointerEnd(event);
+  }
+
+  void _onCanvasPointerCancel(PointerCancelEvent event) {
+    if (event.pointer == _lassoPointer) {
+      _lassoPointer = null;
+      setState(() {
+        _lassoStart = null;
+        _lassoEnd = null;
+      });
+    }
+    _onPointerEnd(event);
   }
 
   bool get _selectionMode => _tool == _WhiteboardTool.select;
@@ -765,14 +817,6 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   void _drawStart(DragStartDetails details) {
     final point = _boardPoint(details.localPosition);
-    if (_selectionMode) {
-      final offset = Offset(point.x.toDouble(), point.y.toDouble());
-      setState(() {
-        _lassoStart = offset;
-        _lassoEnd = offset;
-      });
-      return;
-    }
     if (_tool == _WhiteboardTool.pen || _tool == _WhiteboardTool.highlighter) {
       _workingPoints
         ..clear()
@@ -797,12 +841,6 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   void _drawUpdate(DragUpdateDetails details) {
     final point = _boardPoint(details.localPosition);
-    if (_selectionMode && _lassoStart != null) {
-      setState(() {
-        _lassoEnd = Offset(point.x.toDouble(), point.y.toDouble());
-      });
-      return;
-    }
     if (_tool == _WhiteboardTool.pen || _tool == _WhiteboardTool.highlighter) {
       _workingPoints.add(point);
       setState(() => _workingVersion++);
@@ -819,16 +857,6 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   void _drawEnd(DragEndDetails details) {
-    if (_selectionMode && _lassoWorldRect != null) {
-      final rect = _lassoWorldRect!;
-      _selectLasso(rect);
-      setState(() {
-        _lassoStart = null;
-        _lassoEnd = null;
-      });
-      return;
-    }
-
     if ((_tool == _WhiteboardTool.pen ||
             _tool == _WhiteboardTool.highlighter) &&
         _workingPoints.isNotEmpty) {
@@ -2016,30 +2044,34 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                             ).inflate(160);
 
                             return Listener(
-                              onPointerDown: _onPointerDown,
-                              onPointerMove: _onPointerMove,
-                              onPointerUp: _onPointerEnd,
-                              onPointerCancel: _onPointerEnd,
+                              onPointerDown: _onCanvasPointerDown,
+                              onPointerMove: _onCanvasPointerMove,
+                              onPointerUp: _onCanvasPointerUp,
+                              onPointerCancel: _onCanvasPointerCancel,
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 supportedDevices: _canvasGestureDevices,
                                 onPanStart: widget.readOnly ||
                                         _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
                                         _tool == _WhiteboardTool.text
                                     ? null
                                     : _drawStart,
                                 onPanUpdate: widget.readOnly ||
                                         _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
                                         _tool == _WhiteboardTool.text
                                     ? null
                                     : _drawUpdate,
                                 onPanEnd: widget.readOnly ||
                                         _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
                                         _tool == _WhiteboardTool.text
                                     ? null
                                     : _drawEnd,
                                 onPanCancel: widget.readOnly ||
                                         _tool == _WhiteboardTool.navigate ||
+                                        _selectionMode ||
                                         _tool == _WhiteboardTool.text
                                     ? null
                                     : _drawCancel,
