@@ -866,7 +866,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     if (boundary == null) {
       throw const FormatException('Lavagna non ancora pronta per export.');
     }
-    final image = await boundary.toImage(pixelRatio: 0.5);
+    final pixelRatio = (4096 / _canvasSize).clamp(0.08, 1.0);
+    final image = await boundary.toImage(pixelRatio: pixelRatio);
     try {
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       if (data == null) {
