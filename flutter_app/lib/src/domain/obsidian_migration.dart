@@ -48,8 +48,7 @@ class ObsidianMigrationReport {
   final List<String> unsupportedFiles;
   final Set<String> unknownFrontMatterFields;
 
-  String userLabel() =>
-      '$documents note · $assets allegati · '
+  String userLabel() => '$documents note · $assets allegati · '
       '${unsupportedFiles.length} file non supportati · '
       '${unknownFrontMatterFields.length} campi frontmatter extra';
 }
@@ -98,7 +97,8 @@ abstract final class ObsidianMigration {
       }
       expanded += data.length;
       if (expanded > maxExpandedBytes) {
-        throw const FormatException('Vault espanso oltre il limite consentito.');
+        throw const FormatException(
+            'Vault espanso oltre il limite consentito.');
       }
 
       final ext = p.extension(safePath).toLowerCase();
@@ -350,7 +350,8 @@ abstract final class ObsidianMigration {
           break;
         case 'tags':
           if (value.startsWith('[') && value.endsWith(']')) {
-            for (final item in value.substring(1, value.length - 1).split(',')) {
+            for (final item
+                in value.substring(1, value.length - 1).split(',')) {
               final clean = _cleanYaml(item.trim());
               if (clean.isNotEmpty) tags.add(clean);
             }
