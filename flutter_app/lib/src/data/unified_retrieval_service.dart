@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../domain/note.dart';
+import '../domain/semantic_embeddings.dart';
 import '../domain/unified_retrieval.dart';
 import 'derivative_store.dart';
+import 'semantic_index_store.dart';
 import 'document_store.dart';
 import 'knowledge_store.dart';
 import 'property_store.dart';
@@ -15,6 +18,8 @@ class UnifiedRetrievalService {
     required this.knowledgeStore,
     required this.propertyStore,
     required this.studyStore,
+    this.semanticStore,
+    this.embeddingEngine = const LocalHashEmbeddingEngine(),
   });
 
   final DerivativeStore derivativeStore;
@@ -22,11 +27,14 @@ class UnifiedRetrievalService {
   final KnowledgeStore knowledgeStore;
   final PropertyStore propertyStore;
   final StudyStore studyStore;
+  final SemanticIndexStore? semanticStore;
+  final SemanticEmbeddingEngine embeddingEngine;
 
   Future<List<RetrievalHit>> search({
     required String query,
     required List<Note> notes,
     int limit = 30,
+    bool semanticEnabled = true,
   }) async {
     final documents = <RetrievalDocument>[
       ...UnifiedRetrieval.noteDocuments(notes),
@@ -167,7 +175,141 @@ class UnifiedRetrievalService {
       );
     }
 
-    return UnifiedRetrieval.search(query, documents, limit: limit);
+    final lexical = UnifiedRetrieval.search(
+      query,
+      documents,
+      limit: math.max(limit * 3, 40),
+    );
+    final store = semanticStore;
+    if (!semanticEnabled || store == null) {
+      return lexical.take(limit).toList(growable: false);
+    }
+
+    try {
+      await store.syncDocuments(documents, embeddingEngine);
+      final semantic = await store.search(
+        query,
+        embeddingEngine,
+        limit: math.max(limit * 4, 60),
+      );
+      return _fuse(
+        lexical: lexical,
+        semantic: semantic,
+        documents: documents,
+        limit: limit,
+      );
+    } catch (_) {
+      // Semantic retrieval is a derived optional layer. It must never make
+      // canonical literal/FTS-style retrieval unavailable.
+      return lexical.take(limit).toList(growable: false);
+    }
+  }
+
+  Future<List<RetrievalHit>> related({
+    required Note source,
+    required List<Note> notes,
+    int limit = 6,
+    bool semanticEnabled = true,
+  }) async {
+    final store = semanticStore;
+    if (!semanticEnabled || store == null) return const [];
+
+    final documents = UnifiedRetrieval.noteDocuments(notes);
+    final sourceDocument = documents
+        .where((document) => document.noteId == source.id)
+        .firstOrNull;
+    if (sourceDocument == null) return const [];
+
+    try {
+      await store.syncDocuments(documents, embeddingEngine);
+      final matches = await store.related(
+        sourceDocument,
+        embeddingEngine,
+        limit: math.max(limit * 4, 30),
+      );
+      final byId = {for (final document in documents) document.id: document};
+      final seen = <String>{};
+      final result = <RetrievalHit>[];
+      for (final match in matches) {
+        if (!seen.add(match.noteId)) continue;
+        final document = byId[match.documentId];
+        if (document == null) continue;
+        result.add(
+          RetrievalHit(
+            document: document,
+            score: match.score * 100,
+            excerpt: UnifiedRetrieval.excerpt(document.text, source.title),
+          ),
+        );
+        if (result.length >= limit.clamp(1, 20)) break;
+      }
+      return result;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static List<RetrievalHit> _fuse({
+    required List<RetrievalHit> lexical,
+    required List<SemanticMatch> semantic,
+    required List<RetrievalDocument> documents,
+    required int limit,
+  }) {
+    final byDocumentId = {
+      for (final document in documents) document.id: document,
+    };
+    final lexicalByNote = <String, RetrievalHit>{};
+    for (final hit in lexical) {
+      lexicalByNote.putIfAbsent(hit.document.noteId, () => hit);
+    }
+
+    final scores = <String, double>{};
+    final semanticByNote = <String, SemanticMatch>{};
+
+    for (var i = 0; i < lexical.length; i++) {
+      final hit = lexical[i];
+      scores.update(
+        hit.document.noteId,
+        (value) => value + 1 / (60 + i + 1),
+        ifAbsent: () => 1 / (60 + i + 1),
+      );
+    }
+    for (var i = 0; i < semantic.length; i++) {
+      final hit = semantic[i];
+      semanticByNote.putIfAbsent(hit.noteId, () => hit);
+      final contribution = 0.85 / (60 + i + 1);
+      scores.update(
+        hit.noteId,
+        (value) => value + contribution,
+        ifAbsent: () => contribution,
+      );
+    }
+
+    final noteIds = scores.keys.toList(growable: false)
+      ..sort((a, b) {
+        final score = scores[b]!.compareTo(scores[a]!);
+        if (score != 0) return score;
+        return a.compareTo(b);
+      });
+
+    final result = <RetrievalHit>[];
+    for (final noteId in noteIds) {
+      final lexicalHit = lexicalByNote[noteId];
+      final semanticHit = semanticByNote[noteId];
+      final document = lexicalHit?.document ??
+          (semanticHit == null ? null : byDocumentId[semanticHit.documentId]);
+      if (document == null) continue;
+      result.add(
+        RetrievalHit(
+          document: document,
+          score: scores[noteId]! * 10000,
+          excerpt: lexicalHit?.excerpt ??
+              UnifiedRetrieval.excerpt(document.text, document.title),
+        ),
+      );
+      if (result.length >= limit.clamp(1, 100)) break;
+    }
+    return result;
   }
 
   static List<Map<String, Object?>> _rows(Object? raw) {
@@ -200,5 +342,13 @@ class UnifiedRetrievalService {
       }
     }
     return 'Contenuto collegato';
+  }
+}
+
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    return iterator.moveNext() ? iterator.current : null;
   }
 }
