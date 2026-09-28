@@ -18,6 +18,8 @@ abstract final class OpenExportBundle {
     required Map<String, Object?> properties,
     required Map<String, Object?> knowledge,
     required Map<String, Object?> projects,
+    required Map<String, Object?> study,
+    required Map<String, Object?> documents,
     required AttachmentStore store,
   }) async {
     BackupCodec.validate(snapshot);
@@ -121,6 +123,8 @@ abstract final class OpenExportBundle {
     files['properties.json'] = _json(properties);
     files['knowledge.json'] = _json(knowledge);
     files['projects.json'] = _json(projects);
+    files['study.json'] = _json(study);
+    files['documents.json'] = _json(documents);
 
     for (final key in assetKeys) {
       final bytes = await store.read(key);
@@ -152,6 +156,8 @@ abstract final class OpenExportBundle {
         'properties',
         'knowledge',
         'projects',
+        'study',
+        'document-annotations',
         'media',
       ],
       'excluded': const [
