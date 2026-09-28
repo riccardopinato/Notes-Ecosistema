@@ -5,30 +5,39 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'data/import_application_service.dart';
+import 'data/unified_retrieval_service.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/disaster_recovery.dart';
+import 'domain/import_provenance.dart';
+import 'domain/intelligence.dart';
 import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
+import 'domain/obsidian_migration.dart';
 import 'domain/open_export.dart';
 import 'domain/planner.dart';
 import 'domain/project_workspace.dart';
 import 'domain/research.dart';
 import 'domain/shared_space_bundle.dart';
 import 'domain/shared_spaces.dart';
+import 'domain/stable_links.dart';
 import 'domain/sync.dart';
 import 'domain/quick_capture.dart';
 import 'domain/quick_switcher.dart';
 import 'domain/templates.dart';
+import 'domain/unified_retrieval.dart';
 import 'domain/visual_documents.dart';
+import 'platform/deep_link_bridge.dart';
 import 'platform/quick_capture_bridge.dart';
 import 'platform/quick_sync_bridge.dart';
 import 'platform/shared_background_bridge.dart';
@@ -133,6 +142,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       QuickCaptureBridge.initialize(_handleIncomingCapture);
+      DeepLinkBridge.initialize(_handleDeepLink);
       QuickSyncBridge.initialize(_handleQuickSync);
       SharedBackgroundBridge.initialize(_handleSharedBackgroundSpace);
       ReminderActionBridge.initialize(_handleReminderAction);
@@ -151,6 +161,68 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _selectSection(int value) {
+    setState(() {
+      if (value == 1) _libraryCollectionId = null;
+      if (value != 3) _plannerTaskId = null;
+      _index = value;
+    });
+  }
+
+  Future<void> _handleDeepLink(String raw) async {
+    final target = StableLinks.parse(raw);
+    if (target == null || !mounted) return;
+    switch (target.kind) {
+      case StableLinkKind.object:
+        var note = ref
+            .read(workspaceProvider)
+            .notes
+            .where((item) => item.id == target.id)
+            .firstOrNull;
+        if (note == null) {
+          await ref.read(workspaceProvider.notifier).refresh();
+          note = ref
+              .read(workspaceProvider)
+              .notes
+              .where((item) => item.id == target.id)
+              .firstOrNull;
+        }
+        if (!mounted) return;
+        if (note == null || note.isDeleted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Contenuto collegato non disponibile.')),
+          );
+          return;
+        }
+        if (note.isTask) {
+          setState(() {
+            _plannerTaskId = note!.id;
+            _index = 3;
+          });
+        } else if (note.isVisual) {
+          await _openVisual(note);
+        } else {
+          await _openEditor(note);
+        }
+        break;
+      case StableLinkKind.project:
+        await _openProjects(initialProjectId: target.id);
+        break;
+      case StableLinkKind.study:
+        await _openStudy();
+        break;
+    }
+  }
+
+  Future<void> _copyStableLink(String id) async {
+    final link = StableLinks.object(id).toString();
+    await Clipboard.setData(ClipboardData(text: link));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Collegamento Notes copiato.')),
+    );
   }
 
   Future<void> _handleSharedBackgroundSpace(String spaceId) async {
@@ -934,6 +1006,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         onTrash: (id) => ref.read(workspaceProvider.notifier).trash(id),
         onRestore: _restoreFromTrash,
         onDeleteForever: _deleteForever,
+        onCopyLink: _copyStableLink,
         onBulkEdit: (notes, change) =>
             ref.read(workspaceProvider.notifier).bulkEdit(notes, change),
         onRenameCollection: (collection, name) =>
@@ -975,66 +1048,169 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: EditorialAppTitle(section == 'Home' ? 'Il tuo spazio' : section),
-        actions: [
-          IconButton(
-            tooltip: 'Knowledge Search',
-            onPressed: () => _knowledgeSearch(personalNotes),
-            icon: const Icon(Icons.auto_awesome_outlined),
-          ),
-          IconButton(
-            tooltip: 'Quick Switcher',
-            onPressed: () => _quickSwitcher(personalNotes),
-            icon: const Icon(Icons.bolt_outlined),
-          ),
-          IconButton(
-            tooltip: 'Impostazioni',
-            onPressed: () => _settings(context),
-            icon: const Icon(Icons.settings),
-          ),
-        ],
-      ),
-      body: body,
-      floatingActionButton:
-          (_index == 5 || _index == 4 || _index == 2 || _index == 3)
-              ? null
-              : FloatingActionButton.extended(
-                  onPressed: () => _createMenu(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Crea'),
-                ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() {
-          if (value == 1) _libraryCollectionId = null;
-          if (value != 3) _plannerTaskId = null;
-          _index = value;
-        }),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.description), label: 'Note'),
-          NavigationDestination(
-              icon: Icon(Icons.calendar_month), label: 'Diario'),
-          NavigationDestination(
-              icon: Icon(Icons.check_circle), label: 'Attività'),
-          NavigationDestination(
-              icon: Icon(Icons.group_work_outlined), label: 'Spazi'),
-          NavigationDestination(icon: Icon(Icons.search), label: 'Cerca'),
-        ],
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
+            unawaited(_quickSwitcher(personalNotes)),
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
+            unawaited(_openEditor()),
+        const SingleActivator(
+          LogicalKeyboardKey.keyF,
+          control: true,
+          shift: true,
+        ): () => _selectSection(5),
+      },
+      child: Focus(
+        autofocus: true,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 900;
+            const destinations = [
+              NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+              NavigationDestination(
+                icon: Icon(Icons.description),
+                label: 'Note',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_month),
+                label: 'Diario',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.check_circle),
+                label: 'Attività',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.group_work_outlined),
+                label: 'Spazi',
+              ),
+              NavigationDestination(icon: Icon(Icons.search), label: 'Cerca'),
+            ];
+            const railDestinations = [
+              NavigationRailDestination(
+                icon: Icon(Icons.home),
+                label: Text('Home'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.description),
+                label: Text('Note'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.calendar_month),
+                label: Text('Diario'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.check_circle),
+                label: Text('Attività'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.group_work_outlined),
+                label: Text('Spazi'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.search),
+                label: Text('Cerca'),
+              ),
+            ];
+
+            return Scaffold(
+              appBar: AppBar(
+                title:
+                    EditorialAppTitle(section == 'Home' ? 'Il tuo spazio' : section),
+                actions: [
+                  IconButton(
+                    tooltip: 'Knowledge Search',
+                    onPressed: () => _knowledgeSearch(personalNotes),
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Quick Switcher · Ctrl+K',
+                    onPressed: () => _quickSwitcher(personalNotes),
+                    icon: const Icon(Icons.bolt_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Impostazioni',
+                    onPressed: () => _settings(context),
+                    icon: const Icon(Icons.settings),
+                  ),
+                ],
+              ),
+              body: wide
+                  ? Row(
+                      children: [
+                        NavigationRail(
+                          selectedIndex: _index,
+                          onDestinationSelected: _selectSection,
+                          labelType: NavigationRailLabelType.selected,
+                          destinations: railDestinations,
+                        ),
+                        const VerticalDivider(width: 1),
+                        Expanded(child: body),
+                      ],
+                    )
+                  : body,
+              floatingActionButton:
+                  (_index == 5 || _index == 4 || _index == 2 || _index == 3)
+                      ? null
+                      : FloatingActionButton.extended(
+                          onPressed: () => _createMenu(context),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Crea'),
+                        ),
+              bottomNavigationBar: wide
+                  ? null
+                  : NavigationBar(
+                      selectedIndex: _index,
+                      onDestinationSelected: _selectSection,
+                      destinations: destinations,
+                    ),
+            );
+          },
+        ),
       ),
     );
   }
 
   Future<void> _knowledgeSearch(List<Note> notes) async {
+    final service = UnifiedRetrievalService(
+      derivativeStore: ref.read(derivativeStoreProvider),
+      documentStore: ref.read(documentStoreProvider),
+      knowledgeStore: ref.read(knowledgeStoreProvider),
+      studyStore: ref.read(studyStoreProvider),
+    );
     await showIntelligenceSheet(
       context: context,
       notes: notes,
       derivativeStore: ref.read(derivativeStoreProvider),
       onOpenNote: (note) => _openEditor(note),
+      unifiedSearch: (query) async {
+        final hits = await service.search(query: query, notes: notes);
+        final byId = {for (final note in notes) note.id: note};
+        return KnowledgeQueryResult(
+          query: query,
+          hits: [
+            for (final hit in hits)
+              if (byId[hit.document.noteId] case final note?)
+                KnowledgeHit(
+                  note: note,
+                  score: hit.score,
+                  excerpt:
+                      '${_retrievalLabel(hit.document.kind)} · ${hit.excerpt}',
+                ),
+          ],
+        );
+      },
     );
   }
+
+  String _retrievalLabel(RetrievalKind kind) => switch (kind) {
+        RetrievalKind.note => 'Nota',
+        RetrievalKind.task => 'Attività',
+        RetrievalKind.ocr => 'OCR',
+        RetrievalKind.derivative => 'Derivato',
+        RetrievalKind.study => 'Studio',
+        RetrievalKind.pdfAnnotation => 'Annotazione PDF',
+        RetrievalKind.research => 'Fonte',
+      };
 
   Future<void> _quickSwitcher(List<Note> notes) async {
     final workspace = ref.read(workspaceProvider);
@@ -1274,9 +1450,16 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
       final syncedBlocks =
           await ref.read(knowledgeStoreProvider).syncedBlocks();
+      final prefs = await SharedPreferences.getInstance();
+      var sourceInstance = prefs.getString('interop_workspace_id_v1');
+      if (sourceInstance == null || sourceInstance.trim().isEmpty) {
+        sourceInstance = const Uuid().v4();
+        await prefs.setString('interop_workspace_id_v1', sourceInstance);
+      }
       final bytes = MarkdownWorkspaceBundle.encode(
         snapshot.notes,
         syncedBlocks: syncedBlocks,
+        sourceInstance: sourceInstance,
       );
       final now = DateTime.now();
       final stamp = '${now.year.toString().padLeft(4, '0')}-'
@@ -1318,17 +1501,21 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       if (bytes == null) {
         throw const FormatException('Impossibile leggere l’archivio Markdown.');
       }
-      final documents = MarkdownWorkspaceBundle.decode(
+      final package = MarkdownWorkspaceBundle.decodePackage(
         Uint8List.fromList(bytes),
       );
+      final documents = package.documents;
+      final sourceInstance = package.sourceInstance ??
+          MarkdownWorkspaceBundle.fallbackSourceInstance(documents);
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Importare Markdown?'),
           content: Text(
-            'Verranno create ${documents.length} copie locali. '
-            'Nessuna nota esistente verrà sovrascritta.',
+            'Analizzerò ${documents.length} documenti. I re-import della stessa '
+            'sorgente sono idempotenti: aggiorno solo ciò che è cambiato e '
+            'preservo i conflitti senza sovrascrivere modifiche locali.',
           ),
           actions: [
             TextButton(
@@ -1337,49 +1524,198 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Importa copie'),
+              child: const Text('Importa'),
             ),
           ],
         ),
       );
       if (confirmed != true) return;
 
-      final notifier = ref.read(workspaceProvider.notifier);
-      var stamp = DateTime.now().millisecondsSinceEpoch;
+      const source = 'notes-markdown';
+      final imported = <ImportDocument>[];
       for (final document in documents) {
-        await notifier.save(
-          Note(
-            id: const Uuid().v4(),
+        final tags = <String>{
+          ...document.tags,
+          'import-markdown',
+        }.toList(growable: false);
+        final identity = ImportIdentity(
+          source: source,
+          sourceInstance: sourceInstance,
+          externalId: document.sourceId?.trim().isNotEmpty == true
+              ? document.sourceId!.trim()
+              : document.fileName.toLowerCase(),
+        );
+        imported.add(
+          ImportDocument(
+            identity: identity,
             title: document.title,
             body: document.body,
-            favorite: false,
-            createdAt: stamp,
-            updatedAt: stamp,
-            pinned: false,
-            archived: false,
-            tags: {
-              ...document.tags,
-              'import-markdown',
-            }.toList(growable: false),
+            tags: tags,
             taskJson: document.taskJson,
+            externalFingerprint: ImportProvenance.fingerprint(
+              title: document.title,
+              body: document.body,
+              tags: tags,
+              taskJson: document.taskJson,
+            ),
           ),
         );
-        stamp++;
       }
+
+      final notifier = ref.read(workspaceProvider.notifier);
+      final service = ImportApplicationService(
+        ref.read(importProvenanceStoreProvider),
+      );
+      final summary = await service.apply(
+        source: source,
+        sourceInstance: sourceInstance,
+        documents: imported,
+        currentNotes: ref.read(workspaceProvider).notes,
+        save: notifier.save,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import Markdown · ${summary.userLabel()}')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userErrorText(error))),
+      );
+    }
+  }
+
+  Future<void> _importObsidianVault() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.single.bytes;
+      if (bytes == null) {
+        throw const FormatException('Impossibile leggere il vault ZIP.');
+      }
+      final vault = ObsidianMigration.decode(Uint8List.fromList(bytes));
+      if (vault.documents.isEmpty) {
+        throw const FormatException('Nessuna nota Markdown trovata nel vault.');
+      }
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Importare vault Obsidian?'),
+          content: Text(
+            '${vault.report.userLabel()}\n\n'
+            'Wikilink, frontmatter compatibile e allegati supportati verranno '
+            'convertiti. I re-import non duplicano le note già riconosciute.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Importa vault'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      const source = 'obsidian-vault';
+      final cleanFileName = result.files.single.name.trim().toLowerCase();
+      final sourceInstance = cleanFileName.isNotEmpty
+          ? cleanFileName
+          : 'vault-${vault.sourceInstanceHint}';
+      final provenance = ref.read(importProvenanceStoreProvider);
+      final current = ref.read(workspaceProvider).notes;
+      final currentById = {for (final note in current) note.id: note};
+
+      final planned = <
+          ({ObsidianDocument document, ImportIdentity identity, String id})>[];
+      for (final document in vault.documents) {
+        final identity = ImportIdentity(
+          source: source,
+          sourceInstance: sourceInstance,
+          externalId: document.path.toLowerCase(),
+        );
+        final record = await provenance.find(identity);
+        final currentTarget =
+            record == null ? null : currentById[record.targetNoteId];
+        final id = currentTarget != null && !currentTarget.isDeleted
+            ? currentTarget.id
+            : const Uuid().v4();
+        planned.add((document: document, identity: identity, id: id));
+      }
+
+      final store = await AttachmentStore.open();
+      final assetRows = <({String path, String key})>[];
+      for (final asset in vault.assets) {
+        final key = await store.ingest(asset.bytes, asset.type);
+        assetRows.add((path: asset.path, key: key));
+      }
+      final assetLookup = ObsidianMigration.assetLookup(assetRows);
+      final noteLookup = ObsidianMigration.noteLookup([
+        for (final item in planned)
+          (
+            path: item.document.path,
+            title: item.document.title,
+            id: item.id,
+          ),
+      ]);
+
+      final imported = <ImportDocument>[];
+      for (final item in planned) {
+        final body = ObsidianMigration.resolveBody(
+          document: item.document,
+          noteIdsByKey: noteLookup,
+          assetKeysByPath: assetLookup,
+        );
+        final tags = <String>{
+          ...item.document.tags,
+          'import-obsidian',
+        }.toList(growable: false);
+        imported.add(
+          ImportDocument(
+            identity: item.identity,
+            title: item.document.title,
+            body: body,
+            tags: tags,
+            externalFingerprint: ImportProvenance.fingerprint(
+              title: item.document.title,
+              body: body,
+              tags: tags,
+            ),
+            targetIdHint: item.id,
+          ),
+        );
+      }
+
+      final summary = await ImportApplicationService(provenance).apply(
+        source: source,
+        sourceInstance: sourceInstance,
+        documents: imported,
+        currentNotes: current,
+        save: ref.read(workspaceProvider.notifier).save,
+      );
+      await _cleanupAttachments(silent: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${documents.length} documenti Markdown importati.'),
+          content: Text(
+            'Import Obsidian · ${summary.userLabel()} · '
+            '${vault.report.userLabel()}',
+          ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            userErrorText(error),
-          ),
-        ),
+        SnackBar(content: Text(userErrorText(error))),
       );
     }
   }
@@ -1845,6 +2181,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(derivativeStoreProvider).deleteForNote(id);
     await ref.read(documentStoreProvider).deleteForNote(id);
     await ref.read(projectStoreProvider).deleteLinksForNote(id);
+    await ref.read(importProvenanceStoreProvider).deleteForNote(id);
     await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
@@ -1987,11 +2324,22 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                 leading: const Icon(Icons.drive_folder_upload_outlined),
                 title: const Text('Importa Markdown'),
                 subtitle: const Text(
-                  'Importa un export Markdown come copie, senza sovrascrivere.',
+                  'Re-import sicuro: aggiorna ciò che cambia senza duplicare.',
                 ),
                 onTap: () {
                   Navigator.pop(context);
                   _importMarkdownWorkspace();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.hub_outlined),
+                title: const Text('Importa vault Obsidian'),
+                subtitle: const Text(
+                  'ZIP con Markdown, frontmatter, wikilink e allegati supportati.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _importObsidianVault();
                 },
               ),
               ListTile(
@@ -2009,7 +2357,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                 leading: const Icon(Icons.cleaning_services_outlined),
                 title: const Text('Pulisci allegati orfani'),
                 subtitle: const Text(
-                  'Rimuove solo file locali non più referenziati da note o bozze.',
+                  'Rimuove solo file non referenziati da note, bozze, OCR o annotazioni PDF.',
                 ),
                 onTap: () {
                   Navigator.pop(context);
