@@ -237,5 +237,4 @@ void main() {
       SyncDecision.upload,
     );
   });
-
 }
