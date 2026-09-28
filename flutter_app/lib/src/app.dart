@@ -1175,6 +1175,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       derivativeStore: ref.read(derivativeStoreProvider),
       documentStore: ref.read(documentStoreProvider),
       knowledgeStore: ref.read(knowledgeStoreProvider),
+      propertyStore: ref.read(propertyStoreProvider),
       studyStore: ref.read(studyStoreProvider),
     );
     await showIntelligenceSheet(
@@ -1213,6 +1214,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         RetrievalKind.study => 'Studio',
         RetrievalKind.pdfAnnotation => 'Annotazione PDF',
         RetrievalKind.research => 'Fonte',
+        RetrievalKind.metadata => 'Proprietà',
+        RetrievalKind.relation => 'Relazione',
       };
 
   Future<void> _quickSwitcher(List<Note> notes) async {
@@ -1780,6 +1783,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final projects = await ref.read(projectStoreProvider).exportBackup();
       final study = await ref.read(studyStoreProvider).exportBackup();
       final documents = await ref.read(documentStoreProvider).exportBackup();
+      final importProvenance =
+          await ref.read(importProvenanceStoreProvider).exportBackup();
       final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
       final store = await AttachmentStore.open();
 
@@ -1793,6 +1798,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         projects: projects,
         study: study,
         documents: documents,
+        importProvenance: importProvenance,
         sharedSpaces: shared,
         store: store,
       );
@@ -1915,6 +1921,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             recovery.documents,
             noteIds: noteIds,
             assetKeys: recovery.assets.keys.toSet(),
+          );
+      await ref.read(importProvenanceStoreProvider).restoreBackupExact(
+            recovery.importProvenance,
+            noteIds: noteIds,
           );
 
       await ref.read(workspaceProvider.notifier).refresh();
