@@ -659,8 +659,12 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                   ),
                   IconButton.filledTonal(
                     onPressed: () => setState(() {
+                      _tool = _WhiteboardTool.navigate;
                       _connectMode = !_connectMode;
                       _connectFrom = null;
+                      _workingPoints.clear();
+                      _shapeStart = null;
+                      _shapeEnd = null;
                     }),
                     isSelected: _connectMode,
                     tooltip: 'Collega due elementi',
