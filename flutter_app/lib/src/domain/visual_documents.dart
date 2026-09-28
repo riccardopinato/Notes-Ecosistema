@@ -48,8 +48,7 @@ abstract final class VisualInkDefaults {
   static const highlighterWidths = <int>[12, 18, 24, 32, 40];
   static const shapeWidths = <int>[2, 4, 5, 8, 12];
 
-  static int translucentMarker(int color) =>
-      (color & 0x00FFFFFF) | 0x66000000;
+  static int translucentMarker(int color) => (color & 0x00FFFFFF) | 0x66000000;
 }
 
 class InkPoint {
