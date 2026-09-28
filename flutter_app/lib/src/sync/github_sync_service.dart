@@ -277,6 +277,24 @@ class GitHubApi {
     return sha;
   }
 
+  Future<void> deleteNote(String id, String expectedSha) async {
+    if (!RegExp(r'^[a-f0-9]{40}$').hasMatch(expectedSha)) {
+      throw const FormatException('SHA eliminazione non valido.');
+    }
+    final path = _path(
+      '${config.folder}/${SyncCodec.filename(id)}',
+    );
+    await _request(
+      'DELETE',
+      '$_root/contents/$path',
+      body: {
+        'message': 'Notes: elimina definitivamente nota',
+        'branch': config.branch,
+        'sha': expectedSha,
+      },
+    );
+  }
+
   Future<Map<String, RemoteAsset>> _assetIndex(String ref) async {
     if (_assets != null) return _assets!;
     final path = _path('${config.folder}/assets');
@@ -455,9 +473,13 @@ class GitHubSyncStatus {
 }
 
 class GitHubSyncService {
-  GitHubSyncService(this.database);
+  GitHubSyncService(
+    this.database, {
+    this.excludedIds = const {},
+  });
 
   final LegacyNotesDatabase database;
+  final Set<String> excludedIds;
   GitHubSyncStatus status = const GitHubSyncStatus();
 
   static const _ownerKey = 'github_owner';
@@ -578,7 +600,8 @@ class GitHubSyncService {
         );
       }
 
-      final localIds = await database.syncDocumentIds();
+      final localIds =
+          (await database.syncDocumentIds()).difference(excludedIds);
       final records = await _loadRecords(current);
       final head = await api.head();
       final files = await api.listNotes(head);
@@ -602,6 +625,10 @@ class GitHubSyncService {
       };
 
       for (final id in ids) {
+        if (excludedIds.contains(id)) {
+          records.remove(id);
+          continue;
+        }
         final localDocument = await database.syncDocument(id);
         final remoteDocument = remote[id];
         final previous = records[id];
@@ -626,6 +653,35 @@ class GitHubSyncService {
         }
 
         if (localDocument == null && remoteDocument != null) {
+          final missingDecision = decideMissingLocal(
+            previous?.base,
+            remoteDocument,
+          );
+          if (missingDecision != MissingLocalSyncDecision.downloadRemote) {
+            final sha = remoteSha[id];
+            if (sha == null) {
+              throw const FormatException(
+                'SHA remoto mancante durante eliminazione.',
+              );
+            }
+            if (missingDecision ==
+                MissingLocalSyncDecision.preserveRemoteThenPurge) {
+              await _receiveAssets(
+                remoteDocument,
+                api,
+                attachmentStore,
+                head,
+              );
+              await database.saveSyncCopy(
+                remoteDocument,
+                suffix: ' (conflitto remoto dopo eliminazione)',
+              );
+            }
+            await api.deleteNote(id, sha);
+            records.remove(id);
+            continue;
+          }
+
           await _receiveAssets(
             remoteDocument,
             api,

@@ -6,7 +6,9 @@ import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../data/document_store.dart';
 import '../domain/attachments.dart';
+import '../domain/document_workspace.dart';
 import '../domain/smart_capture.dart';
 import 'ui_resilience.dart';
 
@@ -14,11 +16,15 @@ class SmartCaptureSheet extends StatefulWidget {
   const SmartCaptureSheet({
     required this.body,
     required this.onBodyChanged,
+    this.noteId,
+    this.documentStore,
     super.key,
   });
 
   final String body;
   final ValueChanged<String> onBodyChanged;
+  final String? noteId;
+  final DocumentStore? documentStore;
 
   @override
   State<SmartCaptureSheet> createState() => _SmartCaptureSheetState();
@@ -108,15 +114,20 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
   Future<void> _consumeScanResult(DocumentScanningResult result) async {
     final store = await AttachmentStore.open();
     final ocr = <String>[];
+    final ocrPages = <int, String>{};
+    final imagePaths = result.images ?? const <String>[];
 
-    for (final imagePath in result.images ?? const <String>[]) {
-      final imageFile = _fileFromScannerPath(imagePath);
+    for (var index = 0; index < imagePaths.length; index++) {
+      final imageFile = _fileFromScannerPath(imagePaths[index]);
       if (!await imageFile.exists()) continue;
       final recognized = await _recognizer.processImage(
         InputImage.fromFilePath(imageFile.path),
       );
       final clipped = SmartCaptureRules.clipOcr(recognized.text);
-      if (clipped.isNotEmpty) ocr.add(clipped);
+      if (clipped.isNotEmpty) {
+        ocr.add(clipped);
+        ocrPages[index + 1] = clipped;
+      }
     }
 
     var imported = 0;
@@ -126,6 +137,23 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
       if (await file.exists()) {
         final bytes = await file.readAsBytes();
         final key = await store.ingest(bytes, AttachmentType.pdf);
+        final noteId = widget.noteId;
+        final documentStore = widget.documentStore;
+        if (noteId != null && documentStore != null && ocrPages.isNotEmpty) {
+          final fingerprint = DocumentWorkspaceRules.fingerprintBytes(bytes);
+          for (final entry in ocrPages.entries) {
+            await documentStore.upsertOcr(
+              DocumentOcrLayer(
+                noteId: noteId,
+                assetKey: key,
+                page: entry.key,
+                originalText: entry.value,
+                sourceFingerprint: fingerprint,
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
+          }
+        }
         final before = Attachments.refs(_body).map((e) => e.key).toSet();
         if (!before.contains(key)) {
           _setBody(
@@ -139,12 +167,27 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
         }
       }
     } else {
-      for (final imagePath in result.images ?? const <String>[]) {
-        final file = _fileFromScannerPath(imagePath);
+      for (var index = 0; index < imagePaths.length; index++) {
+        final file = _fileFromScannerPath(imagePaths[index]);
         if (!await file.exists()) continue;
         final bytes = await file.readAsBytes();
         final type = Attachments.typeFromName(file.path) ?? AttachmentType.jpeg;
         final key = await store.ingest(bytes, type);
+        final pageText = ocrPages[index + 1];
+        final noteId = widget.noteId;
+        final documentStore = widget.documentStore;
+        if (pageText != null && noteId != null && documentStore != null) {
+          await documentStore.upsertOcr(
+            DocumentOcrLayer(
+              noteId: noteId,
+              assetKey: key,
+              page: 1,
+              originalText: pageText,
+              sourceFingerprint: DocumentWorkspaceRules.fingerprintBytes(bytes),
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
+        }
         final before = Attachments.refs(_body).map((e) => e.key).toSet();
         if (!before.contains(key)) {
           _setBody(
@@ -233,6 +276,20 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
           InputImage.fromFilePath(file.path),
         );
         final text = SmartCaptureRules.clipOcr(recognized.text);
+        final noteId = widget.noteId;
+        final documentStore = widget.documentStore;
+        if (text.isNotEmpty && noteId != null && documentStore != null) {
+          await documentStore.upsertOcr(
+            DocumentOcrLayer(
+              noteId: noteId,
+              assetKey: key,
+              page: 1,
+              originalText: text,
+              sourceFingerprint: DocumentWorkspaceRules.fingerprintBytes(bytes),
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
+        }
         if (text.isNotEmpty &&
             !SmartCaptureRules.containsSection(
               _body,
@@ -276,7 +333,25 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
             InputImage.fromFilePath(file.path),
           );
           final clipped = SmartCaptureRules.clipOcr(recognized.text);
-          if (clipped.isNotEmpty) texts.add(clipped);
+          if (clipped.isNotEmpty) {
+            texts.add(clipped);
+            final noteId = widget.noteId;
+            final documentStore = widget.documentStore;
+            if (noteId != null && documentStore != null) {
+              final bytes = await file.readAsBytes();
+              await documentStore.upsertOcr(
+                DocumentOcrLayer(
+                  noteId: noteId,
+                  assetKey: ref.key,
+                  page: 1,
+                  originalText: clipped,
+                  sourceFingerprint:
+                      DocumentWorkspaceRules.fingerprintBytes(bytes),
+                  updatedAt: DateTime.now().millisecondsSinceEpoch,
+                ),
+              );
+            }
+          }
         }
 
         final combined = texts.join('\n\n---\n\n').trim();

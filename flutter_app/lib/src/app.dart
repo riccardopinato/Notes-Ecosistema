@@ -10,13 +10,16 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'data/disaster_recovery_service.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
+import 'domain/disaster_recovery.dart';
 import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
+import 'domain/open_export.dart';
 import 'domain/planner.dart';
 import 'domain/project_workspace.dart';
 import 'domain/research.dart';
@@ -41,8 +44,10 @@ import 'screens/planner_screen.dart';
 import 'screens/project_workspace_screen.dart';
 import 'screens/shared_spaces_screen.dart';
 import 'screens/sketch_screen.dart';
+import 'screens/study_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
+import 'state/extended_workspace_providers.dart';
 import 'state/project_workspace_controller.dart';
 import 'state/shared_live_sync_controller.dart';
 import 'state/shared_spaces_controller.dart';
@@ -221,9 +226,25 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Set<String> _restrictedSharedContentIds() {
+    final shared = ref.read(sharedSpacesProvider);
+    final identity = shared.identity;
+    final restricted = <String>{};
+    for (final space in shared.spaces) {
+      final role = identity == null ? null : space.roleFor(identity.id);
+      if (role == null || !role.canEdit) {
+        restricted.addAll(space.contentIds);
+      }
+    }
+    return restricted;
+  }
+
   Future<void> _handleQuickSync() async {
     if (!mounted) return;
-    final service = GitHubSyncService(ref.read(databaseProvider));
+    final service = GitHubSyncService(
+      ref.read(databaseProvider),
+      excludedIds: _restrictedSharedContentIds(),
+    );
     try {
       final connected = await service.loadStatus();
       if (!connected) {
@@ -833,22 +854,19 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     final section = labels[_index];
 
     final editableSharedIds = <String>{};
-    final viewerSharedIds = <String>{};
+    final restrictedSharedIds = <String>{};
     final identity = shared.identity;
-    if (identity != null) {
-      for (final space in shared.spaces) {
-        final role = space.roleFor(identity.id);
-        if (role == null) continue;
-        if (role.canEdit) {
-          editableSharedIds.addAll(space.contentIds);
-        } else {
-          viewerSharedIds.addAll(space.contentIds);
-        }
+    for (final space in shared.spaces) {
+      final role = identity == null ? null : space.roleFor(identity.id);
+      if (role?.canEdit == true) {
+        editableSharedIds.addAll(space.contentIds);
+      } else {
+        restrictedSharedIds.addAll(space.contentIds);
       }
     }
-    final viewerOnlyIds = viewerSharedIds.difference(editableSharedIds);
+    restrictedSharedIds.removeAll(editableSharedIds);
     final personalNotes = workspace.notes
-        .where((note) => !viewerOnlyIds.contains(note.id))
+        .where((note) => !restrictedSharedIds.contains(note.id))
         .toList(growable: false);
 
     if (!workspace.loading) {
@@ -1007,6 +1025,171 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     );
   }
 
+  DisasterRecoveryService _recoveryService() => DisasterRecoveryService(
+        database: ref.read(databaseProvider),
+        propertyStore: ref.read(propertyStoreProvider),
+        knowledgeStore: ref.read(knowledgeStoreProvider),
+        derivativeStore: ref.read(derivativeStoreProvider),
+        projectStore: ref.read(projectStoreProvider),
+        studyStore: ref.read(studyStoreProvider),
+        documentStore: ref.read(documentStoreProvider),
+        exportSharedState: () =>
+            ref.read(sharedSpacesProvider.notifier).exportRecoveryState(),
+        restoreSharedState: (payload) =>
+            ref.read(sharedSpacesProvider.notifier).restoreRecoveryState(
+                  payload,
+                ),
+      );
+
+  Future<void> _openStudy() async {
+    final notes = ref.read(workspaceProvider).notes;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StudyScreen(
+          notes: notes,
+          store: ref.read(studyStoreProvider),
+          onOpenNote: (id) {
+            final matches = ref
+                .read(workspaceProvider)
+                .notes
+                .where((note) => note.id == id && !note.isDeleted);
+            if (matches.isNotEmpty) {
+              unawaited(_openEditor(matches.first));
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportDisasterRecovery() async {
+    try {
+      final bytes = await _recoveryService().exportArchive();
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Salva backup di emergenza Notes',
+        fileName: 'notes-recovery-$stamp.zip',
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Backup di emergenza creato con identità e stato preservati.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userErrorText(error))),
+      );
+    }
+  }
+
+  Future<void> _restoreDisasterRecovery() async {
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (picked == null || picked.files.isEmpty) return;
+      final raw = picked.files.single.bytes;
+      if (raw == null) {
+        throw const FormatException('Impossibile leggere il backup.');
+      }
+      final bytes = Uint8List.fromList(raw);
+      final preview = DisasterRecoveryArchive.decode(bytes);
+      if (!mounted) return;
+      final exported = DateTime.fromMillisecondsSinceEpoch(preview.exportedAt);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Ripristinare Notes?'),
+          content: Text(
+            'Questo è un ripristino disaster-recovery: sostituirà lo stato '
+            'locale corrente con il backup del '
+            '${exported.day.toString().padLeft(2, '0')}/'
+            '${exported.month.toString().padLeft(2, '0')}/${exported.year}. '
+            'Non è un import come copia.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Ripristina stato'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      await _recoveryService().restore(bytes);
+      await ref.read(workspaceProvider.notifier).refresh();
+      await ref.read(projectWorkspaceProvider.notifier).refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Ripristino completato. Identità originali preservate.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userErrorText(error))),
+      );
+    }
+  }
+
+  Future<void> _exportOpenWorkspace() async {
+    try {
+      final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
+      final attachmentStore = await AttachmentStore.open();
+      final assets = <String, Uint8List>{};
+      for (final key in MediaBundle.referencedKeys(snapshot)) {
+        assets[key] = await attachmentStore.read(key);
+      }
+      final bytes = OpenWorkspaceExport.encode(
+        notes: snapshot.notes,
+        assets: assets,
+        properties: await ref.read(propertyStoreProvider).exportBackup(),
+        knowledge: await ref.read(knowledgeStoreProvider).exportBackup(),
+        projects: await ref.read(projectStoreProvider).exportBackup(),
+        study: await ref.read(studyStoreProvider).exportBackup(),
+        documents: await ref.read(documentStoreProvider).exportBackup(),
+      );
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Esporta archivio aperto Notes',
+        fileName: 'notes-open-workspace-$stamp.zip',
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Open Export creato: Markdown/JSON, media e metadati strutturati.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userErrorText(error))),
+      );
+    }
+  }
+
   Future<void> _knowledgeSearch(List<Note> notes) async {
     await showIntelligenceSheet(
       context: context,
@@ -1059,6 +1242,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             break;
           case 'projects':
             await _openProjects();
+            break;
+          case 'study':
+            await _openStudy();
             break;
           case 'search':
             setState(() => _index = 5);
@@ -1385,14 +1571,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final stamp =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       await FilePicker.platform.saveFile(
-        dialogTitle: 'Esporta backup completo Notes',
+        dialogTitle: 'Esporta pacchetto Notes',
         fileName: 'notes-ecosistema-$stamp.zip',
         bytes: bytes,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Backup completo esportato con allegati.'),
+          content: Text('Pacchetto Notes esportato con allegati.'),
         ),
       );
     } catch (error) {
@@ -1465,7 +1651,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Importare il backup?'),
+          title: const Text('Importare il pacchetto Notes?'),
           content: Text(
             'Verranno create copie separate: '
             '${snapshot.notes.length} elementi, '
@@ -1552,8 +1738,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         SnackBar(
           content: Text(
             bundle == null
-                ? 'Backup JSON importato come copie.'
-                : 'Backup completo importato con allegati e metadati sidecar.',
+                ? 'JSON compatibile importato come copie.'
+                : 'Pacchetto Notes importato con allegati e metadati sidecar.',
           ),
         ),
       );
@@ -1606,6 +1792,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
     await ref.read(derivativeStoreProvider).deleteForNote(id);
+    await ref.read(studyStoreProvider).deleteForNote(id);
+    await ref.read(documentStoreProvider).deleteForNote(id);
     await ref.read(projectStoreProvider).deleteLinksForNote(id);
     await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
@@ -1672,9 +1860,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               ),
               ListTile(
                 leading: const Icon(Icons.file_upload_outlined),
-                title: const Text('Esporta backup completo'),
+                title: const Text('Esporta pacchetto Notes'),
                 subtitle: const Text(
-                  'ZIP con note, attività, disegni, lavagne e allegati.',
+                  'Pacchetto di migrazione/import sicuro con allegati e metadati.',
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -1683,12 +1871,56 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               ),
               ListTile(
                 leading: const Icon(Icons.file_download_outlined),
-                title: const Text('Importa backup'),
+                title: const Text('Importa pacchetto Notes'),
                 subtitle: const Text(
                     'Importa come copie senza sovrascrivere i dati attuali.'),
                 onTap: () {
                   Navigator.pop(context);
                   _importBackup();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.health_and_safety_outlined),
+                title: const Text('Backup di emergenza'),
+                subtitle: const Text(
+                  'Preserva ID e stato per un vero ripristino dell’installazione.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportDisasterRecovery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.restore_page_outlined),
+                title: const Text('Ripristina backup di emergenza'),
+                subtitle: const Text(
+                  'Sostituisce lo stato locale: non crea copie.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _restoreDisasterRecovery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.unarchive_outlined),
+                title: const Text('Open Export strutturato'),
+                subtitle: const Text(
+                  'Markdown/JSON, media, proprietà, relazioni e progetti senza lock-in.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportOpenWorkspace();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.school_outlined),
+                title: const Text('Studio'),
+                subtitle: const Text(
+                  'Learning Items source-linked e ripasso programmato.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openStudy();
                 },
               ),
               ListTile(
@@ -1800,6 +2032,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                     MaterialPageRoute(
                       builder: (_) => GitHubSyncScreen(
                         database: ref.read(databaseProvider),
+                        excludedIds: _restrictedSharedContentIds(),
                         onLocalChanged: () =>
                             ref.read(workspaceProvider.notifier).refresh(),
                       ),

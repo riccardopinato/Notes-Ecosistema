@@ -28,8 +28,10 @@ import '../domain/research.dart';
 import '../domain/templates.dart';
 import '../domain/visual_documents.dart';
 import '../platform/attachment_bridge.dart';
+import '../screens/document_workspace_screen.dart';
 import '../screens/sketch_screen.dart';
 import '../screens/whiteboard_screen.dart';
+import '../state/extended_workspace_providers.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
@@ -146,7 +148,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (!_blocksInitialized) return;
     final profile = AdaptiveEditorPolicy.evaluate(body);
     if (profile.liveBlockParsing) {
-      _blocks = BlockEditorCodec.parse(_id, body);
+      _blocks = BlockEditorCodec.reconcile(_id, _blocks, body);
     } else {
       // content_blocks are a derived representation. On large documents we
       // deliberately invalidate the live cache instead of reparsing on each
@@ -522,7 +524,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           stored.isEmpty ? null : BlockEditorCodec.toMarkdown(stored);
       final source = stored.isNotEmpty && storedMarkdown == _body.text
           ? stored
-          : BlockEditorCodec.parse(_id, _body.text);
+          : BlockEditorCodec.reconcile(_id, stored, _body.text);
       if (!mounted) return;
       setState(() {
         _blocks = source.isEmpty
@@ -685,6 +687,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       expand: true,
       builder: (_) => SmartCaptureSheet(
         body: _body.text,
+        noteId: _id,
+        documentStore: ref.read(documentStoreProvider),
         onBodyChanged: (body) {
           if (!mounted || body == _body.text) return;
           setState(() {
@@ -981,6 +985,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             : 'Apri',
                       ),
                     ),
+                    if (ref.type == AttachmentType.pdf)
+                      FilledButton.tonalIcon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.of(this.context).push(
+                            MaterialPageRoute(
+                              builder: (_) => DocumentWorkspaceScreen(
+                                noteId: _id,
+                                attachment: ref,
+                                store: ref.read(documentStoreProvider),
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.find_in_page_outlined),
+                        label: const Text('Workspace documento'),
+                      ),
                     FilledButton.tonalIcon(
                       onPressed: () async {
                         try {

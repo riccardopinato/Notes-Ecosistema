@@ -387,6 +387,65 @@ abstract final class BlockEditorCodec {
     return canonicalize(noteId, result, now: timestamp);
   }
 
+  static List<ContentBlock> reconcile(
+    String noteId,
+    List<ContentBlock> existing,
+    String markdown, {
+    int? now,
+  }) {
+    final timestamp = now ?? DateTime.now().millisecondsSinceEpoch;
+    final parsed = parse(noteId, markdown, now: timestamp);
+    if (existing.isEmpty || parsed.isEmpty) return parsed;
+
+    final used = <String>{};
+    final result = <ContentBlock>[];
+
+    bool exact(ContentBlock a, ContentBlock b) =>
+        a.type == b.type &&
+        a.text == b.text &&
+        a.checked == b.checked &&
+        a.metadataJson == b.metadataJson;
+
+    ContentBlock? takeWhere(bool Function(ContentBlock block) predicate) {
+      for (final candidate in existing) {
+        if (used.contains(candidate.id) || !predicate(candidate)) continue;
+        used.add(candidate.id);
+        return candidate;
+      }
+      return null;
+    }
+
+    for (var index = 0; index < parsed.length; index++) {
+      final provisional = parsed[index];
+      var source = takeWhere((candidate) => exact(candidate, provisional));
+
+      if (source == null &&
+          index < existing.length &&
+          !used.contains(existing[index].id) &&
+          existing[index].type == provisional.type) {
+        source = existing[index];
+        used.add(source.id);
+      }
+
+      source ??= takeWhere((candidate) => candidate.type == provisional.type);
+
+      if (source == null) {
+        result.add(provisional);
+        continue;
+      }
+
+      result.add(
+        provisional.copyWith(
+          id: source.id,
+          createdAt: source.createdAt,
+          updatedAt: exact(source, provisional) ? source.updatedAt : timestamp,
+        ),
+      );
+    }
+
+    return canonicalize(noteId, result, now: timestamp);
+  }
+
   static String toMarkdown(List<ContentBlock> blocks) {
     final sorted = [...blocks]
       ..sort((a, b) => a.position.compareTo(b.position));
