@@ -38,7 +38,7 @@ Il grafo viene ricostruito dai dati correnti. Eliminare il grafo non elimina nes
 - layout deterministico e bounded;
 - doppio tap per aprire l'oggetto sorgente;
 - permessi Shared Spaces rispettati in apertura;
-- accesso da Home e Quick Switcher.
+- accesso da Home, Quick Switcher e shortcut desktop `Ctrl+Shift+G`.
 
 ## Vincoli
 
