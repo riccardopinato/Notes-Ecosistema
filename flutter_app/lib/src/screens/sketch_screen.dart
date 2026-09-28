@@ -571,6 +571,73 @@ class _SketchScreenState extends State<SketchScreen> {
                     _SketchTool.arrow,
                   ),
                   _toolButton(Icons.text_fields, 'Testo', _SketchTool.text),
+                  if (_tool != _SketchTool.eraser &&
+                      _tool != _SketchTool.text)
+                    PopupMenuButton<int>(
+                      tooltip: 'Colore',
+                      onSelected: _setCurrentColor,
+                      itemBuilder: (_) => VisualInkDefaults.palette
+                          .map(
+                            (value) => PopupMenuItem(
+                              value: value,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: Color(value),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text('Colore'),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Center(
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Color(
+                                _tool == _SketchTool.highlighter
+                                    ? _highlighterColor
+                                    : _inkColor,
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outlineVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_tool != _SketchTool.eraser &&
+                      _tool != _SketchTool.text)
+                    PopupMenuButton<int>(
+                      tooltip: 'Spessore',
+                      onSelected: _setCurrentWidth,
+                      itemBuilder: (_) => _widthOptions
+                          .map(
+                            (value) => PopupMenuItem(
+                              value: value,
+                              child: Text('$value px'),
+                            ),
+                          )
+                          .toList(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Center(child: Text('$_workingWidth px')),
+                      ),
+                    ),
                   const VerticalDivider(),
                   PopupMenuButton<SketchPaper>(
                     tooltip: 'Tipo carta',
