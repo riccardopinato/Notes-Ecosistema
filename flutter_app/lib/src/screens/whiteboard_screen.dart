@@ -1891,6 +1891,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                       padding: const EdgeInsets.only(right: 8),
                       child: Text(
                         '${_selectedNodeIds.length + _selectedTextIds.length} selezionati',
+                        key: const ValueKey('whiteboard-selection-count'),
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                     ),
