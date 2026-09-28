@@ -128,6 +128,29 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     await _persist();
   }
 
+  SharedSpacesSnapshot snapshot() {
+    final identity = state.identity;
+    if (identity == null) {
+      throw const FormatException(
+        'Profilo collaborazione non ancora disponibile.',
+      );
+    }
+    return SharedSpacesSnapshot(
+      identity: identity,
+      spaces: List.unmodifiable(state.spaces),
+    );
+  }
+
+  Future<void> restoreExact(SharedSpacesSnapshot snapshot) async {
+    SharedSpacesCodec.encode(snapshot);
+    state = SharedSpacesState(
+      identity: snapshot.identity,
+      spaces: List.unmodifiable(snapshot.spaces),
+      loading: false,
+    );
+    await _persist();
+  }
+
   Future<void> setIdentityName(String name) async {
     final current = _identity;
     final next = current.copyWith(displayName: name.trim());
