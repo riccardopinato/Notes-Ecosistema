@@ -456,9 +456,13 @@ class GitHubSyncStatus {
 }
 
 class GitHubSyncService {
-  GitHubSyncService(this.database);
+  GitHubSyncService(
+    this.database, {
+    this.excludedIds = const {},
+  });
 
   final LegacyNotesDatabase database;
+  final Set<String> excludedIds;
   GitHubSyncStatus status = const GitHubSyncStatus();
 
   static const _ownerKey = 'github_owner';
@@ -579,7 +583,8 @@ class GitHubSyncService {
         );
       }
 
-      final localIds = await database.syncDocumentIds();
+      final localIds = (await database.syncDocumentIds())
+          .difference(excludedIds);
       final records = await _loadRecords(current);
       final head = await api.head();
       final files = await api.listNotes(head);
@@ -603,6 +608,10 @@ class GitHubSyncService {
       };
 
       for (final id in ids) {
+        if (excludedIds.contains(id)) {
+          records.remove(id);
+          continue;
+        }
         final localDocument = await database.syncDocument(id);
         final remoteDocument = remote[id];
         final previous = records[id];
