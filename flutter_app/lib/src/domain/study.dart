@@ -69,7 +69,8 @@ class ReviewLog {
 
   factory ReviewLog.fromMap(Map<String, Object?> row) {
     final ratingName = row['rating']?.toString() ?? '';
-    final rating = StudyRating.values.where((value) => value.name == ratingName);
+    final rating =
+        StudyRating.values.where((value) => value.name == ratingName);
     if (rating.isEmpty) {
       throw const FormatException('Valutazione ripasso non valida.');
     }
@@ -149,7 +150,8 @@ class SimpleStudyScheduler extends StudyScheduler {
       StudyRating.hard => previous <= 1 ? 2 : (previous * 1.5).round(),
       StudyRating.good => previous <= 1 ? 3 : (previous * 2.2).round(),
       StudyRating.easy => previous <= 1 ? 5 : (previous * 3.0).round(),
-    }.clamp(1, 3650);
+    }
+        .clamp(1, 3650);
   }
 }
 
