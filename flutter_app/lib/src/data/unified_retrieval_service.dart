@@ -138,7 +138,8 @@ class UnifiedRetrievalService {
     for (final raw in _rows(knowledgeBackup['relations'])) {
       final sourceId = raw['sourceId']?.toString() ?? '';
       final targetId = raw['targetId']?.toString() ?? '';
-      if (sourceId.isEmpty || targetId.isEmpty || sourceId == targetId) continue;
+      if (sourceId.isEmpty || targetId.isEmpty || sourceId == targetId)
+        continue;
       final label = raw['label']?.toString().trim() ?? '';
       final updatedAt = (raw['updatedAt'] as num?)?.toInt() ?? 0;
       documents.add(
