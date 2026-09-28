@@ -361,4 +361,9 @@ class UnavailableSemanticProvider implements SemanticEmbeddingProvider {
   Future<SemanticVector> embed(String text) {
     throw StateError('Modello semantico locale non installato.');
   }
+
+  @override
+  Future<List<SemanticVector>> embedBatch(List<String> texts) {
+    throw StateError('Modello semantico locale non installato.');
+  }
 }
