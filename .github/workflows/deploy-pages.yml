@@ -80,8 +80,26 @@ jobs:
           )
           bootstrap.write_text(text, encoding="utf-8")
           worker = Path("build/web/flutter_service_worker.js")
-          if worker.exists():
-              worker.unlink()
+          worker.write_text(
+              "\n".join([
+                  "self.addEventListener('install', (event) => {",
+                  "  self.skipWaiting();",
+                  "});",
+                  "self.addEventListener('activate', (event) => {",
+                  "  event.waitUntil((async () => {",
+                  "    const names = await caches.keys();",
+                  "    await Promise.all(names.map((name) => caches.delete(name)));",
+                  "    await self.clients.claim();",
+                  "    await self.registration.unregister();",
+                  "  })());",
+                  "});",
+                  "self.addEventListener('fetch', (event) => {",
+                  "  event.respondWith(fetch(event.request));",
+                  "});",
+                  "",
+              ]),
+              encoding="utf-8",
+          )
           PY
 
       - name: Upload Pages artifact
