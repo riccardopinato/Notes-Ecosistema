@@ -965,23 +965,20 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     controller.dispose();
     if (value == null || !mounted) return;
 
-    setState(() {
-      if (parent != null && _document.mode == WhiteboardMode.mindMap) {
-        _document = WhiteboardOps.addMindChild(
-          _document,
-          parent.id,
-          text: value.isEmpty ? 'Nuova idea' : value,
-        );
-      } else {
-        _document = WhiteboardOps.addNode(
-          _document,
-          kind: kind,
-          text: value,
-          x: 0,
-          y: 0,
-        );
-      }
-    });
+    final next = parent != null && _document.mode == WhiteboardMode.mindMap
+        ? WhiteboardOps.addMindChild(
+            _document,
+            parent.id,
+            text: value.isEmpty ? 'Nuova idea' : value,
+          )
+        : WhiteboardOps.addNode(
+            _document,
+            kind: kind,
+            text: value,
+            x: 0,
+            y: 0,
+          );
+    _setDocument(next);
   }
 
   Future<void> _editNode(BoardNode node) async {
@@ -1018,14 +1015,14 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     );
     controller.dispose();
     if (value == null || !mounted) return;
-    setState(() {
-      _document = value == '__DELETE__'
+    _setDocument(
+      value == '__DELETE__'
           ? WhiteboardOps.deleteNode(_document, node.id)
           : WhiteboardOps.updateNode(
               _document,
               node.copyWith(text: value),
-            );
-    });
+            ),
+    );
   }
 
   void _nodeTap(BoardNode node) {
@@ -1041,42 +1038,42 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       setState(() => _connectFrom = null);
       return;
     }
+    final next = WhiteboardOps.connect(
+      _document,
+      _connectFrom!,
+      node.id,
+    );
+    _setDocument(next);
     setState(() {
-      _document = WhiteboardOps.connect(
-        _document,
-        _connectFrom!,
-        node.id,
-      );
       _connectFrom = null;
       _connectMode = false;
     });
   }
 
   void _moveNode(BoardNode node, DragUpdateDetails details) {
-    final scale = _viewport.value.getMaxScaleOnAxis().clamp(0.2, 3.2);
-    setState(() {
-      _document = WhiteboardOps.updateNode(
-        _document,
-        node.copyWith(
-          x: node.x + (details.delta.dx / scale).round(),
-          y: node.y + (details.delta.dy / scale).round(),
-        ),
-      );
-    });
+    final updated = node.copyWith(
+      x: node.x + details.delta.dx.round(),
+      y: node.y + details.delta.dy.round(),
+    );
+    if (_setDocument(
+      WhiteboardOps.updateNode(_document, updated),
+      recordHistory: false,
+      ensureCanvas: false,
+    )) {
+      _markGestureChanged();
+    }
   }
 
   void _setMode(WhiteboardMode mode) {
+    if (mode == _document.mode) return;
+    final next = mode == WhiteboardMode.mindMap && _document.nodes.isEmpty
+        ? _document.copyWith(
+            mode: mode,
+            nodes: WhiteboardOps.empty(mode).nodes,
+          )
+        : _document.copyWith(mode: mode);
+    _setDocument(next);
     setState(() {
-      if (mode == _document.mode) return;
-      if (mode == WhiteboardMode.mindMap && _document.nodes.isEmpty) {
-        final root = WhiteboardOps.empty(mode);
-        _document = _document.copyWith(
-          mode: mode,
-          nodes: root.nodes,
-        );
-      } else {
-        _document = _document.copyWith(mode: mode);
-      }
       _connectMode = false;
       _connectFrom = null;
     });
