@@ -1080,6 +1080,141 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     });
   }
 
+  bool get _isShapeTool =>
+      _tool == _WhiteboardTool.line ||
+      _tool == _WhiteboardTool.rectangle ||
+      _tool == _WhiteboardTool.ellipse ||
+      _tool == _WhiteboardTool.arrow;
+
+  bool get _isInkTool =>
+      _tool == _WhiteboardTool.pen ||
+      _tool == _WhiteboardTool.highlighter ||
+      _isShapeTool;
+
+  int get _currentBaseColor =>
+      _tool == _WhiteboardTool.highlighter ? _highlighterColor : _inkColor;
+
+  List<int> get _widthOptions {
+    if (_tool == _WhiteboardTool.highlighter) {
+      return const [12, 18, 24, 32, 40];
+    }
+    if (_isShapeTool) return const [2, 4, 5, 8, 12];
+    return const [2, 4, 6, 10, 14];
+  }
+
+  int get _currentWidth {
+    if (_tool == _WhiteboardTool.highlighter) return _highlighterWidth;
+    if (_isShapeTool) return _shapeWidth;
+    return _penWidth;
+  }
+
+  void _setCurrentColor(int value) {
+    setState(() {
+      if (_tool == _WhiteboardTool.highlighter) {
+        _highlighterColor = value;
+      } else {
+        _inkColor = value;
+      }
+    });
+  }
+
+  void _setCurrentWidth(int value) {
+    setState(() {
+      if (_tool == _WhiteboardTool.highlighter) {
+        _highlighterWidth = value;
+      } else if (_isShapeTool) {
+        _shapeWidth = value;
+      } else {
+        _penWidth = value;
+      }
+    });
+  }
+
+  Widget _colorControl() => PopupMenuButton<int>(
+        tooltip: 'Colore',
+        onSelected: _setCurrentColor,
+        itemBuilder: (_) => _inkPalette
+            .map(
+              (value) => PopupMenuItem(
+                value: value,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: Color(value),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black12),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      value == _currentBaseColor ? 'Selezionato' : 'Colore',
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Center(
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Color(_currentBaseColor),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  Widget _widthControl() => PopupMenuButton<int>(
+        tooltip: 'Spessore',
+        onSelected: _setCurrentWidth,
+        itemBuilder: (_) => _widthOptions
+            .map(
+              (value) => PopupMenuItem(
+                value: value,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 42,
+                      child: Center(
+                        child: Container(
+                          width: 34,
+                          height: value.toDouble().clamp(2, 16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('$value px'),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Center(
+            child: Text(
+              '$_currentWidth px',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
