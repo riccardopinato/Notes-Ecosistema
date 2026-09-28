@@ -49,6 +49,7 @@ void main() {
     expect(names, contains('projects.json'));
     expect(names, contains('study.json'));
     expect(names, contains('documents.json'));
+    expect(names, contains('automations.json'));
     expect(names.any((name) => name.startsWith('notes/')), isTrue);
     expect(names, isNot(contains('revisions.json')));
 

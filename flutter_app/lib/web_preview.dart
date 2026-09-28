@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'src/domain/app_locale.dart';
 import 'src/domain/diary.dart';
 import 'src/domain/editing.dart';
 import 'src/domain/library.dart';
@@ -18,6 +21,7 @@ import 'src/domain/study.dart';
 import 'src/domain/stable_links.dart';
 import 'src/domain/unified_retrieval.dart';
 import 'src/domain/visual_documents.dart';
+import 'src/domain/workflow_automation.dart';
 import 'src/screens/diary_screen.dart';
 import 'src/screens/home_screen.dart';
 import 'src/screens/knowledge_graph_screen.dart';
@@ -31,7 +35,7 @@ import 'src/widgets/editorial.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('it_IT');
+  await initializeDateFormatting();
   runApp(const NotesWebPreview());
 }
 
@@ -44,18 +48,50 @@ class NotesWebPreview extends StatefulWidget {
 
 class _NotesWebPreviewState extends State<NotesWebPreview> {
   bool _dark = false;
+  String? _localeCode;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      if (!mounted) return;
+      setState(() {
+        _dark = prefs.getBool('web_dark_mode') ?? false;
+        _localeCode = AppLocale.normalizePreference(
+            prefs.getString(AppLocale.preferenceKey));
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notes Ecosistema 0.53 · Web',
+      title: 'Notes Ecosistema 0.54 · Web',
       theme: NotesTheme.light(),
       darkTheme: NotesTheme.dark(),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
+      locale: AppLocale.localeForPreference(_localeCode),
+      supportedLocales: AppLocale.supportedLocales,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: _WebWorkspaceShell(
         dark: _dark,
-        onDarkChanged: (value) => setState(() => _dark = value),
+        localeCode: _localeCode,
+        onDarkChanged: (value) async {
+          setState(() => _dark = value);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('web_dark_mode', value);
+        },
+        onLocaleChanged: (value) async {
+          final normalized = AppLocale.normalizePreference(value);
+          setState(() => _localeCode = normalized);
+          final prefs = await SharedPreferences.getInstance();
+          if (normalized == null) {
+            await prefs.remove(AppLocale.preferenceKey);
+          } else {
+            await prefs.setString(AppLocale.preferenceKey, normalized);
+          }
+        },
       ),
     );
   }
@@ -64,11 +100,15 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
 class _WebWorkspaceShell extends StatefulWidget {
   const _WebWorkspaceShell({
     required this.dark,
+    required this.localeCode,
     required this.onDarkChanged,
+    required this.onLocaleChanged,
   });
 
   final bool dark;
+  final String? localeCode;
   final ValueChanged<bool> onDarkChanged;
+  final ValueChanged<String?> onLocaleChanged;
 
   @override
   State<_WebWorkspaceShell> createState() => _WebWorkspaceShellState();
@@ -87,6 +127,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   ];
 
   late List<Note> _notes = _seedNotes();
+  List<WorkflowRule> _automationRules = _seedAutomationRules();
+  final List<WorkflowRun> _automationRuns = [];
 
   static const _labels = [
     'Home',
@@ -109,14 +151,41 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   }
 
   Future<void> _save(Note note) async {
+    final before = _notes.where((item) => item.id == note.id).firstOrNull;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final evaluation = WorkflowAutomations.evaluate(
+      before: before,
+      incoming: note,
+      rules: _automationRules,
+      validCollectionIds: _collections.map((item) => item.id).toSet(),
+      now: now,
+    );
     setState(() {
-      final index = _notes.indexWhere((item) => item.id == note.id);
+      final index = _notes.indexWhere((item) => item.id == evaluation.note.id);
       if (index < 0) {
-        _notes = [note, ..._notes];
+        _notes = [evaluation.note, ..._notes];
       } else {
         final next = [..._notes];
-        next[index] = note;
+        next[index] = evaluation.note;
         _notes = next;
+      }
+      if (evaluation.trigger != null) {
+        for (final rule in evaluation.appliedRules) {
+          _automationRuns.insert(
+            0,
+            WorkflowRun(
+              id: const Uuid().v4(),
+              ruleId: rule.id,
+              noteId: evaluation.note.id,
+              trigger: evaluation.trigger!,
+              actionKind: rule.actionKind,
+              ranAt: now,
+            ),
+          );
+        }
+        if (_automationRuns.length > 40) {
+          _automationRuns.removeRange(40, _automationRuns.length);
+        }
       }
     });
   }
@@ -593,6 +662,32 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     );
   }
 
+  Future<void> _openAutomations() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _WebAutomationScreen(
+          rules: _automationRules,
+          runs: _automationRuns,
+          collections: _collections,
+          onToggle: (id, value) {
+            setState(() {
+              _automationRules = [
+                for (final rule in _automationRules)
+                  if (rule.id == id)
+                    rule.copyWith(
+                      enabled: value,
+                      updatedAt: DateTime.now().millisecondsSinceEpoch,
+                    )
+                  else
+                    rule,
+              ];
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _openKnowledgeSearch() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -632,6 +727,10 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           Navigator.pop(context);
           unawaited(_openStudy());
         },
+        onAutomations: () {
+          Navigator.pop(context);
+          unawaited(_openAutomations());
+        },
       ),
     );
   }
@@ -645,10 +744,48 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('Notes Ecosistema 0.53'),
+              title: Text('Notes Ecosistema 0.54'),
               subtitle: Text(
                 'Web Preview fedele · stato demo locale alla sessione browser.',
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.translate),
+              title: Text(AppStrings.of(context).language),
+              subtitle: Text(AppLocale.label(widget.localeCode)),
+              onTap: () async {
+                final selected = await showDialog<String>(
+                  context: context,
+                  builder: (dialogContext) => SimpleDialog(
+                    title: Text(AppStrings.of(dialogContext).language),
+                    children: [
+                      SimpleDialogOption(
+                        onPressed: () => Navigator.pop(dialogContext, 'system'),
+                        child: Text(
+                          AppStrings.of(dialogContext).systemLanguage,
+                        ),
+                      ),
+                      for (final code in const [
+                        'it',
+                        'en',
+                        'es',
+                        'fr',
+                        'de',
+                        'pt',
+                      ])
+                        SimpleDialogOption(
+                          onPressed: () => Navigator.pop(dialogContext, code),
+                          child: Text(AppLocale.label(code)),
+                        ),
+                    ],
+                  ),
+                );
+                if (selected != null) {
+                  widget.onLocaleChanged(
+                    selected == 'system' ? null : selected,
+                  );
+                }
+              },
             ),
             SwitchListTile(
               secondary: const Icon(Icons.dark_mode_outlined),
@@ -704,6 +841,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           onProjects: _openProjects,
           onStudy: _openStudy,
           onGraph: _openKnowledgeGraph,
+          onAutomations: _openAutomations,
           projectCount: 3,
           sharedUnread: 2,
         ),
@@ -785,6 +923,11 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           control: true,
           shift: true,
         ): () => unawaited(_openKnowledgeGraph()),
+        const SingleActivator(
+          LogicalKeyboardKey.keyA,
+          control: true,
+          shift: true,
+        ): () => unawaited(_openAutomations()),
       },
       child: Focus(
         autofocus: true,
@@ -795,7 +938,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               appBar: AppBar(
                 title: EditorialAppTitle(
                   section == 'Home' ? 'Il tuo spazio' : section,
-                  eyebrow: 'NOTES · WEB PREVIEW 0.53',
+                  eyebrow: 'NOTES · WEB PREVIEW 0.54',
                 ),
                 actions: [
                   IconButton(
@@ -908,6 +1051,38 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         ),
       ),
     );
+  }
+
+  static List<WorkflowRule> _seedAutomationRules() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return [
+      WorkflowRule(
+        id: 'web-auto-1',
+        name: 'Tagga nuove note di lavoro',
+        enabled: true,
+        trigger: WorkflowTrigger.itemCreated,
+        subject: WorkflowSubject.note,
+        requiredTag: null,
+        titleContains: null,
+        actionKind: WorkflowActionKind.addTag,
+        actionValue: 'inbox',
+        createdAt: now - 2000,
+        updatedAt: now - 2000,
+      ),
+      WorkflowRule(
+        id: 'web-auto-2',
+        name: 'Priorità media ai nuovi task',
+        enabled: true,
+        trigger: WorkflowTrigger.itemCreated,
+        subject: WorkflowSubject.task,
+        requiredTag: null,
+        titleContains: null,
+        actionKind: WorkflowActionKind.setPriority,
+        actionValue: '2',
+        createdAt: now - 1000,
+        updatedAt: now - 1000,
+      ),
+    ];
   }
 
   static List<Note> _seedNotes() {
@@ -1959,6 +2134,81 @@ class _WebKnowledgeSearchState extends State<_WebKnowledgeSearch> {
   }
 }
 
+class _WebAutomationScreen extends StatelessWidget {
+  const _WebAutomationScreen({
+    required this.rules,
+    required this.runs,
+    required this.collections,
+    required this.onToggle,
+  });
+
+  final List<WorkflowRule> rules;
+  final List<WorkflowRun> runs;
+  final List<NoteCollection> collections;
+  final void Function(String id, bool value) onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final byId = {for (final rule in rules) rule.id: rule};
+    return Scaffold(
+      appBar: AppBar(title: Text(strings.automations)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+        children: [
+          const EditorialEyebrow('WORKFLOW AUTOMATIONS · WEB'),
+          const SizedBox(height: 4),
+          Text(
+            strings.automationsSubtitle,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'La preview usa regole in memoria ma applica lo stesso motore '
+            'deterministico della release Android ai salvataggi demo.',
+          ),
+          const SizedBox(height: 18),
+          for (final rule in rules)
+            Card(
+              child: SwitchListTile(
+                value: rule.enabled,
+                onChanged: (value) => onToggle(rule.id, value),
+                title: Text(rule.name),
+                subtitle: Text(
+                  '${rule.trigger.name} · ${rule.subject.name} · '
+                  '${rule.actionKind.name}'
+                  '${rule.actionValue.isEmpty ? '' : ': ${rule.actionValue}'}',
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          EditorialSection(strings.recentRuns),
+          if (runs.isEmpty)
+            const Text(
+              'Crea o modifica una nota/task nella preview per generare '
+              'un’esecuzione.',
+            )
+          else
+            for (final run in runs.take(12))
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(child: Icon(Icons.bolt_outlined)),
+                title: Text(byId[run.ruleId]?.name ?? 'Regola rimossa'),
+                subtitle: Text('${run.trigger.name} · ${run.actionKind.name}'),
+              ),
+          if (collections.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Raccolte demo: '
+              '${collections.map((item) => item.name).join(', ')}',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _WebQuickSwitcher extends StatefulWidget {
   const _WebQuickSwitcher({
     required this.notes,
@@ -1966,6 +2216,7 @@ class _WebQuickSwitcher extends StatefulWidget {
     required this.onOpen,
     required this.onProjects,
     required this.onStudy,
+    required this.onAutomations,
   });
 
   final List<Note> notes;
@@ -1973,6 +2224,7 @@ class _WebQuickSwitcher extends StatefulWidget {
   final ValueChanged<Note> onOpen;
   final VoidCallback onProjects;
   final VoidCallback onStudy;
+  final VoidCallback onAutomations;
 
   @override
   State<_WebQuickSwitcher> createState() => _WebQuickSwitcherState();
@@ -2041,6 +2293,11 @@ class _WebQuickSwitcherState extends State<_WebQuickSwitcher> {
                       leading: const Icon(Icons.school_outlined),
                       title: const Text('Apri Study'),
                       onTap: widget.onStudy,
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.auto_mode_outlined),
+                      title: const Text('Apri Automazioni'),
+                      onTap: widget.onAutomations,
                     ),
                     const Divider(),
                   ],

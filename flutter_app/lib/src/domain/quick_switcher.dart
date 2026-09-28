@@ -62,6 +62,12 @@ abstract final class QuickSwitcher {
         kind: QuickSwitcherKind.command,
       ),
       const QuickSwitcherEntry(
+        id: 'automations',
+        label: 'Automazioni',
+        subtitle: 'Regole locali evento → azione',
+        kind: QuickSwitcherKind.command,
+      ),
+      const QuickSwitcherEntry(
         id: 'search',
         label: 'Cerca',
         subtitle: 'Ricerca completa',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/app_locale.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/workday.dart';
@@ -21,6 +22,7 @@ class HomeScreen extends StatefulWidget {
     required this.onProjects,
     this.onStudy,
     this.onGraph,
+    this.onAutomations,
     required this.projectCount,
     this.sharedUnread = 0,
     super.key,
@@ -38,6 +40,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onProjects;
   final VoidCallback? onStudy;
   final VoidCallback? onGraph;
+  final VoidCallback? onAutomations;
   final int projectCount;
   final int sharedUnread;
 
@@ -109,6 +112,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _StudyCard(onTap: widget.onStudy),
         const SizedBox(height: 16),
         _KnowledgeGraphCard(onTap: widget.onGraph),
+        const SizedBox(height: 16),
+        _AutomationCard(onTap: widget.onAutomations),
         const SizedBox(height: 16),
         FutureBuilder<FocusClock?>(
           future: _focus,
@@ -313,6 +318,43 @@ class _KnowledgeGraphCard extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _AutomationCard extends StatelessWidget {
+  const _AutomationCard({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    return _SurfaceCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          const CircleAvatar(child: Icon(Icons.auto_mode_outlined)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  strings.automations,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.automationsSubtitle,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+    );
+  }
 }
 
 class _NotebookCard extends StatelessWidget {

@@ -114,6 +114,16 @@ void main() {
     expect(results.single.id, 'project-1');
   });
 
+  test('quick switcher exposes Workflow Automations command', () {
+    final results = QuickSwitcher.search(
+      query: 'automazioni',
+      notes: const [],
+      collections: const [],
+    );
+    expect(results.first.id, 'automations');
+    expect(results.first.kind, QuickSwitcherKind.command);
+  });
+
   test('task subtasks remain backward compatible and typed', () {
     final task = TaskDetails.empty().copyWith(
       subtasks: const [

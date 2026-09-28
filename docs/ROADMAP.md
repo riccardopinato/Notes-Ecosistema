@@ -4,7 +4,7 @@ La roadmap operativa canonica è mantenuta nel file root `ROADMAP.md`.
 
 ## Stato corrente
 
-- Versione: **0.53.0+64**
+- Versione: **0.54.0+65**
 - Stack: Flutter + SQLite/sqflite
 - Strategia: local-first, private-by-default, REUSE-FIRST
 - Roadmap red-team **P1.2 → P2.4 completata in 0.45.0+56**
@@ -12,7 +12,8 @@ La roadmap operativa canonica è mantenuta nel file root `ROADMAP.md`.
 - **0.47 → 0.51 completati in 0.51.0+62**
 - **0.52 Collaborative Workspace completato in 0.52.0+63**
 - **0.53 Knowledge Graph completato in 0.53.0+64**
-- Prossimo asse candidato: **0.54 Workflow Automations**
+- **0.54 Workflow Automations completato in 0.54.0+65**
+- Prossimo asse candidato: **0.55 Local Intelligence**
 
 Il dettaglio dei gate FAST/FULL/CERTIFIED, dei principi permanenti e della roadmap successiva è in `../ROADMAP.md`.
 
