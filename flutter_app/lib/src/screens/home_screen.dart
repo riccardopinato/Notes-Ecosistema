@@ -110,6 +110,8 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 16),
         _KnowledgeGraphCard(onTap: widget.onGraph),
         const SizedBox(height: 16),
+        _KnowledgeGraphCard(onTap: widget.onGraph),
+        const SizedBox(height: 16),
         FutureBuilder<FocusClock?>(
           future: _focus,
           builder: (context, snapshot) => _FocusCard(
@@ -304,6 +306,42 @@ class _KnowledgeGraphCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Esplora link, relazioni, progetti, Study e documenti come una rete navigabile.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+      );
+}
+
+class _KnowledgeGraphCard extends StatelessWidget {
+  const _KnowledgeGraphCard({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => _SurfaceCard(
+        onTap: onTap,
+        child: Row(
+          children: [
+            const CircleAvatar(
+              child: Icon(Icons.hub_outlined),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Knowledge Graph',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Esplora link, relazioni, progetti, Study e documenti come rete navigabile.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
