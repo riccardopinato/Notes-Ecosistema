@@ -347,6 +347,122 @@ class LegacyNotesDatabase {
     await db.delete('drafts', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<List<Map<String, Object?>>> recoveryRevisions() async {
+    final db = await database;
+    return db.query(
+      'note_revisions',
+      orderBy: 'savedAt ASC, revisionId ASC',
+    );
+  }
+
+  Future<List<ContentBlock>> recoveryBlocks() async {
+    final db = await database;
+    final rows = await db.query(
+      'content_blocks',
+      orderBy: 'ownerId ASC, position ASC, id ASC',
+    );
+    return rows.map(ContentBlock.fromMap).toList(growable: false);
+  }
+
+  Future<bool> isWorkspaceEmpty() async {
+    final db = await database;
+    final notes = Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM notes')) ??
+        0;
+    final collections = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM collections'),
+        ) ??
+        0;
+    final drafts = Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM drafts')) ??
+        0;
+    return notes == 0 && collections == 0 && drafts == 0;
+  }
+
+  Future<void> restoreExact({
+    required BackupSnapshot snapshot,
+    required List<Map<String, Object?>> revisions,
+    required List<ContentBlock> blocks,
+  }) async {
+    BackupCodec.validate(snapshot);
+    final noteIds = snapshot.notes.map((note) => note.id).toSet();
+    final textNoteIds = snapshot.notes
+        .where((note) => !note.isTask && !note.isVisual)
+        .map((note) => note.id)
+        .toSet();
+    final revisionIds = <String>{};
+    for (final row in revisions) {
+      final revisionId = row['revisionId']?.toString() ?? '';
+      final noteId = row['noteId']?.toString() ?? '';
+      if (revisionId.isEmpty ||
+          !revisionIds.add(revisionId) ||
+          !noteIds.contains(noteId)) {
+        throw const FormatException('Revisioni di ripristino non valide.');
+      }
+    }
+    final blockIds = <String>{};
+    for (final block in blocks) {
+      ContentBlocks.validate(block);
+      if (!blockIds.add(block.id) ||
+          block.ownerType != 'note' ||
+          !textNoteIds.contains(block.ownerId)) {
+        throw const FormatException('Blocchi di ripristino non validi.');
+      }
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('content_blocks');
+      await txn.delete('note_revisions');
+      await txn.delete('drafts');
+      await txn.delete('notes');
+      await txn.delete('collections');
+
+      for (final collection in snapshot.collections) {
+        await txn.insert(
+          'collections',
+          {'id': collection.id, 'name': collection.name},
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final note in snapshot.notes) {
+        await txn.insert(
+          'notes',
+          note.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final draft in snapshot.drafts) {
+        await txn.insert(
+          'drafts',
+          {
+            'id': draft.id,
+            'title': draft.title,
+            'body': draft.body,
+            'collectionId': draft.collectionId,
+            'updatedAt': draft.updatedAt,
+            'tagsJson': jsonEncode(draft.tags),
+          },
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final row in revisions) {
+        await txn.insert(
+          'note_revisions',
+          row,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final block in blocks) {
+        await txn.insert(
+          'content_blocks',
+          block.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<BackupSnapshot> snapshot() async {
     final db = await database;
     final notes = await loadNotes();

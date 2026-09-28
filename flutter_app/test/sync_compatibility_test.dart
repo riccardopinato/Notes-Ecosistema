@@ -160,4 +160,81 @@ void main() {
     expect(document.collection, 'Book');
     expect(document.tags, ['tag']);
   });
+
+  test('delete versus offline edit is a conflict, never last-write-wins', () {
+    const base = SyncDocument(
+      id: 'life',
+      title: 'Base',
+      body: 'A',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 10,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const deleted = SyncDocument(
+      id: 'life',
+      title: 'Base',
+      body: 'A',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 20,
+      deletedAt: 20,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const offlineEdit = SyncDocument(
+      id: 'life',
+      title: 'Edited offline',
+      body: 'B',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 30,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+
+    expect(
+      decideSync(base, deleted, offlineEdit),
+      SyncDecision.conflict,
+    );
+    expect(
+      decideSync(base, offlineEdit, deleted),
+      SyncDecision.conflict,
+    );
+  });
+
+  test('restore after a synced tombstone is an explicit upload', () {
+    const tombstone = SyncDocument(
+      id: 'life',
+      title: 'Deleted',
+      body: 'A',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 20,
+      deletedAt: 20,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const restored = SyncDocument(
+      id: 'life',
+      title: 'Restored',
+      body: 'A',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 30,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+
+    expect(
+      decideSync(tombstone, restored, tombstone),
+      SyncDecision.upload,
+    );
+  });
 }

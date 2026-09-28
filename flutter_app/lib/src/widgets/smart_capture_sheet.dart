@@ -14,11 +14,14 @@ class SmartCaptureSheet extends StatefulWidget {
   const SmartCaptureSheet({
     required this.body,
     required this.onBodyChanged,
+    this.onOcrCaptured,
     super.key,
   });
 
   final String body;
   final ValueChanged<String> onBodyChanged;
+  final void Function(String assetKey, String text, String engine)?
+      onOcrCaptured;
 
   @override
   State<SmartCaptureSheet> createState() => _SmartCaptureSheetState();
@@ -108,6 +111,7 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
   Future<void> _consumeScanResult(DocumentScanningResult result) async {
     final store = await AttachmentStore.open();
     final ocr = <String>[];
+    final ocrByPath = <String, String>{};
 
     for (final imagePath in result.images ?? const <String>[]) {
       final imageFile = _fileFromScannerPath(imagePath);
@@ -116,16 +120,21 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
         InputImage.fromFilePath(imageFile.path),
       );
       final clipped = SmartCaptureRules.clipOcr(recognized.text);
-      if (clipped.isNotEmpty) ocr.add(clipped);
+      if (clipped.isNotEmpty) {
+        ocr.add(clipped);
+        ocrByPath[imagePath] = clipped;
+      }
     }
 
     var imported = 0;
+    String? pdfAssetKey;
     final pdf = result.pdf;
     if (pdf != null) {
       final file = _fileFromScannerPath(pdf.uri);
       if (await file.exists()) {
         final bytes = await file.readAsBytes();
         final key = await store.ingest(bytes, AttachmentType.pdf);
+        pdfAssetKey = key;
         final before = Attachments.refs(_body).map((e) => e.key).toSet();
         if (!before.contains(key)) {
           _setBody(
@@ -145,6 +154,14 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
         final bytes = await file.readAsBytes();
         final type = Attachments.typeFromName(file.path) ?? AttachmentType.jpeg;
         final key = await store.ingest(bytes, type);
+        final extracted = ocrByPath[imagePath];
+        if (extracted != null && extracted.isNotEmpty) {
+          widget.onOcrCaptured?.call(
+            key,
+            extracted,
+            'mlkit-document-scanner-v1',
+          );
+        }
         final before = Attachments.refs(_body).map((e) => e.key).toSet();
         if (!before.contains(key)) {
           _setBody(
@@ -162,6 +179,13 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
     }
 
     final combined = ocr.join('\n\n---\n\n').trim();
+    if (combined.isNotEmpty && pdfAssetKey != null) {
+      widget.onOcrCaptured?.call(
+        pdfAssetKey,
+        combined,
+        'mlkit-document-scanner-v1',
+      );
+    }
     if (combined.isNotEmpty &&
         !SmartCaptureRules.containsSection(
           _body,
@@ -233,6 +257,13 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
           InputImage.fromFilePath(file.path),
         );
         final text = SmartCaptureRules.clipOcr(recognized.text);
+        if (text.isNotEmpty) {
+          widget.onOcrCaptured?.call(
+            key,
+            text,
+            'mlkit-image-ocr-v1',
+          );
+        }
         if (text.isNotEmpty &&
             !SmartCaptureRules.containsSection(
               _body,
@@ -276,7 +307,14 @@ class _SmartCaptureSheetState extends State<SmartCaptureSheet> {
             InputImage.fromFilePath(file.path),
           );
           final clipped = SmartCaptureRules.clipOcr(recognized.text);
-          if (clipped.isNotEmpty) texts.add(clipped);
+          if (clipped.isNotEmpty) {
+            texts.add(clipped);
+            widget.onOcrCaptured?.call(
+              ref.key,
+              clipped,
+              'mlkit-image-ocr-v1',
+            );
+          }
         }
 
         final combined = texts.join('\n\n---\n\n').trim();

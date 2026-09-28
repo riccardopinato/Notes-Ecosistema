@@ -55,6 +55,7 @@ class DerivativeStore {
     required String content,
     required String sourceText,
     String? sourceAssetKey,
+    String? sourceFingerprint,
     String engine = 'local-deterministic-v1',
   }) async {
     if (sourceNoteId.trim().isEmpty ||
@@ -68,7 +69,8 @@ class DerivativeStore {
       sourceAssetKey: sourceAssetKey,
       kind: kind,
       content: content,
-      sourceFingerprint: sha256.convert(sourceText.codeUnits).toString(),
+      sourceFingerprint:
+          sourceFingerprint ?? sha256.convert(sourceText.codeUnits).toString(),
       createdAt: DateTime.now().millisecondsSinceEpoch,
       engine: engine,
     );
@@ -143,6 +145,51 @@ class DerivativeStore {
             createdAt: source.createdAt,
             engine: source.engine,
           ).toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
+  Future<void> restoreBackupExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+  }) async {
+    if (payload['version'] != 1 || payload['derivatives'] is! List) {
+      throw const FormatException('Backup derivati non valido.');
+    }
+    final rawItems = payload['derivatives'] as List;
+    if (rawItems.length > 100000) {
+      throw const FormatException('Backup derivati troppo grande.');
+    }
+    final items = rawItems.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Derivato non valido.');
+      }
+      final item = SourceDerivative.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (item.id.trim().isEmpty ||
+          !noteIds.contains(item.sourceNoteId) ||
+          item.content.trim().isEmpty ||
+          item.content.length > 500000 ||
+          item.sourceFingerprint.trim().isEmpty ||
+          item.engine.trim().isEmpty) {
+        throw const FormatException('Derivato non valido.');
+      }
+      return item;
+    }).toList(growable: false);
+    if (items.map((item) => item.id).toSet().length != items.length) {
+      throw const FormatException('Derivati duplicati.');
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('derivatives');
+      for (final item in items) {
+        await txn.insert(
+          'derivatives',
+          item.toMap(),
           conflictAlgorithm: ConflictAlgorithm.abort,
         );
       }

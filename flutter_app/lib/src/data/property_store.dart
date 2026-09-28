@@ -315,6 +315,75 @@ class PropertyStore {
     });
   }
 
+  Future<void> restoreBackupExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+  }) async {
+    if (payload['version'] != 1 ||
+        payload['definitions'] is! List ||
+        payload['values'] is! List) {
+      throw const FormatException('Backup proprietà non valido.');
+    }
+    final rawDefinitions = payload['definitions'] as List;
+    final rawValues = payload['values'] as List;
+    if (rawDefinitions.length > PropertyRules.maxDefinitions ||
+        rawValues.length > 200000) {
+      throw const FormatException('Backup proprietà troppo grande.');
+    }
+
+    final definitions = rawDefinitions.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Definizione proprietà non valida.');
+      }
+      final definition = PropertyDefinition.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      PropertyRules.validateDefinition(definition);
+      return definition;
+    }).toList(growable: false);
+    final byId = {for (final item in definitions) item.id: item};
+    if (byId.length != definitions.length ||
+        definitions.map((item) => item.name.toLowerCase()).toSet().length !=
+            definitions.length) {
+      throw const FormatException('Definizioni proprietà duplicate.');
+    }
+
+    final values = rawValues.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Valore proprietà non valido.');
+      }
+      final value = NotePropertyValue.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      final definition = byId[value.definitionId];
+      if (definition == null || !noteIds.contains(value.noteId)) {
+        throw const FormatException('Riferimento proprietà non valido.');
+      }
+      PropertyRules.decodeValue(definition, value.valueJson);
+      return value;
+    }).toList(growable: false);
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('property_values');
+      await txn.delete('property_definitions');
+      for (final definition in definitions) {
+        await txn.insert(
+          'property_definitions',
+          definition.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final value in values) {
+        await txn.insert(
+          'property_values',
+          value.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> close() async {
     final db = _db;
     _db = null;

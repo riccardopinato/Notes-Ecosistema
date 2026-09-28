@@ -120,6 +120,10 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
           LocalDerivation.extractTasks(source),
         );
         break;
+      case DerivativeKind.ocrText:
+      case DerivativeKind.ocrCorrected:
+        content = source;
+        break;
     }
     if (content.trim().isEmpty) {
       setState(
@@ -165,6 +169,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
         DerivativeKind.cleanedTranscript => 'Trascrizione pulita',
         DerivativeKind.summary => 'Riassunto',
         DerivativeKind.extractedTasks => 'Task estratti',
+        DerivativeKind.ocrText => 'OCR originale',
+        DerivativeKind.ocrCorrected => 'OCR corretto',
       };
 
   Future<void> _addOriginalTranscript() async {

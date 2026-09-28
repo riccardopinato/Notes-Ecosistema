@@ -277,6 +277,24 @@ class GitHubApi {
     return sha;
   }
 
+  Future<void> deleteNote(String id, String expectedSha) async {
+    if (!RegExp(r'^[a-f0-9]{40}$').hasMatch(expectedSha)) {
+      throw const FormatException('SHA eliminazione GitHub non valido.');
+    }
+    final path = _path(
+      '${config.folder}/${SyncCodec.filename(id)}',
+    );
+    await _request(
+      'DELETE',
+      '$_root/contents/$path',
+      body: {
+        'message': 'Notes: elimina tombstone sincronizzato',
+        'branch': config.branch,
+        'sha': expectedSha,
+      },
+    );
+  }
+
   Future<Map<String, RemoteAsset>> _assetIndex(String ref) async {
     if (_assets != null) return _assets!;
     final path = _path('${config.folder}/assets');
@@ -626,6 +644,21 @@ class GitHubSyncService {
         }
 
         if (localDocument == null && remoteDocument != null) {
+          final syncedTombstoneWasPurged = remoteDocument.deletedAt != null &&
+              previous?.base?.deletedAt != null &&
+              previous?.base == remoteDocument;
+          if (syncedTombstoneWasPurged) {
+            final sha = remoteSha[id];
+            if (sha == null) {
+              throw const FormatException(
+                'SHA remoto mancante durante il purge.',
+              );
+            }
+            await api.deleteNote(id, sha);
+            records.remove(id);
+            continue;
+          }
+
           await _receiveAssets(
             remoteDocument,
             api,

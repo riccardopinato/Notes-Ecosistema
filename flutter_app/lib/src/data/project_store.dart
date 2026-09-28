@@ -400,6 +400,86 @@ class ProjectStore {
     return project;
   }
 
+  Future<void> restoreBackupExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+    required Set<String> sharedSpaceIds,
+  }) async {
+    if (payload['version'] != 1 ||
+        payload['projects'] is! List ||
+        payload['links'] is! List) {
+      throw const FormatException('Backup progetti non valido.');
+    }
+
+    final rawProjects = payload['projects'] as List;
+    final rawLinks = payload['links'] as List;
+    if (rawProjects.length > ProjectWorkspaceRules.maxProjects ||
+        rawLinks.length >
+            ProjectWorkspaceRules.maxProjects *
+                ProjectWorkspaceRules.maxItemsPerProject) {
+      throw const FormatException('Backup progetti troppo grande.');
+    }
+
+    final projects = rawProjects.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Progetto non valido.');
+      }
+      final item = ProjectWorkspace.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      ProjectWorkspaceRules.validateProject(item);
+      if (item.sharedSpaceId != null &&
+          !sharedSpaceIds.contains(item.sharedSpaceId)) {
+        throw const FormatException(
+          'Progetto collegato a Shared Space mancante.',
+        );
+      }
+      return item;
+    }).toList(growable: false);
+
+    final projectIds = projects.map((item) => item.id).toSet();
+    if (projectIds.length != projects.length) {
+      throw const FormatException('Progetti duplicati.');
+    }
+
+    final links = rawLinks.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Collegamento progetto non valido.');
+      }
+      final item = ProjectItemLink.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      ProjectWorkspaceRules.validateLink(item);
+      if (!projectIds.contains(item.projectId) ||
+          !noteIds.contains(item.noteId)) {
+        throw const FormatException(
+          'Collegamento progetto verso oggetto mancante.',
+        );
+      }
+      return item;
+    }).toList(growable: false);
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('project_items');
+      await txn.delete('projects');
+      for (final project in projects) {
+        await txn.insert(
+          'projects',
+          project.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final link in links) {
+        await txn.insert(
+          'project_items',
+          link.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> close() async {
     final db = _db;
     _db = null;

@@ -303,6 +303,111 @@ class KnowledgeStore {
     return Map.unmodifiable(blockMap);
   }
 
+  Future<void> restoreBackupExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+  }) async {
+    if (payload['version'] != 1 ||
+        payload['sources'] is! List ||
+        payload['relations'] is! List ||
+        payload['syncedBlocks'] is! List) {
+      throw const FormatException('Backup knowledge non valido.');
+    }
+    final rawSources = payload['sources'] as List;
+    final rawRelations = payload['relations'] as List;
+    final rawBlocks = payload['syncedBlocks'] as List;
+    if (rawSources.length > 100000 ||
+        rawRelations.length > 100000 ||
+        rawBlocks.length > 10000) {
+      throw const FormatException('Backup knowledge troppo grande.');
+    }
+
+    final sources = rawSources.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Fonte knowledge non valida.');
+      }
+      final source = ResearchSource.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      ResearchRules.validateSource(source);
+      if (!noteIds.contains(source.noteId)) {
+        throw const FormatException('Fonte collegata a nota mancante.');
+      }
+      return source;
+    }).toList(growable: false);
+
+    final relations = rawRelations.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Relazione knowledge non valida.');
+      }
+      final relation = NoteRelation.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (relation.id.trim().isEmpty ||
+          relation.sourceId == relation.targetId ||
+          relation.label.trim().isEmpty ||
+          !noteIds.contains(relation.sourceId) ||
+          !noteIds.contains(relation.targetId)) {
+        throw const FormatException('Relazione knowledge non valida.');
+      }
+      return relation;
+    }).toList(growable: false);
+
+    final blocks = rawBlocks.map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Synced Block non valido.');
+      }
+      final block = SyncedBlock.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (block.id.trim().isEmpty ||
+          block.markdown.trim().isEmpty ||
+          block.markdown.length > 200000) {
+        throw const FormatException('Synced Block non valido.');
+      }
+      return block;
+    }).toList(growable: false);
+
+    bool unique(Iterable<String> ids) {
+      final list = ids.toList(growable: false);
+      return list.length == list.toSet().length;
+    }
+
+    if (!unique(sources.map((item) => item.id)) ||
+        !unique(relations.map((item) => item.id)) ||
+        !unique(blocks.map((item) => item.id))) {
+      throw const FormatException('ID knowledge duplicati.');
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('research_sources');
+      await txn.delete('note_relations');
+      await txn.delete('synced_blocks');
+      for (final source in sources) {
+        await txn.insert(
+          'research_sources',
+          source.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final relation in relations) {
+        await txn.insert(
+          'note_relations',
+          relation.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final block in blocks) {
+        await txn.insert(
+          'synced_blocks',
+          block.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> close() async {
     final db = _db;
     _db = null;
