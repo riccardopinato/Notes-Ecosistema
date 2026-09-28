@@ -167,20 +167,24 @@ abstract final class WorkflowAutomationRules {
         if (rule.actionValue.trim().isEmpty || rule.actionValue.trim().length > 80) {
           throw const FormatException('Tag automazione non valido.');
         }
+        break;
       case WorkflowActionKind.moveToCollection:
         if (rule.actionValue.trim().isEmpty ||
             rule.actionValue.trim().length > 200) {
           throw const FormatException('Raccolta automazione non valida.');
         }
+        break;
       case WorkflowActionKind.pin:
         if (rule.actionValue.trim().isNotEmpty) {
           throw const FormatException('Azione pin non valida.');
         }
+        break;
       case WorkflowActionKind.setPriority:
         final priority = int.tryParse(rule.actionValue.trim());
         if (priority == null || priority < 0 || priority > 3) {
           throw const FormatException('Priorità automazione non valida.');
         }
+        break;
     }
   }
 
