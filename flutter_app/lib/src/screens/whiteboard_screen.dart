@@ -1450,58 +1450,100 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     constraints.maxHeight,
                   );
                   _scheduleInitialCenter(viewportSize);
-                  return InteractiveViewer(
+                  return InteractiveViewer.builder(
                     transformationController: _viewport,
                     minScale: 0.2,
                     maxScale: 3.2,
-                    boundaryMargin: const EdgeInsets.all(1200),
-                    constrained: false,
-                    panEnabled:
-                        widget.readOnly || _tool == _WhiteboardTool.navigate,
-                    scaleEnabled: true,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onPanStart: widget.readOnly ||
-                              _tool == _WhiteboardTool.navigate ||
-                              _tool == _WhiteboardTool.text
-                          ? null
-                          : _drawStart,
-                      onPanUpdate: widget.readOnly ||
-                              _tool == _WhiteboardTool.navigate ||
-                              _tool == _WhiteboardTool.text
-                          ? null
-                          : _drawUpdate,
-                      onPanEnd: widget.readOnly ||
-                              _tool == _WhiteboardTool.navigate ||
-                              _tool == _WhiteboardTool.text
-                          ? null
-                          : _drawEnd,
-                      onTapUp: widget.readOnly || _tool != _WhiteboardTool.text
-                          ? null
-                          : _tapCanvas,
-                      child: RepaintBoundary(
-                        key: _exportKey,
-                        child: SizedBox(
-                          width: _canvasSize,
-                          height: _canvasSize,
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: _BoardPainter(
-                                    document: _document,
-                                    origin: _origin,
-                                    working: _workingPoints,
-                                    previewShape: _previewShape,
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    panEnabled: !_stylusInContact &&
+                        (widget.readOnly ||
+                            _tool == _WhiteboardTool.navigate ||
+                            _tool == _WhiteboardTool.text ||
+                            !_fingerDraw),
+                    scaleEnabled: !_stylusInContact,
+                    onInteractionEnd: (_) => _growCanvasForViewport(),
+                    builder: (context, viewport) {
+                      final xs = <double>[
+                        viewport.point0.x,
+                        viewport.point1.x,
+                        viewport.point2.x,
+                        viewport.point3.x,
+                      ];
+                      final ys = <double>[
+                        viewport.point0.y,
+                        viewport.point1.y,
+                        viewport.point2.y,
+                        viewport.point3.y,
+                      ];
+                      final visibleRect = Rect.fromLTRB(
+                        xs.reduce(math.min),
+                        ys.reduce(math.min),
+                        xs.reduce(math.max),
+                        ys.reduce(math.max),
+                      ).inflate(160);
+
+                      return Listener(
+                        onPointerDown: _onPointerDown,
+                        onPointerMove: _onPointerMove,
+                        onPointerUp: _onPointerEnd,
+                        onPointerCancel: _onPointerEnd,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          supportedDevices: _drawingDevices,
+                          onPanStart: widget.readOnly ||
+                                  _tool == _WhiteboardTool.navigate ||
+                                  _tool == _WhiteboardTool.text
+                              ? null
+                              : _drawStart,
+                          onPanUpdate: widget.readOnly ||
+                                  _tool == _WhiteboardTool.navigate ||
+                                  _tool == _WhiteboardTool.text
+                              ? null
+                              : _drawUpdate,
+                          onPanEnd: widget.readOnly ||
+                                  _tool == _WhiteboardTool.navigate ||
+                                  _tool == _WhiteboardTool.text
+                              ? null
+                              : _drawEnd,
+                          onPanCancel: widget.readOnly ||
+                                  _tool == _WhiteboardTool.navigate ||
+                                  _tool == _WhiteboardTool.text
+                              ? null
+                              : _drawCancel,
+                          onTapUp:
+                              widget.readOnly || _tool != _WhiteboardTool.text
+                                  ? null
+                                  : _tapCanvas,
+                          child: RepaintBoundary(
+                            key: _exportKey,
+                            child: SizedBox(
+                              width: _canvasSize,
+                              height: _canvasSize,
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: CustomPaint(
+                                      painter: _BoardPainter(
+                                        document: _document,
+                                        origin: _origin,
+                                        working: _workingPoints,
+                                        workingVersion: _workingVersion,
+                                        workingColor: _workingColor,
+                                        workingWidth: _workingWidth,
+                                        previewShape: _previewShape,
+                                        visibleRect: visibleRect,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  ..._document.texts.map(_textWidget),
+                                  ..._document.nodes.map(_nodeWidget),
+                                ],
                               ),
-                              ..._document.nodes.map(_nodeWidget),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   );
                 },
               ),
