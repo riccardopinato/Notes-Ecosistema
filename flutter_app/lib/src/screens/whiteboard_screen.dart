@@ -404,6 +404,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   void _onObjectPointerDown(PointerDownEvent event) {
     if (widget.readOnly || _tool != _WhiteboardTool.navigate) return;
     _objectPointer = event.pointer;
+    _beginGestureHistory();
     if (!_objectPointerActive) {
       setState(() => _objectPointerActive = true);
     }
@@ -412,6 +413,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   void _onObjectPointerEnd(PointerEvent event) {
     if (event.pointer != _objectPointer) return;
     _objectPointer = null;
+    _finishGestureHistory();
     if (_objectPointerActive) {
       setState(() => _objectPointerActive = false);
     }
@@ -757,15 +759,15 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     );
   }
 
-  void _moveText(SketchText text, DragUpdateDetails details) {
+  void _moveTextByDelta(SketchText text, Offset delta) {
     final current = _document.texts.firstWhere(
       (item) => item.id == text.id,
       orElse: () => text,
     );
     final limit = WhiteboardRules.maxCoordinate;
     final updated = current.copyWith(
-      x: (current.x + details.delta.dx.round()).clamp(-limit, limit).toInt(),
-      y: (current.y + details.delta.dy.round()).clamp(-limit, limit).toInt(),
+      x: (current.x + delta.dx.round()).clamp(-limit, limit).toInt(),
+      y: (current.y + delta.dy.round()).clamp(-limit, limit).toInt(),
     );
     if (_setDocument(
       _document.copyWith(
@@ -1094,15 +1096,15 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     });
   }
 
-  void _moveNode(BoardNode node, DragUpdateDetails details) {
+  void _moveNodeByDelta(BoardNode node, Offset delta) {
     final current = _document.nodes.firstWhere(
       (item) => item.id == node.id,
       orElse: () => node,
     );
     final limit = WhiteboardRules.maxCoordinate;
     final updated = current.copyWith(
-      x: (current.x + details.delta.dx.round()).clamp(-limit, limit).toInt(),
-      y: (current.y + details.delta.dy.round()).clamp(-limit, limit).toInt(),
+      x: (current.x + delta.dx.round()).clamp(-limit, limit).toInt(),
+      y: (current.y + delta.dy.round()).clamp(-limit, limit).toInt(),
     );
     if (_setDocument(
       WhiteboardOps.updateNode(_document, updated),
@@ -1615,14 +1617,13 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       height: height,
       child: Listener(
         onPointerDown: canEdit ? _onObjectPointerDown : null,
+        onPointerMove: canEdit
+            ? (event) => _moveTextByDelta(text, event.localDelta)
+            : null,
         onPointerUp: canEdit ? _onObjectPointerEnd : null,
         onPointerCancel: canEdit ? _onObjectPointerEnd : null,
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
-          onPanStart: canEdit ? (_) => _beginGestureHistory() : null,
-          onPanUpdate: canEdit ? (details) => _moveText(text, details) : null,
-          onPanEnd: canEdit ? (_) => _finishGestureHistory() : null,
-          onPanCancel: canEdit ? _finishGestureHistory : null,
           onTap: canEdit ? () => _editText(text) : null,
           child: Align(
             alignment: Alignment.topLeft,
@@ -1651,14 +1652,12 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       height: node.height.toDouble(),
       child: Listener(
         onPointerDown: canEditNode ? _onObjectPointerDown : null,
+        onPointerMove: canEditNode
+            ? (event) => _moveNodeByDelta(node, event.localDelta)
+            : null,
         onPointerUp: canEditNode ? _onObjectPointerEnd : null,
         onPointerCancel: canEditNode ? _onObjectPointerEnd : null,
         child: GestureDetector(
-          onPanStart: canEditNode ? (_) => _beginGestureHistory() : null,
-          onPanUpdate:
-              canEditNode ? (details) => _moveNode(node, details) : null,
-          onPanEnd: canEditNode ? (_) => _finishGestureHistory() : null,
-          onPanCancel: canEditNode ? _finishGestureHistory : null,
           onTap: canEditNode ? () => _nodeTap(node) : null,
           onLongPress: canEditNode
               ? () {
