@@ -286,12 +286,10 @@ void main() {
     await tester.tap(find.byTooltip('Seleziona'));
     await tester.pump();
 
-    final viewport = find.byKey(const ValueKey('whiteboard-viewport'));
-    final center = tester.getCenter(viewport);
-    await tester.dragFrom(
-      center + const Offset(-360, -120),
-      const Offset(340, 280),
-    );
+    final target = tester.getRect(find.text('Sinistra'));
+    final start = target.topLeft - const Offset(80, 80);
+    final end = target.bottomRight + const Offset(80, 80);
+    await tester.dragFrom(start, end - start);
     await tester.pump();
 
     expect(find.text('1 selezionati'), findsOneWidget);
