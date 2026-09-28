@@ -211,6 +211,32 @@ void main() {
     expect(decoded.texts.single.text, 'Appunto');
   });
 
+  test('WhiteboardRules reject invalid oversized text before save', () {
+    final document = WhiteboardDocument(
+      texts: [
+        SketchText(
+          text: 'Troppo grande',
+          color: 0xFF111111,
+          x: 0,
+          y: 0,
+          size: 121,
+        ),
+      ],
+    );
+
+    expect(
+      () => WhiteboardCodec.encode(document),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('shared Digital Ink defaults stay available to both visual surfaces', () {
+    expect(VisualInkDefaults.palette, isNotEmpty);
+    expect(VisualInkDefaults.penWidths, contains(6));
+    expect(VisualInkDefaults.highlighterWidths, contains(24));
+    expect(VisualInkDefaults.shapeWidths, contains(5));
+  });
+
   test('Legacy whiteboard without paper keeps historical grid default', () {
     final legacy = jsonEncode({
       'format': 'notes-whiteboard',
