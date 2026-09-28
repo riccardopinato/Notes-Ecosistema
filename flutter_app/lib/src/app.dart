@@ -92,8 +92,8 @@ class _NotesEcosistemaAppState extends ConsumerState<NotesEcosistemaApp> {
       if (!mounted) return;
       setState(() {
         _dark = prefs.getBool('dark_mode') ?? false;
-        _localeCode =
-            AppLocale.normalizePreference(prefs.getString(AppLocale.preferenceKey));
+        _localeCode = AppLocale.normalizePreference(
+            prefs.getString(AppLocale.preferenceKey));
       });
     });
   }
