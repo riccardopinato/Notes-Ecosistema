@@ -103,6 +103,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Penna'));
+    await tester.pump();
     final viewport = find.byKey(const ValueKey('whiteboard-viewport'));
     await tester.dragFrom(
       tester.getCenter(viewport),
