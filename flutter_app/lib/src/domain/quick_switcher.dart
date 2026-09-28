@@ -1,5 +1,6 @@
 import 'note.dart';
 import 'project_workspace.dart';
+import 'unified_retrieval.dart';
 
 enum QuickSwitcherKind { note, task, collection, project, command }
 
@@ -94,13 +95,11 @@ abstract final class QuickSwitcher {
       if (needle.isEmpty) {
         return entry.kind == QuickSwitcherKind.command ? 3 : 1;
       }
-      final label = _normalize(entry.label);
-      final subtitle = _normalize(entry.subtitle ?? '');
-      if (label == needle) return 100;
-      if (label.startsWith(needle)) return 80;
-      if (label.contains(needle)) return 60;
-      if (subtitle.contains(needle)) return 30;
-      return 0;
+      return UnifiedRetrieval.scoreText(
+        query: needle,
+        title: entry.label,
+        text: entry.subtitle ?? '',
+      );
     }
 
     final ranked = entries
@@ -118,6 +117,5 @@ abstract final class QuickSwitcher {
     return ranked.take(limit).map((row) => row.entry).toList(growable: false);
   }
 
-  static String _normalize(String value) =>
-      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  static String _normalize(String value) => UnifiedRetrieval.normalize(value);
 }
