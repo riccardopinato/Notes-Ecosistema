@@ -20,6 +20,11 @@ abstract final class OpenExportBundle {
     required Map<String, Object?> projects,
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
+    Map<String, Object?> automations = const {
+      'version': 1,
+      'rules': <Object?>[],
+      'runs': <Object?>[],
+    },
     required AttachmentStore store,
   }) async {
     final assets = <String, Uint8List>{};
@@ -35,6 +40,7 @@ abstract final class OpenExportBundle {
       projects: projects,
       study: study,
       documents: documents,
+      automations: automations,
       assets: assets,
     );
   }
@@ -46,6 +52,11 @@ abstract final class OpenExportBundle {
     required Map<String, Object?> projects,
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
+    Map<String, Object?> automations = const {
+      'version': 1,
+      'rules': <Object?>[],
+      'runs': <Object?>[],
+    },
     required Map<String, Uint8List> assets,
   }) {
     BackupCodec.validate(snapshot);
@@ -151,6 +162,7 @@ abstract final class OpenExportBundle {
     files['projects.json'] = _json(projects);
     files['study.json'] = _json(study);
     files['documents.json'] = _json(documents);
+    files['automations.json'] = _json(automations);
 
     if (assets.length != assetKeys.length ||
         !assets.keys.toSet().containsAll(assetKeys) ||
@@ -189,6 +201,7 @@ abstract final class OpenExportBundle {
         'projects',
         'study',
         'document-annotations',
+        'automations',
         'media',
       ],
       'excluded': const [
