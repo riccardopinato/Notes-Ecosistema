@@ -102,6 +102,49 @@ class DerivativeStore {
     };
   }
 
+  Future<void> restoreExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+  }) async {
+    if (payload['version'] != 1 || payload['derivatives'] is! List) {
+      throw const FormatException('Backup derivati non valido.');
+    }
+    final items = (payload['derivatives'] as List).map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Derivato non valido.');
+      }
+      final item = SourceDerivative.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (item.id.trim().isEmpty ||
+          !noteIds.contains(item.sourceNoteId) ||
+          item.content.trim().isEmpty ||
+          item.content.length > 500000 ||
+          item.sourceFingerprint.trim().isEmpty ||
+          item.engine.trim().isEmpty ||
+          item.createdAt < 0) {
+        throw const FormatException('Derivato non valido.');
+      }
+      return item;
+    }).toList(growable: false);
+    if (items.length > 100000 ||
+        items.map((item) => item.id).toSet().length != items.length) {
+      throw const FormatException('Backup derivati non valido.');
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('derivatives');
+      for (final item in items) {
+        await txn.insert(
+          'derivatives',
+          item.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> importBackup(
     Map<String, Object?> payload, {
     required Map<String, String> noteIdMap,
