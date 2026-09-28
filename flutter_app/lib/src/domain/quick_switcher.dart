@@ -68,6 +68,12 @@ abstract final class QuickSwitcher {
         kind: QuickSwitcherKind.command,
       ),
       const QuickSwitcherEntry(
+        id: 'local-intelligence',
+        label: 'Intelligence locale',
+        subtitle: 'Semantic search opzionale e audit modelli',
+        kind: QuickSwitcherKind.command,
+      ),
+      const QuickSwitcherEntry(
         id: 'search',
         label: 'Cerca',
         subtitle: 'Ricerca completa',
