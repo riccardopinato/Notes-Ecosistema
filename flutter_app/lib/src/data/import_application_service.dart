@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../domain/editing.dart';
 import '../domain/import_provenance.dart';
 import '../domain/note.dart';
 import 'import_provenance_store.dart';
