@@ -386,8 +386,9 @@ abstract final class DisasterRecoveryBundle {
       throw const FormatException('Proprietà duplicate.');
     }
     for (final raw in properties['values'] as List) {
-      if (raw is! Map)
+      if (raw is! Map) {
         throw const FormatException('Valore proprietà non valido.');
+      }
       final item = NotePropertyValue.fromMap(
         raw.map((key, value) => MapEntry(key.toString(), value)),
       );
