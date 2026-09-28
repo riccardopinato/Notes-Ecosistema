@@ -71,8 +71,9 @@ class SemanticIndexStore {
 
   Future<void> syncDocuments(
     Iterable<RetrievalDocument> source,
-    SemanticEmbeddingEngine engine,
-  ) async {
+    SemanticEmbeddingEngine engine, {
+    bool pruneMissing = true,
+  }) async {
     final documents = source
         .where(
           (document) =>
@@ -109,7 +110,7 @@ class SemanticIndexStore {
     }
 
     await db.transaction((txn) async {
-      if (existing.isNotEmpty) {
+      if (pruneMissing && existing.isNotEmpty) {
         for (final id in existing.keys) {
           if (!liveIds.contains(id)) {
             await txn.delete(
