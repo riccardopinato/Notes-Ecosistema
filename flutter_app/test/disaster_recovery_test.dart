@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -76,6 +77,34 @@ void main() {
         'records': [],
         'batches': [],
       },
+      automations: const {
+        'version': 1,
+        'rules': [
+          {
+            'id': 'auto-1',
+            'name': 'Inbox',
+            'enabled': 1,
+            'trigger': 'itemCreated',
+            'subject': 'note',
+            'requiredTag': null,
+            'titleContains': null,
+            'actionKind': 'addTag',
+            'actionValue': 'inbox',
+            'createdAt': 1,
+            'updatedAt': 1,
+          },
+        ],
+        'runs': [
+          {
+            'id': 'run-1',
+            'ruleId': 'auto-1',
+            'noteId': 'note-1',
+            'trigger': 'itemCreated',
+            'actionKind': 'addTag',
+            'ranAt': 2,
+          },
+        ],
+      },
       sharedSpaces: shared,
       assets: {key: asset},
       createdAt: 10,
@@ -87,6 +116,72 @@ void main() {
     expect(restored.revisions.single['revisionId'], 'rev-1');
     expect(restored.assets[key], orderedEquals(asset));
     expect(restored.createdAt, 10);
+    expect((restored.automations['rules'] as List), hasLength(1));
+    expect((restored.automations['runs'] as List), hasLength(1));
+  });
+
+  test('disaster recovery v1 remains readable without automations', () {
+    final snapshot = BackupSnapshot(
+      notes: [note('legacy')],
+      collections: const [],
+      drafts: const [],
+    );
+    final shared = SharedSpacesSnapshot(
+      identity: SharedSpaces.newIdentity(),
+      spaces: const [],
+    );
+    final current = DisasterRecoveryBundle.encodeLoaded(
+      snapshot: snapshot,
+      revisions: const [],
+      blocks: const [],
+      properties: const {'version': 1, 'definitions': [], 'values': []},
+      knowledge: const {
+        'version': 1,
+        'sources': [],
+        'relations': [],
+        'syncedBlocks': [],
+      },
+      derivatives: const {'version': 1, 'derivatives': []},
+      projects: const {'version': 1, 'projects': [], 'links': []},
+      study: const {'version': 1, 'items': [], 'logs': []},
+      documents: const {'version': 1, 'annotations': []},
+      importProvenance: const {
+        'version': 1,
+        'records': [],
+        'batches': [],
+      },
+      sharedSpaces: shared,
+      assets: const {},
+      createdAt: 10,
+    );
+
+    final archive = ZipDecoder().decodeBytes(current);
+    final legacy = Archive();
+    for (final entry in archive) {
+      if (entry.name == 'automations.json') continue;
+      if (entry.name == 'manifest.json') {
+        final manifest = jsonDecode(
+          utf8.decode(entry.readBytes()!),
+        ) as Map<String, dynamic>;
+        manifest['version'] = 1;
+        (manifest['files'] as Map<String, dynamic>).remove('automations.json');
+        legacy.add(
+          ArchiveFile.bytes(
+            'manifest.json',
+            Uint8List.fromList(utf8.encode(jsonEncode(manifest))),
+          ),
+        );
+      } else {
+        legacy.add(ArchiveFile.bytes(entry.name, entry.readBytes()!));
+      }
+    }
+
+    final restored = DisasterRecoveryBundle.decode(
+      Uint8List.fromList(ZipEncoder().encodeBytes(legacy)),
+    );
+    expect(restored.snapshot.notes.single.id, 'note-1');
+    expect(restored.automations['rules'], isEmpty);
+    expect(restored.automations['runs'], isEmpty);
   });
 
   test('disaster recovery refuses undeclared or unsafe archive content', () {
