@@ -1620,10 +1620,10 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onPanStart: canEdit ? (_) => _beginGestureHistory() : null,
-        onPanUpdate: canEdit ? (details) => _moveText(text, details) : null,
-        onPanEnd: canEdit ? (_) => _finishGestureHistory() : null,
-        onPanCancel: canEdit ? _finishGestureHistory : null,
-        onTap: canEdit ? () => _editText(text) : null,
+          onPanUpdate: canEdit ? (details) => _moveText(text, details) : null,
+          onPanEnd: canEdit ? (_) => _finishGestureHistory() : null,
+          onPanCancel: canEdit ? _finishGestureHistory : null,
+          onTap: canEdit ? () => _editText(text) : null,
           child: Align(
             alignment: Alignment.topLeft,
             child: Text(
@@ -1655,62 +1655,63 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         onPointerCancel: canEditNode ? _onObjectPointerEnd : null,
         child: GestureDetector(
           onPanStart: canEditNode ? (_) => _beginGestureHistory() : null,
-        onPanUpdate: canEditNode ? (details) => _moveNode(node, details) : null,
-        onPanEnd: canEditNode ? (_) => _finishGestureHistory() : null,
-        onPanCancel: canEditNode ? _finishGestureHistory : null,
-        onTap: canEditNode ? () => _nodeTap(node) : null,
-        onLongPress: canEditNode
-            ? () {
-                if (_document.mode == WhiteboardMode.mindMap) {
-                  _addNode(kind: BoardNodeKind.mindNode, parent: node);
-                } else {
-                  _editNode(node);
+          onPanUpdate:
+              canEditNode ? (details) => _moveNode(node, details) : null,
+          onPanEnd: canEditNode ? (_) => _finishGestureHistory() : null,
+          onPanCancel: canEditNode ? _finishGestureHistory : null,
+          onTap: canEditNode ? () => _nodeTap(node) : null,
+          onLongPress: canEditNode
+              ? () {
+                  if (_document.mode == WhiteboardMode.mindMap) {
+                    _addNode(kind: BoardNodeKind.mindNode, parent: node);
+                  } else {
+                    _editNode(node);
+                  }
                 }
-              }
-            : null,
+              : null,
           child: Card(
             color: Color(node.color),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(
-              width: selected ? 4 : 1,
-              color: selected
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.outlineVariant,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: BorderSide(
+                width: selected ? 4 : 1,
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outlineVariant,
+              ),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  node.kind == BoardNodeKind.mindNode
-                      ? Icons.account_tree
-                      : node.kind == BoardNodeKind.text
-                          ? Icons.text_fields
-                          : Icons.sticky_note_2,
-                  size: 20,
-                ),
-                const SizedBox(height: 6),
-                Expanded(
-                  child: Text(
-                    node.text.isEmpty ? 'Elemento' : node.text,
-                    overflow: TextOverflow.fade,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: _contrast(Color(node.color)),
-                        ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    node.kind == BoardNodeKind.mindNode
+                        ? Icons.account_tree
+                        : node.kind == BoardNodeKind.text
+                            ? Icons.text_fields
+                            : Icons.sticky_note_2,
+                    size: 20,
                   ),
-                ),
-                if (_document.mode == WhiteboardMode.mindMap)
-                  Text(
-                    'Pressione lunga: aggiungi figlio',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: _contrast(Color(node.color)),
-                        ),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    child: Text(
+                      node.text.isEmpty ? 'Elemento' : node.text,
+                      overflow: TextOverflow.fade,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: _contrast(Color(node.color)),
+                          ),
+                    ),
                   ),
-              ],
-            ),
+                  if (_document.mode == WhiteboardMode.mindMap)
+                    Text(
+                      'Pressione lunga: aggiungi figlio',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: _contrast(Color(node.color)),
+                          ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
