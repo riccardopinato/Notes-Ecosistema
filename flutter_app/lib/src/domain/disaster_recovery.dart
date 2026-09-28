@@ -7,7 +7,13 @@ import 'package:crypto/crypto.dart';
 import 'attachments.dart';
 import 'backup.dart';
 import 'blocks.dart';
+import 'derivatives.dart';
+import 'documents.dart';
+import 'project_workspace.dart';
+import 'properties.dart';
+import 'research.dart';
 import 'shared_spaces.dart';
+import 'study.dart';
 
 class DisasterRecoveryPreview {
   const DisasterRecoveryPreview({
@@ -312,22 +318,220 @@ abstract final class DisasterRecoveryBundle {
       throw const FormatException('Shared Spaces mancanti nel backup.');
     }
 
+    final properties = _jsonMap(raw, 'properties.json');
+    final knowledge = _jsonMap(raw, 'knowledge.json');
+    final derivatives = _jsonMap(raw, 'derivatives.json');
+    final projects = _jsonMap(raw, 'projects.json');
+    final study = _jsonMap(raw, 'study.json');
+    final documents = _jsonMap(raw, 'documents.json');
+    final sharedSpaces = SharedSpacesCodec.decode(
+      utf8.decode(sharedRaw, allowMalformed: false),
+    );
+    _validateSidecars(
+      snapshot: snapshot,
+      properties: properties,
+      knowledge: knowledge,
+      derivatives: derivatives,
+      projects: projects,
+      study: study,
+      documents: documents,
+      sharedSpaces: sharedSpaces,
+      assetKeys: assets.keys.toSet(),
+    );
+
     return DisasterRecoveryPreview(
       snapshot: snapshot,
       revisions: revisions,
       blocks: blocks,
-      properties: _jsonMap(raw, 'properties.json'),
-      knowledge: _jsonMap(raw, 'knowledge.json'),
-      derivatives: _jsonMap(raw, 'derivatives.json'),
-      projects: _jsonMap(raw, 'projects.json'),
-      study: _jsonMap(raw, 'study.json'),
-      documents: _jsonMap(raw, 'documents.json'),
-      sharedSpaces: SharedSpacesCodec.decode(
-        utf8.decode(sharedRaw, allowMalformed: false),
-      ),
+      properties: properties,
+      knowledge: knowledge,
+      derivatives: derivatives,
+      projects: projects,
+      study: study,
+      documents: documents,
+      sharedSpaces: sharedSpaces,
       assets: Map.unmodifiable(assets),
       createdAt: createdAt,
     );
+  }
+
+  static void _validateSidecars({
+    required BackupSnapshot snapshot,
+    required Map<String, Object?> properties,
+    required Map<String, Object?> knowledge,
+    required Map<String, Object?> derivatives,
+    required Map<String, Object?> projects,
+    required Map<String, Object?> study,
+    required Map<String, Object?> documents,
+    required SharedSpacesSnapshot sharedSpaces,
+    required Set<String> assetKeys,
+  }) {
+    final noteIds = snapshot.notes.map((note) => note.id).toSet();
+    final sharedIds = sharedSpaces.spaces.map((space) => space.id).toSet();
+
+    if (properties['version'] != 1 ||
+        properties['definitions'] is! List ||
+        properties['values'] is! List) {
+      throw const FormatException('Proprietà recovery non valide.');
+    }
+    final definitions = (properties['definitions'] as List).map((raw) {
+      if (raw is! Map) throw const FormatException('Proprietà non valida.');
+      final item = PropertyDefinition.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      PropertyRules.validateDefinition(item);
+      return item;
+    }).toList(growable: false);
+    final definitionIds = definitions.map((item) => item.id).toSet();
+    if (definitionIds.length != definitions.length) {
+      throw const FormatException('Proprietà duplicate.');
+    }
+    for (final raw in properties['values'] as List) {
+      if (raw is! Map) throw const FormatException('Valore proprietà non valido.');
+      final item = NotePropertyValue.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (!noteIds.contains(item.noteId) ||
+          !definitionIds.contains(item.definitionId)) {
+        throw const FormatException('Riferimento proprietà non valido.');
+      }
+      final definition =
+          definitions.firstWhere((value) => value.id == item.definitionId);
+      PropertyRules.decodeValue(definition, item.valueJson);
+    }
+
+    if (knowledge['version'] != 1 ||
+        knowledge['sources'] is! List ||
+        knowledge['relations'] is! List ||
+        knowledge['syncedBlocks'] is! List) {
+      throw const FormatException('Knowledge recovery non valido.');
+    }
+    for (final raw in knowledge['sources'] as List) {
+      if (raw is! Map) throw const FormatException('Fonte non valida.');
+      final item = ResearchSource.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      ResearchRules.validateSource(item);
+      if (!noteIds.contains(item.noteId)) {
+        throw const FormatException('Fonte verso nota mancante.');
+      }
+    }
+    for (final raw in knowledge['relations'] as List) {
+      if (raw is! Map) throw const FormatException('Relazione non valida.');
+      final item = NoteRelation.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (item.id.trim().isEmpty ||
+          item.sourceId == item.targetId ||
+          !noteIds.contains(item.sourceId) ||
+          !noteIds.contains(item.targetId)) {
+        throw const FormatException('Relazione verso nota mancante.');
+      }
+    }
+    for (final raw in knowledge['syncedBlocks'] as List) {
+      if (raw is! Map) throw const FormatException('Synced Block non valido.');
+      final item = SyncedBlock.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (item.id.trim().isEmpty ||
+          item.markdown.trim().isEmpty ||
+          item.markdown.length > 200000) {
+        throw const FormatException('Synced Block non valido.');
+      }
+    }
+
+    if (derivatives['version'] != 1 || derivatives['derivatives'] is! List) {
+      throw const FormatException('Derivati recovery non validi.');
+    }
+    for (final raw in derivatives['derivatives'] as List) {
+      if (raw is! Map) throw const FormatException('Derivato non valido.');
+      final item = SourceDerivative.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (!noteIds.contains(item.sourceNoteId) ||
+          item.content.trim().isEmpty ||
+          item.sourceFingerprint.trim().isEmpty ||
+          item.engine.trim().isEmpty) {
+        throw const FormatException('Derivato verso sorgente mancante.');
+      }
+    }
+
+    if (projects['version'] != 1 ||
+        projects['projects'] is! List ||
+        projects['links'] is! List) {
+      throw const FormatException('Progetti recovery non validi.');
+    }
+    final projectItems = (projects['projects'] as List).map((raw) {
+      if (raw is! Map) throw const FormatException('Progetto non valido.');
+      final item = ProjectWorkspace.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      ProjectWorkspaceRules.validateProject(item);
+      if (item.sharedSpaceId != null &&
+          !sharedIds.contains(item.sharedSpaceId)) {
+        throw const FormatException('Shared Space progetto mancante.');
+      }
+      return item;
+    }).toList(growable: false);
+    final projectIds = projectItems.map((item) => item.id).toSet();
+    if (projectIds.length != projectItems.length) {
+      throw const FormatException('Progetti duplicati.');
+    }
+    for (final raw in projects['links'] as List) {
+      if (raw is! Map) throw const FormatException('Project link non valido.');
+      final item = ProjectItemLink.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      ProjectWorkspaceRules.validateLink(item);
+      if (!projectIds.contains(item.projectId) ||
+          !noteIds.contains(item.noteId)) {
+        throw const FormatException('Project link verso sorgente mancante.');
+      }
+    }
+
+    if (study['version'] != 1 ||
+        study['items'] is! List ||
+        study['logs'] is! List) {
+      throw const FormatException('Study recovery non valido.');
+    }
+    final learning = (study['items'] as List).map((raw) {
+      if (raw is! Map) throw const FormatException('LearningItem non valido.');
+      final item = LearningItem.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      StudyRules.validateItem(item);
+      return item;
+    }).toList(growable: false);
+    final learningIds = learning.map((item) => item.id).toSet();
+    if (learningIds.length != learning.length) {
+      throw const FormatException('LearningItem duplicati.');
+    }
+    for (final raw in study['logs'] as List) {
+      if (raw is! Map) throw const FormatException('ReviewLog non valido.');
+      final item = ReviewLog.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      StudyRules.validateLog(item);
+      if (!learningIds.contains(item.itemId)) {
+        throw const FormatException('ReviewLog senza LearningItem.');
+      }
+    }
+
+    if (documents['version'] != 1 || documents['annotations'] is! List) {
+      throw const FormatException('Document recovery non valido.');
+    }
+    for (final raw in documents['annotations'] as List) {
+      if (raw is! Map) throw const FormatException('Annotazione non valida.');
+      final item = PdfAnnotation.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      DocumentRules.validateAnnotation(item);
+      if (!noteIds.contains(item.noteId) ||
+          !assetKeys.contains(item.assetKey) ||
+          Attachments.type(item.assetKey) != AttachmentType.pdf) {
+        throw const FormatException('Annotazione verso PDF mancante.');
+      }
+    }
   }
 
   static Set<String> _referencedAssets(BackupSnapshot snapshot) {
