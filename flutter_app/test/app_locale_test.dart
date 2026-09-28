@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/app_locale.dart';
 
 void main() {
-  test('app locale follows supported override and system fallback contract', () {
+  test('app locale follows supported override and system fallback contract',
+      () {
     expect(AppLocale.normalizePreference(null), isNull);
     expect(AppLocale.normalizePreference('system'), isNull);
     expect(AppLocale.normalizePreference('IT'), 'it');
