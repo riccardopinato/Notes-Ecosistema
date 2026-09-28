@@ -262,8 +262,7 @@ abstract final class SketchCodec {
             (page) => {
               'id': page.id,
               'paper': page.paper.name.toUpperCase(),
-              'strokes':
-                  page.strokes.map(VisualInkCodec.encode).toList(),
+              'strokes': page.strokes.map(VisualInkCodec.encode).toList(),
               'shapes': page.shapes
                   .map(
                     (shape) => {
