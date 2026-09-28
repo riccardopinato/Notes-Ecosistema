@@ -1993,6 +1993,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                                         workingMarker: _tool ==
                                             _WhiteboardTool.highlighter,
                                         previewShape: _previewShape,
+                                        lassoWorldRect: _lassoWorldRect,
                                         visibleRect: visibleRect,
                                         strokeBounds: _strokeBounds,
                                       ),
@@ -2193,6 +2194,7 @@ class _BoardPainter extends CustomPainter {
     required this.workingWidth,
     required this.workingMarker,
     required this.previewShape,
+    required this.lassoWorldRect,
     required this.visibleRect,
     required this.strokeBounds,
   });
@@ -2205,6 +2207,7 @@ class _BoardPainter extends CustomPainter {
   final int workingWidth;
   final bool workingMarker;
   final BoardShape? previewShape;
+  final Rect? lassoWorldRect;
   final Rect visibleRect;
   final Map<String, Rect> strokeBounds;
 
@@ -2248,6 +2251,19 @@ class _BoardPainter extends CustomPainter {
       _shape(canvas, shape);
     }
     if (previewShape != null) _shape(canvas, previewShape!);
+
+    if (lassoWorldRect != null) {
+      final rect = lassoWorldRect!.shift(Offset(origin, origin));
+      final fill = Paint()
+        ..color = const Color(0x1A1976D2)
+        ..style = PaintingStyle.fill;
+      final border = Paint()
+        ..color = const Color(0xFF1976D2)
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke;
+      canvas.drawRect(rect, fill);
+      canvas.drawRect(rect, border);
+    }
 
     for (final edge in document.edges) {
       BoardNode? from;
@@ -2425,6 +2441,7 @@ class _BoardPainter extends CustomPainter {
       oldDelegate.workingWidth != workingWidth ||
       oldDelegate.workingMarker != workingMarker ||
       oldDelegate.previewShape != previewShape ||
+      oldDelegate.lassoWorldRect != lassoWorldRect ||
       oldDelegate.visibleRect != visibleRect;
 }
 
