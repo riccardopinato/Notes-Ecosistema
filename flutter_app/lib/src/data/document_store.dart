@@ -142,6 +142,21 @@ class DocumentStore {
     );
   }
 
+  Future<Set<String>> referencedAssetKeys() async {
+    final db = await database;
+    final rows = await db.query(
+      'pdf_annotations',
+      distinct: true,
+      columns: ['assetKey'],
+    );
+    return {
+      for (final row in rows)
+        if (row['assetKey'] is String &&
+            Attachments.validKey(row['assetKey']! as String))
+          row['assetKey']! as String,
+    };
+  }
+
   Future<Map<String, Object?>> exportBackup() async {
     final db = await database;
     return {
