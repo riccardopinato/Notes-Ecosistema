@@ -23,19 +23,6 @@ enum _WhiteboardTool {
   text,
 }
 
-const _inkPalette = <int>[
-  0xFF111111,
-  0xFF455A64,
-  0xFFE53935,
-  0xFFFF8F00,
-  0xFFFFD54F,
-  0xFF43A047,
-  0xFF00897B,
-  0xFF1E88E5,
-  0xFF5E35B1,
-  0xFFD81B60,
-];
-
 class _TextEditResult {
   const _TextEditResult({
     required this.text,
@@ -417,7 +404,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   int get _workingColor {
     if (_tool == _WhiteboardTool.highlighter) {
-      return (_highlighterColor & 0x00FFFFFF) | 0x66000000;
+      return VisualInkDefaults.translucentMarker(_highlighterColor);
     }
     return _inkColor;
   }
@@ -609,7 +596,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _inkPalette
+                  children: VisualInkDefaults.palette
                       .map(
                         (value) => InkWell(
                           onTap: () => setDialogState(() => color = value),
@@ -1127,10 +1114,10 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   List<int> get _widthOptions {
     if (_tool == _WhiteboardTool.highlighter) {
-      return const [12, 18, 24, 32, 40];
+      return VisualInkDefaults.highlighterWidths;
     }
-    if (_isShapeTool) return const [2, 4, 5, 8, 12];
-    return const [2, 4, 6, 10, 14];
+    if (_isShapeTool) return VisualInkDefaults.shapeWidths;
+    return VisualInkDefaults.penWidths;
   }
 
   int get _currentWidth {
@@ -1164,7 +1151,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   Widget _colorControl() => PopupMenuButton<int>(
         tooltip: 'Colore',
         onSelected: _setCurrentColor,
-        itemBuilder: (_) => _inkPalette
+        itemBuilder: (_) => VisualInkDefaults.palette
             .map(
               (value) => PopupMenuItem(
                 value: value,
