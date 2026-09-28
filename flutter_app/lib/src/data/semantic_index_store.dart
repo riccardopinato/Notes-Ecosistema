@@ -254,7 +254,8 @@ class SemanticIndexStore {
   static List<double> _decode(Uint8List raw, int dimensions) {
     final expected = dimensions * Float32List.bytesPerElement;
     if (raw.length != expected) {
-      throw const FormatException('Dimensione embedding persistito incoerente.');
+      throw const FormatException(
+          'Dimensione embedding persistito incoerente.');
     }
     final data = ByteData.sublistView(raw);
     return List<double>.generate(
