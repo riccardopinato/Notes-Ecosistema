@@ -13,6 +13,7 @@ import 'package:uuid/uuid.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
+import 'domain/disaster_recovery.dart';
 import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
@@ -1407,6 +1408,173 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<void> _exportDisasterRecovery() async {
+    try {
+      final workspace = ref.read(workspaceProvider.notifier);
+      final database = ref.read(databaseProvider);
+      final snapshot = await workspace.snapshot();
+      final revisions = await database.recoveryRevisions();
+      final blocks = await database.recoveryBlocks();
+      final properties = await ref.read(propertyStoreProvider).exportBackup();
+      final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
+      final derivatives =
+          await ref.read(derivativeStoreProvider).exportBackup();
+      final projects = await ref.read(projectStoreProvider).exportBackup();
+      final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
+      final store = await AttachmentStore.open();
+
+      final bytes = await DisasterRecoveryBundle.encode(
+        snapshot: snapshot,
+        revisions: revisions,
+        blocks: blocks,
+        properties: properties,
+        knowledge: knowledge,
+        derivatives: derivatives,
+        projects: projects,
+        sharedSpaces: shared,
+        store: store,
+      );
+
+      final now = DateTime.now();
+      final stamp =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Crea backup di ripristino Notes',
+        fileName: 'notes-recovery-$stamp.zip',
+        bytes: bytes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Backup di ripristino creato e verificato.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userErrorText(error))),
+      );
+    }
+  }
+
+  Future<void> _restoreDisasterRecovery() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.single.bytes;
+      if (bytes == null) {
+        throw const FormatException(
+          'Impossibile leggere il backup di ripristino.',
+        );
+      }
+
+      // Decode validates the whole archive, file whitelist, checksums,
+      // object graph and attachments before any persistent state is changed.
+      final recovery = DisasterRecoveryBundle.decode(
+        Uint8List.fromList(bytes),
+      );
+      if (!mounted) return;
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ripristinare lo stato Notes?'),
+          content: Text(
+            'Questa operazione sostituisce lo stato locale con il backup: '
+            '${recovery.snapshot.notes.length} elementi, '
+            '${recovery.snapshot.collections.length} raccolte, '
+            '${recovery.assets.length} allegati e i relativi metadati. '
+            'Il pacchetto migrazione/import rimane separato e continua a '
+            'creare copie. Usa Ripristino solo per disaster recovery.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ripristina stato'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final noteIds =
+          recovery.snapshot.notes.map((note) => note.id).toSet();
+      final sharedIds =
+          recovery.sharedSpaces.spaces.map((space) => space.id).toSet();
+
+      // Every store is replaced transactionally and with canonical IDs.
+      // The full operation is retry-safe: all stages are exact/idempotent,
+      // while assets are content-addressed.
+      final store = await AttachmentStore.open();
+      for (final entry in recovery.assets.entries) {
+        await store.put(entry.key, entry.value);
+      }
+
+      await ref.read(databaseProvider).restoreExact(
+            snapshot: recovery.snapshot,
+            revisions: recovery.revisions,
+            blocks: recovery.blocks,
+          );
+      await ref.read(propertyStoreProvider).restoreBackupExact(
+            recovery.properties,
+            noteIds: noteIds,
+          );
+      await ref.read(knowledgeStoreProvider).restoreBackupExact(
+            recovery.knowledge,
+            noteIds: noteIds,
+          );
+      await ref.read(derivativeStoreProvider).restoreBackupExact(
+            recovery.derivatives,
+            noteIds: noteIds,
+          );
+      await ref.read(sharedSpacesProvider.notifier).restoreExact(
+            recovery.sharedSpaces,
+          );
+      await ref.read(projectStoreProvider).restoreBackupExact(
+            recovery.projects,
+            noteIds: noteIds,
+            sharedSpaceIds: sharedIds,
+          );
+
+      await ref.read(workspaceProvider.notifier).refresh();
+      await ref.read(projectWorkspaceProvider.notifier).refresh();
+      await _cleanupAttachments(silent: true);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Stato Notes ripristinato con identità originali.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            userErrorText(
+              error,
+              fallback:
+                  'Ripristino non completato. Puoi riprovare lo stesso backup in sicurezza.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _exportLegacyJson() async {
     try {
       final snapshot = await ref.read(workspaceProvider.notifier).snapshot();
@@ -1671,10 +1839,32 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                 onChanged: widget.onDarkChanged,
               ),
               ListTile(
-                leading: const Icon(Icons.file_upload_outlined),
-                title: const Text('Esporta backup completo'),
+                leading: const Icon(Icons.security_update_good_outlined),
+                title: const Text('Crea backup di ripristino'),
                 subtitle: const Text(
-                  'ZIP con note, attività, disegni, lavagne e allegati.',
+                  'Disaster recovery: conserva identità, blocchi, cronologia, metadati e allegati.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _exportDisasterRecovery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.restore_page_outlined),
+                title: const Text('Ripristina stato Notes'),
+                subtitle: const Text(
+                  'Sostituisce lo stato locale con un backup di ripristino verificato.',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _restoreDisasterRecovery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_upload_outlined),
+                title: const Text('Esporta pacchetto migrazione'),
+                subtitle: const Text(
+                  'Media Bundle v3: portabile e importabile come copie.',
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -1683,7 +1873,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               ),
               ListTile(
                 leading: const Icon(Icons.file_download_outlined),
-                title: const Text('Importa backup'),
+                title: const Text('Importa pacchetto / backup legacy'),
                 subtitle: const Text(
                     'Importa come copie senza sovrascrivere i dati attuali.'),
                 onTap: () {
