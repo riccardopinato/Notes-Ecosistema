@@ -292,7 +292,10 @@ void main() {
     await tester.dragFrom(start, end - start);
     await tester.pump();
 
-    expect(find.text('1 selezionati'), findsOneWidget);
+    final count = tester.widget<Text>(
+      find.byKey(const ValueKey('whiteboard-selection-count')),
+    );
+    expect(count.data, '1 selezionati');
   });
 
   testWidgets('selection can duplicate and resize post-its', (tester) async {
