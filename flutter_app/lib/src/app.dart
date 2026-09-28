@@ -1531,8 +1531,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       );
       if (confirmed != true) return;
 
-      final noteIds =
-          recovery.snapshot.notes.map((note) => note.id).toSet();
+      final noteIds = recovery.snapshot.notes.map((note) => note.id).toSet();
       final sharedIds =
           recovery.sharedSpaces.spaces.map((space) => space.id).toSet();
 
