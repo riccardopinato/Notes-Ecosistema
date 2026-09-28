@@ -1137,7 +1137,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ripristino completato. Identità originali preservate.'),
+          content:
+              Text('Ripristino completato. Identità originali preservate.'),
         ),
       );
     } catch (error) {
