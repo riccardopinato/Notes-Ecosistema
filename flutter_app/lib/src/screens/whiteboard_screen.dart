@@ -23,6 +23,33 @@ enum _WhiteboardTool {
   text,
 }
 
+const _inkPalette = <int>[
+  0xFF111111,
+  0xFF455A64,
+  0xFFE53935,
+  0xFFFF8F00,
+  0xFFFFD54F,
+  0xFF43A047,
+  0xFF00897B,
+  0xFF1E88E5,
+  0xFF5E35B1,
+  0xFFD81B60,
+];
+
+class _TextEditResult {
+  const _TextEditResult({
+    required this.text,
+    required this.color,
+    required this.size,
+    this.delete = false,
+  });
+
+  final String text;
+  final int color;
+  final int size;
+  final bool delete;
+}
+
 class WhiteboardScreen extends StatefulWidget {
   const WhiteboardScreen({
     required this.note,
