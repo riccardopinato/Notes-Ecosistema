@@ -749,9 +749,13 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   void _moveText(SketchText text, DragUpdateDetails details) {
-    final updated = text.copyWith(
-      x: text.x + details.delta.dx.round(),
-      y: text.y + details.delta.dy.round(),
+    final current = _document.texts.firstWhere(
+      (item) => item.id == text.id,
+      orElse: () => text,
+    );
+    final updated = current.copyWith(
+      x: current.x + details.delta.dx.round(),
+      y: current.y + details.delta.dy.round(),
     );
     if (_setDocument(
       _document.copyWith(
@@ -1075,9 +1079,13 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   }
 
   void _moveNode(BoardNode node, DragUpdateDetails details) {
-    final updated = node.copyWith(
-      x: node.x + details.delta.dx.round(),
-      y: node.y + details.delta.dy.round(),
+    final current = _document.nodes.firstWhere(
+      (item) => item.id == node.id,
+      orElse: () => node,
+    );
+    final updated = current.copyWith(
+      x: current.x + details.delta.dx.round(),
+      y: current.y + details.delta.dy.round(),
     );
     if (_setDocument(
       WhiteboardOps.updateNode(_document, updated),
