@@ -30,6 +30,28 @@ enum SketchPaper { plain, ruled, grid, dots, cornell }
 
 enum SketchShapeKind { line, rectangle, ellipse, arrow }
 
+abstract final class VisualInkDefaults {
+  static const palette = <int>[
+    0xFF111111,
+    0xFF455A64,
+    0xFFE53935,
+    0xFFFF8F00,
+    0xFFFFD54F,
+    0xFF43A047,
+    0xFF00897B,
+    0xFF1E88E5,
+    0xFF5E35B1,
+    0xFFD81B60,
+  ];
+
+  static const penWidths = <int>[2, 4, 6, 10, 14];
+  static const highlighterWidths = <int>[12, 18, 24, 32, 40];
+  static const shapeWidths = <int>[2, 4, 5, 8, 12];
+
+  static int translucentMarker(int color) =>
+      (color & 0x00FFFFFF) | 0x66000000;
+}
+
 class InkPoint {
   const InkPoint(this.x, this.y, [this.pressure = 1000]);
   final int x;
