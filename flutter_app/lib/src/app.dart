@@ -226,9 +226,25 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Set<String> _restrictedSharedContentIds() {
+    final shared = ref.read(sharedSpacesProvider);
+    final identity = shared.identity;
+    final restricted = <String>{};
+    for (final space in shared.spaces) {
+      final role = identity == null ? null : space.roleFor(identity.id);
+      if (role == null || !role.canEdit) {
+        restricted.addAll(space.contentIds);
+      }
+    }
+    return restricted;
+  }
+
   Future<void> _handleQuickSync() async {
     if (!mounted) return;
-    final service = GitHubSyncService(ref.read(databaseProvider));
+    final service = GitHubSyncService(
+      ref.read(databaseProvider),
+      excludedIds: _restrictedSharedContentIds(),
+    );
     try {
       final connected = await service.loadStatus();
       if (!connected) {
@@ -838,22 +854,19 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     final section = labels[_index];
 
     final editableSharedIds = <String>{};
-    final viewerSharedIds = <String>{};
+    final restrictedSharedIds = <String>{};
     final identity = shared.identity;
-    if (identity != null) {
-      for (final space in shared.spaces) {
-        final role = space.roleFor(identity.id);
-        if (role == null) continue;
-        if (role.canEdit) {
-          editableSharedIds.addAll(space.contentIds);
-        } else {
-          viewerSharedIds.addAll(space.contentIds);
-        }
+    for (final space in shared.spaces) {
+      final role = identity == null ? null : space.roleFor(identity.id);
+      if (role?.canEdit == true) {
+        editableSharedIds.addAll(space.contentIds);
+      } else {
+        restrictedSharedIds.addAll(space.contentIds);
       }
     }
-    final viewerOnlyIds = viewerSharedIds.difference(editableSharedIds);
+    restrictedSharedIds.removeAll(editableSharedIds);
     final personalNotes = workspace.notes
-        .where((note) => !viewerOnlyIds.contains(note.id))
+        .where((note) => !restrictedSharedIds.contains(note.id))
         .toList(growable: false);
 
     if (!workspace.loading) {
@@ -2018,6 +2031,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                     MaterialPageRoute(
                       builder: (_) => GitHubSyncScreen(
                         database: ref.read(databaseProvider),
+                        excludedIds: _restrictedSharedContentIds(),
                         onLocalChanged: () =>
                             ref.read(workspaceProvider.notifier).refresh(),
                       ),
