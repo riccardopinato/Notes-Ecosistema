@@ -722,6 +722,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _openWorkflowAutomations() async {
+    await ref.read(workflowAutomationProvider.notifier).refresh();
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => WorkflowAutomationScreen(
@@ -1158,6 +1160,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           control: true,
           shift: true,
         ): () => unawaited(_openKnowledgeGraph()),
+        const SingleActivator(
+          LogicalKeyboardKey.keyA,
+          control: true,
+          shift: true,
+        ): () => unawaited(_openWorkflowAutomations()),
       },
       child: Focus(
         autofocus: true,
@@ -2310,6 +2317,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(documentStoreProvider).deleteForNote(id);
     await ref.read(projectStoreProvider).deleteLinksForNote(id);
     await ref.read(importProvenanceStoreProvider).deleteForNote(id);
+    await ref.read(workflowAutomationStoreProvider).deleteRunsForNote(id);
     await ref.read(projectWorkspaceProvider.notifier).refresh();
     await _cleanupAttachments(silent: true);
     if (linkedSpaces.isNotEmpty) {
