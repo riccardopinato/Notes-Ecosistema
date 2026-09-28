@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/attachments.dart';
 import 'package:notes_ecosistema/src/domain/backup.dart';
@@ -45,7 +46,7 @@ void main() {
       spaces: const [],
     );
 
-    final bytes = DisasterRecoveryBundle.encodeLoadedForTest(
+    final bytes = DisasterRecoveryBundle.encodeLoaded(
       snapshot: snapshot,
       revisions: const [
         {
@@ -82,10 +83,12 @@ void main() {
   });
 
   test('disaster recovery refuses undeclared or unsafe archive content', () {
+    final archive = Archive()
+      ..add(ArchiveFile.string('../escape.txt', 'unsafe'));
+    final bytes = Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+
     expect(
-      () => DisasterRecoveryBundle.decode(
-        DisasterRecoveryBundle.invalidArchiveForTest(),
-      ),
+      () => DisasterRecoveryBundle.decode(bytes),
       throwsFormatException,
     );
   });
