@@ -47,7 +47,8 @@ void main() {
     );
   });
 
-  test('hybrid ranker can recover a semantic result absent from lexical hits', () {
+  test('hybrid ranker can recover a semantic result absent from lexical hits',
+      () {
     final a = note('a', 'Budget', 'Spese e risparmio');
     final b = note('b', 'Montagna', 'Sentieri e rifugi', updatedAt: 2);
     final documents = [
