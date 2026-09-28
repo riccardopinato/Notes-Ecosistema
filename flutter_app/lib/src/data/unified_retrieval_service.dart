@@ -214,9 +214,8 @@ class UnifiedRetrievalService {
     if (!semanticEnabled || store == null) return const [];
 
     final documents = UnifiedRetrieval.noteDocuments(notes);
-    final sourceDocument = documents
-        .where((document) => document.noteId == source.id)
-        .firstOrNull;
+    final sourceDocument =
+        documents.where((document) => document.noteId == source.id).firstOrNull;
     if (sourceDocument == null) return const [];
 
     try {
@@ -343,7 +342,6 @@ class UnifiedRetrievalService {
     return 'Contenuto collegato';
   }
 }
-
 
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull {
