@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../data/property_store.dart';
+import '../data/semantic_index_store.dart';
 import '../data/workflow_automation_store.dart';
 import '../data/knowledge_store.dart';
 import '../data/derivative_store.dart';
@@ -34,6 +35,12 @@ final knowledgeStoreProvider = Provider<KnowledgeStore>((ref) {
 
 final derivativeStoreProvider = Provider<DerivativeStore>((ref) {
   final store = DerivativeStore();
+  ref.onDispose(store.close);
+  return store;
+});
+
+final semanticIndexStoreProvider = Provider<SemanticIndexStore>((ref) {
+  final store = SemanticIndexStore();
   ref.onDispose(store.close);
   return store;
 });

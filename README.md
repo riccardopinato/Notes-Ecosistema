@@ -1,8 +1,25 @@
-# Notes — Ecosistema 0.54.3
+# Notes — Ecosistema 0.55.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.55.0 — Local Semantic Retrieval
+
+- nuovo sidecar ricostruibile `notes-semantic.db`, separato dalle source of truth;
+- embedding locale fixed-size a 192 dimensioni, deterministico e senza rete;
+- indicizzazione incrementale via fingerprint: vengono ricalcolati solo i documenti modificati;
+- Unified Retrieval fonde ranking classico e similarità vettoriale con Reciprocal Rank Fusion;
+- ricerca per concetto anche quando le parole non coincidono esattamente, con subword e alias concettuali multilingua;
+- Note correlate instradate attraverso lo stesso indice semantico;
+- fallback automatico al retrieval classico se il layer semantico non è disponibile;
+- toggle in Impostazioni; disattivando la funzione l'indice derivato viene cancellato;
+- purge nota → rimozione immediata degli embedding associati;
+- nessun embedding entra in backup o Open Export perché è sempre ricostruibile;
+- Web Preview con ranking ibrido in memoria;
+- benchmark automatico su dimensione vettore e throughput locale.
+
+Dettagli: `flutter_app/LOCAL_INTELLIGENCE_0_55.md`.
 
 ## 0.54.3 — Whiteboard Device QA & Polish
 

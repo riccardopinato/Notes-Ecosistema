@@ -17,6 +17,7 @@ import 'src/domain/note.dart';
 import 'src/domain/planner.dart';
 import 'src/domain/project_workspace.dart';
 import 'src/domain/research.dart';
+import 'src/domain/semantic_embeddings.dart';
 import 'src/domain/study.dart';
 import 'src/domain/stable_links.dart';
 import 'src/domain/unified_retrieval.dart';
@@ -67,7 +68,7 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notes Ecosistema 0.54 · Web',
+      title: 'Notes Ecosistema 0.55 · Web',
       theme: NotesTheme.light(),
       darkTheme: NotesTheme.dark(),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
@@ -2073,7 +2074,69 @@ class _WebKnowledgeSearchState extends State<_WebKnowledgeSearch> {
         text: 'Relazione: collegato a Unified Retrieval e Study Core.',
       ),
     ];
-    return UnifiedRetrieval.search(_query.text, documents, limit: 20);
+    final query = _query.text.trim();
+    final lexical = UnifiedRetrieval.search(query, documents, limit: 60);
+    if (query.isEmpty) return lexical.take(20).toList(growable: false);
+
+    const engine = LocalHashEmbeddingEngine();
+    final queryVector = engine.embed(query);
+    final semantic = <({RetrievalDocument document, double score})>[];
+    for (final document in documents) {
+      final score = LocalHashEmbeddingEngine.cosine(
+        queryVector,
+        engine.embed(
+          '${document.title}\n${document.tags.join(' ')}\n${document.text}',
+        ),
+      );
+      if (score >= 0.10) {
+        semantic.add((document: document, score: score));
+      }
+    }
+    semantic.sort((a, b) => b.score.compareTo(a.score));
+
+    final scores = <String, double>{};
+    final lexicalByNote = <String, RetrievalHit>{};
+    final semanticByNote =
+        <String, ({RetrievalDocument document, double score})>{};
+
+    for (var i = 0; i < lexical.length; i++) {
+      final hit = lexical[i];
+      lexicalByNote.putIfAbsent(hit.document.noteId, () => hit);
+      scores.update(
+        hit.document.noteId,
+        (value) => value + 1 / (61 + i),
+        ifAbsent: () => 1 / (61 + i),
+      );
+    }
+    for (var i = 0; i < semantic.length; i++) {
+      final hit = semantic[i];
+      semanticByNote.putIfAbsent(hit.document.noteId, () => hit);
+      scores.update(
+        hit.document.noteId,
+        (value) => value + 0.85 / (61 + i),
+        ifAbsent: () => 0.85 / (61 + i),
+      );
+    }
+
+    final noteIds = scores.keys.toList(growable: false)
+      ..sort((a, b) => scores[b]!.compareTo(scores[a]!));
+    final result = <RetrievalHit>[];
+    for (final noteId in noteIds) {
+      final lexicalHit = lexicalByNote[noteId];
+      final semanticHit = semanticByNote[noteId];
+      final document = lexicalHit?.document ?? semanticHit?.document;
+      if (document == null) continue;
+      result.add(
+        RetrievalHit(
+          document: document,
+          score: scores[noteId]! * 10000,
+          excerpt: lexicalHit?.excerpt ??
+              UnifiedRetrieval.excerpt(document.text, query),
+        ),
+      );
+      if (result.length >= 20) break;
+    }
+    return result;
   }
 
   @override
@@ -2085,7 +2148,7 @@ class _WebKnowledgeSearchState extends State<_WebKnowledgeSearch> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const EditorialEyebrow('UNIFIED RETRIEVAL'),
+          const EditorialEyebrow('UNIFIED RETRIEVAL · LOCAL SEMANTIC'),
           const SizedBox(height: 4),
           Text(
             'Knowledge Search',
@@ -2099,7 +2162,7 @@ class _WebKnowledgeSearchState extends State<_WebKnowledgeSearch> {
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
               hintText:
-                  'Cerca in note, OCR, Study, PDF, proprietà e relazioni…',
+                  'Cerca per parole o concetti in note, OCR, Study, PDF e metadata…',
             ),
           ),
           const SizedBox(height: 14),

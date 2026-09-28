@@ -14,6 +14,8 @@ Future<void> showIntelligenceSheet({
   ValueChanged<Note>? onOpenNote,
   ValueChanged<String>? onInsertMarkdown,
   Future<KnowledgeQueryResult> Function(String query)? unifiedSearch,
+  Future<List<KnowledgeHit>> Function(Note source)? unifiedRelated,
+  bool semanticEnabled = true,
 }) =>
     showNotesBottomSheet<void>(
       context: context,
@@ -25,6 +27,8 @@ Future<void> showIntelligenceSheet({
         onOpenNote: onOpenNote,
         onInsertMarkdown: onInsertMarkdown,
         unifiedSearch: unifiedSearch,
+        unifiedRelated: unifiedRelated,
+        semanticEnabled: semanticEnabled,
       ),
     );
 
@@ -36,6 +40,8 @@ class _IntelligenceSheet extends StatefulWidget {
     this.onOpenNote,
     this.onInsertMarkdown,
     this.unifiedSearch,
+    this.unifiedRelated,
+    this.semanticEnabled = true,
   });
 
   final List<Note> notes;
@@ -44,6 +50,8 @@ class _IntelligenceSheet extends StatefulWidget {
   final ValueChanged<Note>? onOpenNote;
   final ValueChanged<String>? onInsertMarkdown;
   final Future<KnowledgeQueryResult> Function(String query)? unifiedSearch;
+  final Future<List<KnowledgeHit>> Function(Note source)? unifiedRelated;
+  final bool semanticEnabled;
 
   @override
   State<_IntelligenceSheet> createState() => _IntelligenceSheetState();
@@ -63,7 +71,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     super.initState();
     final note = widget.currentNote;
     if (note != null) {
-      _related = _engine.related(note, widget.notes);
+      _loadRelated();
       _loadDerivatives();
     }
   }
@@ -72,6 +80,23 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
   void dispose() {
     _query.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRelated() async {
+    final note = widget.currentNote;
+    if (note == null) return;
+    try {
+      final unified = widget.unifiedRelated;
+      final values = unified == null
+          ? _engine.related(note, widget.notes)
+          : await unified(note);
+      if (!mounted) return;
+      setState(() => _related = values);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = userErrorText(error));
+      }
+    }
   }
 
   Future<void> _loadDerivatives() async {
@@ -287,8 +312,10 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                       : 'Intelligence · opzionale',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const Text(
-                  'Fallback locale e verificabile. Nessuna funzione core dipende da provider AI.',
+                Text(
+                  widget.semanticEnabled
+                      ? 'Ricerca ibrida locale: ranking classico + indice semantico ricostruibile. Nessuna rete richiesta.'
+                      : 'Ricerca classica locale. L’indice semantico è disattivato nelle Impostazioni.',
                 ),
                 const SizedBox(height: 12),
                 Row(
