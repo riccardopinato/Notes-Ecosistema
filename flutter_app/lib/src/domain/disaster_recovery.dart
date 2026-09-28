@@ -631,7 +631,8 @@ abstract final class DisasterRecoveryBundle {
       throw const FormatException('Backup automazioni recovery non valido.');
     }
     final automationRules = (automations['rules'] as List).map((raw) {
-      if (raw is! Map) throw const FormatException('Regola automazione non valida.');
+      if (raw is! Map)
+        throw const FormatException('Regola automazione non valida.');
       final rule = WorkflowRule.fromMap(
         raw.map((key, value) => MapEntry(key.toString(), value)),
       );
@@ -646,7 +647,8 @@ abstract final class DisasterRecoveryBundle {
     final automationRunIds = <String>{};
     final automationRuns = automations['runs'] as List;
     if (automationRuns.length > WorkflowAutomationRules.maxRuns) {
-      throw const FormatException('Troppe esecuzioni automazione nel recovery.');
+      throw const FormatException(
+          'Troppe esecuzioni automazione nel recovery.');
     }
     for (final raw in automationRuns) {
       if (raw is! Map) {
@@ -657,10 +659,10 @@ abstract final class DisasterRecoveryBundle {
       );
       WorkflowAutomationRules.validateRun(run);
       if (!automationRunIds.add(run.id) || !noteIds.contains(run.noteId)) {
-        throw const FormatException('Esecuzione automazione recovery non valida.');
+        throw const FormatException(
+            'Esecuzione automazione recovery non valida.');
       }
     }
-
   }
 
   static Set<String> _referencedAssets(
