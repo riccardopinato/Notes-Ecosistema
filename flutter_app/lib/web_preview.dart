@@ -44,7 +44,7 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notes Ecosistema 0.51 · Web',
+      title: 'Notes Ecosistema 0.52 · Web',
       theme: NotesTheme.light(),
       darkTheme: NotesTheme.dark(),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
@@ -554,7 +554,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('Notes Ecosistema 0.51'),
+              title: Text('Notes Ecosistema 0.52'),
               subtitle: Text(
                 'Web Preview fedele · stato demo locale alla sessione browser.',
               ),
@@ -698,7 +698,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               appBar: AppBar(
                 title: EditorialAppTitle(
                   section == 'Home' ? 'Il tuo spazio' : section,
-                  eyebrow: 'NOTES · WEB PREVIEW 0.51',
+                  eyebrow: 'NOTES · WEB PREVIEW 0.52',
                 ),
                 actions: [
                   IconButton(
@@ -904,7 +904,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       Note(
         id: 'diary-today',
         title: 'Decisioni di oggi',
-        body: 'Ho chiuso il ciclo 0.47 → 0.51. La preview Web deve essere '
+        body: 'Ho chiuso il ciclo 0.47 → 0.52. La preview Web deve essere '
             'una rappresentazione credibile del prodotto, non una demo separata.',
         collectionId: 'ideas',
         favorite: false,
@@ -1307,9 +1307,9 @@ class _WebSpacesScreen extends StatelessWidget {
         const SizedBox(height: 12),
         _FeaturePanel(
           icon: Icons.group_work_outlined,
-          title: 'Shared Space · Product',
+          title: 'Shared Space · Product · discussione',
           subtitle:
-              '4 membri · 2 novità · note e task restano oggetti canonici',
+              '4 membri · 3 commenti · 2 novità · note e task restano oggetti canonici',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => _WebSharedSpaceDetail(
@@ -1323,7 +1323,7 @@ class _WebSpacesScreen extends StatelessWidget {
         const SizedBox(height: 12),
         _FeaturePanel(
           icon: Icons.school_outlined,
-          title: 'Shared Space · Studio',
+          title: 'Shared Space · Studio · discussione',
           subtitle: '2 membri · materiali, attività e fonti condivise',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
@@ -1441,7 +1441,7 @@ class _WebProjectsScreenState extends State<_WebProjectsScreen> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
         children: [
           Text(
-            'Notes Ecosistema 0.51',
+            'Notes Ecosistema 0.52',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 6),
