@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -13,6 +14,7 @@ import 'package:uuid/uuid.dart';
 import 'data/import_application_service.dart';
 import 'data/knowledge_graph_service.dart';
 import 'data/unified_retrieval_service.dart';
+import 'domain/app_locale.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
@@ -56,11 +58,13 @@ import 'screens/study_screen.dart';
 import 'screens/sketch_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/whiteboard_screen.dart';
+import 'screens/workflow_automation_screen.dart';
 import 'state/document_controller.dart';
 import 'state/project_workspace_controller.dart';
 import 'state/shared_live_sync_controller.dart';
 import 'state/shared_spaces_controller.dart';
 import 'state/study_controller.dart';
+import 'state/workflow_automation_controller.dart';
 import 'state/workspace_controller.dart';
 import 'sync/github_sync_service.dart';
 import 'theme/notes_theme.dart';
@@ -78,13 +82,19 @@ class NotesEcosistemaApp extends ConsumerStatefulWidget {
 
 class _NotesEcosistemaAppState extends ConsumerState<NotesEcosistemaApp> {
   bool _dark = false;
+  String? _localeCode;
 
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('it_IT');
+    initializeDateFormatting();
     SharedPreferences.getInstance().then((prefs) {
-      if (mounted) setState(() => _dark = prefs.getBool('dark_mode') ?? false);
+      if (!mounted) return;
+      setState(() {
+        _dark = prefs.getBool('dark_mode') ?? false;
+        _localeCode =
+            AppLocale.normalizePreference(prefs.getString(AppLocale.preferenceKey));
+      });
     });
   }
 
@@ -95,12 +105,26 @@ class _NotesEcosistemaAppState extends ConsumerState<NotesEcosistemaApp> {
         theme: NotesTheme.light(),
         darkTheme: NotesTheme.dark(),
         themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
+        locale: AppLocale.localeForPreference(_localeCode),
+        supportedLocales: AppLocale.supportedLocales,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: WorkspaceShell(
           dark: _dark,
+          localeCode: _localeCode,
           onDarkChanged: (value) async {
             setState(() => _dark = value);
             final prefs = await SharedPreferences.getInstance();
             await prefs.setBool('dark_mode', value);
+          },
+          onLocaleChanged: (value) async {
+            final normalized = AppLocale.normalizePreference(value);
+            setState(() => _localeCode = normalized);
+            final prefs = await SharedPreferences.getInstance();
+            if (normalized == null) {
+              await prefs.remove(AppLocale.preferenceKey);
+            } else {
+              await prefs.setString(AppLocale.preferenceKey, normalized);
+            }
           },
         ),
       );
@@ -109,12 +133,16 @@ class _NotesEcosistemaAppState extends ConsumerState<NotesEcosistemaApp> {
 class WorkspaceShell extends ConsumerStatefulWidget {
   const WorkspaceShell({
     required this.dark,
+    required this.localeCode,
     required this.onDarkChanged,
+    required this.onLocaleChanged,
     super.key,
   });
 
   final bool dark;
+  final String? localeCode;
   final ValueChanged<bool> onDarkChanged;
+  final ValueChanged<String?> onLocaleChanged;
 
   @override
   ConsumerState<WorkspaceShell> createState() => _WorkspaceShellState();
@@ -693,6 +721,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     );
   }
 
+  Future<void> _openWorkflowAutomations() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WorkflowAutomationScreen(
+          collections: ref.read(workspaceProvider).collections,
+        ),
+      ),
+    );
+    await ref.read(workflowAutomationProvider.notifier).refresh();
+  }
+
   Future<void> _openProjects({String? initialProjectId}) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -1040,6 +1079,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         onProjects: () => _openProjects(),
         onStudy: _openStudy,
         onGraph: _openKnowledgeGraph,
+        onAutomations: _openWorkflowAutomations,
         projectCount:
             projects.projects.where((project) => project.isActive).length,
         sharedUnread: identity == null ? 0 : live.totalUnread(identity.id),
@@ -1323,6 +1363,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             break;
           case 'knowledge-graph':
             await _openKnowledgeGraph();
+            break;
+          case 'automations':
+            await _openWorkflowAutomations();
             break;
           case 'search':
             setState(() => _index = 5);
@@ -2305,6 +2348,29 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<void> _selectLanguage(BuildContext sheetContext) async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: Text(AppStrings.of(dialogContext).language),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'system'),
+            child: Text(AppStrings.of(dialogContext).systemLanguage),
+          ),
+          for (final code in const ['it', 'en', 'es', 'fr', 'de', 'pt'])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, code),
+              child: Text(AppLocale.label(code)),
+            ),
+        ],
+      ),
+    );
+    if (selected == null) return;
+    widget.onLocaleChanged(selected == 'system' ? null : selected);
+    if (sheetContext.mounted) Navigator.pop(sheetContext);
+  }
+
   Future<void> _settings(BuildContext context) => showNotesBottomSheet<void>(
         context: context,
         expand: true,
@@ -2314,6 +2380,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             children: [
               const EditorialAppTitle('Impostazioni'),
               const SizedBox(height: 16),
+              EditorialSection(AppStrings.of(context).profile),
+              ListTile(
+                leading: const Icon(Icons.translate),
+                title: Text(AppStrings.of(context).language),
+                subtitle: Text(AppLocale.label(widget.localeCode)),
+                onTap: () => _selectLanguage(context),
+              ),
+              const Divider(),
               SwitchListTile(
                 title: const Text('Tema scuro'),
                 value: widget.dark,
