@@ -123,8 +123,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   void _drawStart(DragStartDetails details) {
     final point = _boardPoint(details.localPosition);
-    if (_tool == _WhiteboardTool.pen ||
-        _tool == _WhiteboardTool.highlighter) {
+    if (_tool == _WhiteboardTool.pen || _tool == _WhiteboardTool.highlighter) {
       _workingPoints
         ..clear()
         ..add(point);
@@ -147,8 +146,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   void _drawUpdate(DragUpdateDetails details) {
     final point = _boardPoint(details.localPosition);
-    if (_tool == _WhiteboardTool.pen ||
-        _tool == _WhiteboardTool.highlighter) {
+    if (_tool == _WhiteboardTool.pen || _tool == _WhiteboardTool.highlighter) {
       _workingPoints.add(point);
       setState(() {});
       return;
@@ -168,9 +166,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
             _tool == _WhiteboardTool.highlighter) &&
         _workingPoints.isNotEmpty) {
       final stroke = InkStroke(
-        color: _tool == _WhiteboardTool.highlighter
-            ? 0x88FFD54F
-            : 0xFF111111,
+        color: _tool == _WhiteboardTool.highlighter ? 0x88FFD54F : 0xFF111111,
         width: _tool == _WhiteboardTool.highlighter ? 24 : 6,
         marker: _tool == _WhiteboardTool.highlighter,
         points: [..._workingPoints],
@@ -288,8 +284,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     }).toList();
 
     final texts = _document.texts.where((text) {
-      return !((point.x - text.x).abs() < 260 &&
-          (point.y - text.y).abs() < 90);
+      return !((point.x - text.x).abs() < 260 && (point.y - text.y).abs() < 90);
     }).toList();
 
     setState(() {
@@ -793,8 +788,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                               _tool == _WhiteboardTool.text
                           ? null
                           : _drawEnd,
-                      onTapUp: widget.readOnly ||
-                              _tool != _WhiteboardTool.text
+                      onTapUp: widget.readOnly || _tool != _WhiteboardTool.text
                           ? null
                           : _tapCanvas,
                       child: RepaintBoundary(
@@ -844,16 +838,14 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   Widget _nodeWidget(BoardNode node) {
     final selected = _connectFrom == node.id;
-    final canEditNode =
-        !widget.readOnly && _tool == _WhiteboardTool.navigate;
+    final canEditNode = !widget.readOnly && _tool == _WhiteboardTool.navigate;
     return Positioned(
       left: _origin + node.x,
       top: _origin + node.y,
       width: node.width.toDouble(),
       height: node.height.toDouble(),
       child: GestureDetector(
-        onPanUpdate:
-            canEditNode ? (details) => _moveNode(node, details) : null,
+        onPanUpdate: canEditNode ? (details) => _moveNode(node, details) : null,
         onTap: canEditNode ? () => _nodeTap(node) : null,
         onLongPress: canEditNode
             ? () {
@@ -1104,7 +1096,6 @@ Color _contrast(Color background) {
   final luminance = background.computeLuminance();
   return luminance > 0.5 ? Colors.black87 : Colors.white;
 }
-
 
 String _paperLabel(WhiteboardPaper paper) => switch (paper) {
       WhiteboardPaper.plain => 'Bianco',
