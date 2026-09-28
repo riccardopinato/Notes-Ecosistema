@@ -1,5 +1,21 @@
 # Notes Ecosistema — Roadmap
 
+## 0.47 → 0.51 — Product Interoperability & UX Cycle
+
+**Implementato in 0.51.0+62.**
+
+- **0.47 / P2.5 Import Provenance & Idempotency:** provenance persistente, fingerprint, batch, re-import sicuro e conflitti espliciti.
+- **0.48 Unified Retrieval & Search:** ranking comune, ricerca live a rilevanza, retrieval su Note/Task/OCR/Study/PDF/Research.
+- **0.49 Interoperability Core:** stable deep link e Android Open-in per Markdown/TXT/PDF.
+- **0.50 Obsidian / Markdown Migration Pro:** vault ZIP, frontmatter, wikilink, allegati e lossiness report.
+- **0.51 Product & UX Polish:** responsive navigation, shortcut tastiera, focus Search e copy-link.
+
+Dettagli: `flutter_app/ROADMAP_0_47_0_51.md`.
+
+### Dopo 0.51
+
+Il prossimo grande asse non parte automaticamente. I candidati restano Collaborative Workspace, Knowledge Graph, Workflow Automations e Local Intelligence; vanno promossi solo dopo audit di valore reale e Rule Zero.
+
 ## 0.46 — Consolidation & Quality Sweep
 
 **Implementato in 0.46.0+57.**
@@ -105,7 +121,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.46.0+57**
+- Versione: **0.51.0+62**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
