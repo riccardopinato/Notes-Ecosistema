@@ -52,7 +52,8 @@ void main() {
     );
   });
 
-  test('canonicalize keeps explicit IDs through save-reload representation', () {
+  test('canonicalize keeps explicit IDs through save-reload representation',
+      () {
     final original = BlockEditorCodec.parse('note-1', 'Uno\n\nDue', now: 10);
     final stored = original.map((block) => block.toMap()).toList();
     final reloaded = stored.map(ContentBlock.fromMap).toList();
