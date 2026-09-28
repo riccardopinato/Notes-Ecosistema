@@ -1574,6 +1574,41 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         icon: Icon(icon),
       );
 
+  Widget _textWidget(SketchText text) {
+    final canEdit = !widget.readOnly && _tool == _WhiteboardTool.navigate;
+    final width = math.min(
+      800.0,
+      math.max(140.0, text.text.length * text.size * 0.55),
+    );
+    final height = math.max(72.0, text.size * 2.8);
+    return Positioned(
+      left: _origin + text.x,
+      top: _origin + text.y,
+      width: width,
+      height: height,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onPanStart: canEdit ? (_) => _beginGestureHistory() : null,
+        onPanUpdate: canEdit ? (details) => _moveText(text, details) : null,
+        onPanEnd: canEdit ? (_) => _finishGestureHistory() : null,
+        onPanCancel: canEdit ? _finishGestureHistory : null,
+        onTap: canEdit ? () => _editText(text) : null,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Text(
+            text.text,
+            maxLines: 6,
+            overflow: TextOverflow.fade,
+            style: TextStyle(
+              color: Color(text.color),
+              fontSize: text.size.toDouble(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _nodeWidget(BoardNode node) {
     final selected = _connectFrom == node.id;
     final canEditNode = !widget.readOnly && _tool == _WhiteboardTool.navigate;
@@ -1583,7 +1618,10 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       width: node.width.toDouble(),
       height: node.height.toDouble(),
       child: GestureDetector(
+        onPanStart: canEditNode ? (_) => _beginGestureHistory() : null,
         onPanUpdate: canEditNode ? (details) => _moveNode(node, details) : null,
+        onPanEnd: canEditNode ? (_) => _finishGestureHistory() : null,
+        onPanCancel: canEditNode ? _finishGestureHistory : null,
         onTap: canEditNode ? () => _nodeTap(node) : null,
         onLongPress: canEditNode
             ? () {
