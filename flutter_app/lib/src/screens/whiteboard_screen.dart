@@ -1266,6 +1266,17 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 children: [
+                  IconButton.filledTonal(
+                    onPressed: _undoStack.isEmpty ? null : _undo,
+                    tooltip: 'Annulla',
+                    icon: const Icon(Icons.undo),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: _redoStack.isEmpty ? null : _redo,
+                    tooltip: 'Ripristina',
+                    icon: const Icon(Icons.redo),
+                  ),
+                  const VerticalDivider(),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: SegmentedButton<WhiteboardMode>(
@@ -1298,6 +1309,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                       _connectMode = !_connectMode;
                       _connectFrom = null;
                       _workingPoints.clear();
+                      _workingVersion++;
                       _shapeStart = null;
                       _shapeEnd = null;
                     }),
@@ -1307,9 +1319,9 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                   ),
                   if (_document.mode == WhiteboardMode.mindMap)
                     IconButton.filledTonal(
-                      onPressed: () => setState(() {
-                        _document = WhiteboardOps.autoLayoutMindMap(_document);
-                      }),
+                      onPressed: () => _setDocument(
+                        WhiteboardOps.autoLayoutMindMap(_document),
+                      ),
                       tooltip: 'Layout automatico',
                       icon: const Icon(Icons.auto_awesome_mosaic),
                     ),
@@ -1355,6 +1367,19 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     'Testo',
                     _WhiteboardTool.text,
                   ),
+                  if (_isInkTool) _colorControl(),
+                  if (_isInkTool) _widthControl(),
+                  if (_tool != _WhiteboardTool.navigate &&
+                      _tool != _WhiteboardTool.text)
+                    IconButton.filledTonal(
+                      onPressed: () =>
+                          setState(() => _fingerDraw = !_fingerDraw),
+                      isSelected: _fingerDraw,
+                      tooltip: _fingerDraw
+                          ? 'Dito: disegna'
+                          : 'Dito: naviga, penna: disegna',
+                      icon: const Icon(Icons.touch_app),
+                    ),
                   PopupMenuButton<WhiteboardPaper>(
                     tooltip: 'Sfondo',
                     onSelected: _setPaper,
