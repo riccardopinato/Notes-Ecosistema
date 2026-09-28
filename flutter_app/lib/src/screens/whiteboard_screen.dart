@@ -1611,6 +1611,86 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
         ),
       );
 
+  Rect _overviewBounds() {
+    Rect? bounds;
+
+    void include(Rect rect) {
+      bounds = bounds == null ? rect : bounds!.expandToInclude(rect);
+    }
+
+    for (final node in _document.nodes) {
+      include(_nodeWorldRect(node));
+    }
+    for (final text in _document.texts) {
+      include(_textWorldRect(text));
+    }
+    for (final shape in _document.shapes) {
+      include(
+        Rect.fromPoints(
+          Offset(shape.x1.toDouble(), shape.y1.toDouble()),
+          Offset(shape.x2.toDouble(), shape.y2.toDouble()),
+        ).inflate(shape.width.toDouble() + 12),
+      );
+    }
+    for (final stroke in _document.strokes) {
+      include(_boundsForStroke(stroke));
+    }
+
+    final content = bounds ??
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: 1800,
+          height: 1200,
+        );
+    return content.inflate(280);
+  }
+
+  Rect _currentVisibleWorldRect() {
+    final size = _lastViewportSize;
+    if (size == null || size.isEmpty) {
+      return Rect.fromCenter(
+        center: Offset.zero,
+        width: 1200,
+        height: 800,
+      );
+    }
+    final points = <Offset>[
+      _viewport.toScene(Offset.zero),
+      _viewport.toScene(Offset(size.width, 0)),
+      _viewport.toScene(Offset(0, size.height)),
+      _viewport.toScene(Offset(size.width, size.height)),
+    ].map((point) => point - Offset(_origin, _origin)).toList();
+    return Rect.fromLTRB(
+      points.map((point) => point.dx).reduce(math.min),
+      points.map((point) => point.dy).reduce(math.min),
+      points.map((point) => point.dx).reduce(math.max),
+      points.map((point) => point.dy).reduce(math.max),
+    );
+  }
+
+  Widget _miniMapWidget() => IgnorePointer(
+        child: Material(
+          elevation: 3,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            key: const ValueKey('whiteboard-minimap'),
+            width: 168,
+            height: 112,
+            child: AnimatedBuilder(
+              animation: _viewport,
+              builder: (context, _) => CustomPaint(
+                painter: _MiniMapPainter(
+                  document: _document,
+                  bounds: _overviewBounds(),
+                  viewport: _currentVisibleWorldRect(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
