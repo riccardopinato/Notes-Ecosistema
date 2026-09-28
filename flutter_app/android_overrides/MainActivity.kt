@@ -50,6 +50,7 @@ class MainActivity : FlutterActivity() {
         private const val ATTACHMENT_CHANNEL = "notes.ecosystem/attachments"
         private const val VISUAL_SHARE_CHANNEL = "notes.ecosystem/visual_share"
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
+        private const val DEEP_LINK_CHANNEL = "notes.ecosystem/deep_links"
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
         private const val PERMISSION_REQUEST = 4102
@@ -63,18 +64,21 @@ class MainActivity : FlutterActivity() {
     }
 
     private var channel: MethodChannel? = null
+    private var deepLinkChannel: MethodChannel? = null
     private var quickSyncChannel: MethodChannel? = null
     private var sharedBackgroundChannel: MethodChannel? = null
     private var reminderActionChannel: MethodChannel? = null
     private var notificationPermissionResult: MethodChannel.Result? = null
     private var notificationPermissionChannel: String? = null
     private var pendingCapture: Map<String, Any?>? = null
+    private var pendingDeepLink: String? = null
     private var pendingQuickSync = false
     private var pendingSharedSpaceId: String? = null
     private var pendingReminderAction: Map<String, Any?>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        pendingCapture = parseCapture(intent)
+        pendingDeepLink = parseStableLink(intent)
+        pendingCapture = if (pendingDeepLink == null) parseCapture(intent) else null
         pendingQuickSync = intent?.action == QUICK_SYNC
         pendingSharedSpaceId = parseSharedSpaceIntent(intent)
         pendingReminderAction = parseReminderAction(intent)
@@ -98,6 +102,21 @@ class MainActivity : FlutterActivity() {
                     }
                     "pinNoteShortcut" -> result.success(requestPinnedNoteShortcut())
                     "pinCaptureWidget" -> result.success(requestPinnedCaptureWidget())
+                    else -> result.notImplemented()
+                }
+            }
+        }
+
+        deepLinkChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            DEEP_LINK_CHANNEL,
+        ).also { methodChannel ->
+            methodChannel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialLink" -> {
+                        result.success(pendingDeepLink)
+                        pendingDeepLink = null
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -297,6 +316,17 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
 
+        val stableLink = parseStableLink(intent)
+        if (stableLink != null) {
+            val currentLink = deepLinkChannel
+            if (currentLink == null) {
+                pendingDeepLink = stableLink
+            } else {
+                currentLink.invokeMethod("open", stableLink)
+            }
+            return
+        }
+
         val reminderAction = parseReminderAction(intent)
         if (reminderAction != null) {
             getSystemService(NotificationManager::class.java)
@@ -340,6 +370,24 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun parseStableLink(intent: Intent?): String? {
+        intent ?: return null
+        if (intent.action != Intent.ACTION_VIEW) return null
+        val uri = intent.data ?: return null
+        if (uri.scheme?.lowercase() != "notes") return null
+        val host = uri.host?.lowercase() ?: return null
+        if (host !in setOf("object", "project", "study")) return null
+        val id = uri.pathSegments.singleOrNull()
+            ?.takeIf { it.isNotBlank() && it.length <= 200 }
+            ?: return null
+        return Uri.Builder()
+            .scheme("notes")
+            .authority(host)
+            .appendPath(id)
+            .build()
+            .toString()
+    }
+
     private fun parseSharedSpaceIntent(intent: Intent?): String? {
         intent ?: return null
         if (intent.action != SharedBackgroundContract.ACTION_OPEN_SHARED_SPACE) {
@@ -381,6 +429,7 @@ class MainActivity : FlutterActivity() {
                 NEW_CHECKLIST -> capture(checklist = true)
                 Intent.ACTION_SEND -> parseSend(intent)
                 Intent.ACTION_SEND_MULTIPLE -> parseSendMultiple(intent)
+                Intent.ACTION_VIEW -> parseView(intent)
                 else -> null
             }
         } catch (error: Exception) {
@@ -409,6 +458,54 @@ class MainActivity : FlutterActivity() {
         "checklist" to checklist,
         "files" to files,
     )
+
+    private fun parseView(intent: Intent): Map<String, Any?>? {
+        val uri = intent.data ?: return null
+        if (uri.scheme?.lowercase() == "notes") return null
+        val name = displayName(uri).take(120).ifBlank { "Documento" }
+        val extension = name.substringAfterLast('.', "").lowercase()
+        val declared = intent.type.orEmpty().lowercase()
+        val mime = when {
+            declared.isNotBlank() -> declared
+            extension == "md" || extension == "markdown" -> "text/markdown"
+            extension == "txt" -> "text/plain"
+            extension == "pdf" -> "application/pdf"
+            else -> contentResolver.getType(uri).orEmpty().lowercase()
+        }
+
+        if (mime == "text/plain" ||
+            mime == "text/markdown" ||
+            extension == "md" ||
+            extension == "markdown" ||
+            extension == "txt"
+        ) {
+            val input = if (uri.scheme == "file") {
+                File(uri.path ?: error("Percorso file mancante.")).inputStream()
+            } else {
+                contentResolver.openInputStream(uri)
+                    ?: error("Impossibile leggere $name.")
+            }
+            val bytes = input.use { source ->
+                val buffer = source.readBytes()
+                require(buffer.size <= FILE_LIMIT) {
+                    "Il file di testo supera 8 MiB."
+                }
+                buffer
+            }
+            return capture(
+                title = name.substringBeforeLast('.').trim(),
+                body = bytes.toString(Charsets.UTF_8),
+            )
+        }
+
+        require(mime.startsWith("image/") || mime == "application/pdf") {
+            "Formato apertura non supportato: $name"
+        }
+        return capture(
+            title = name.substringBeforeLast('.').trim(),
+            files = listOf(copyShared(uri, mime)),
+        )
+    }
 
     private fun parseSend(intent: Intent): Map<String, Any?> {
         val mime = intent.type.orEmpty().lowercase()
