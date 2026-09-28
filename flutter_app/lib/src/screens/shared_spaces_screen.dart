@@ -889,18 +889,17 @@ class _SharedSpaceDetailScreenState
             )
           else
             ...comments.take(30).map(
-              (comment) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    child: Text(
-                      comment.authorName.characters.first.toUpperCase(),
-                    ),
-                  ),
-                  title: Text(comment.authorName),
-                  subtitle: Text(comment.body),
-                  trailing:
-                      comment.authorId == identity.id || canManage
+                  (comment) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        child: Text(
+                          comment.authorName.characters.first.toUpperCase(),
+                        ),
+                      ),
+                      title: Text(comment.authorName),
+                      subtitle: Text(comment.body),
+                      trailing: comment.authorId == identity.id || canManage
                           ? PopupMenuButton<String>(
                               onSelected: (value) {
                                 if (value == 'edit') {
@@ -922,9 +921,9 @@ class _SharedSpaceDetailScreenState
                               ],
                             )
                           : null,
+                    ),
+                  ),
                 ),
-              ),
-            ),
           const SizedBox(height: 20),
           _SectionTitle(
             title: 'Contenuti condivisi',
@@ -1073,7 +1072,9 @@ class _SharedSpaceDetailScreenState
                     ),
                     title: Text(invite.role.label),
                     subtitle: Text(
-                      expired ? 'Scaduto' : 'Invito disponibile fino alla scadenza',
+                      expired
+                          ? 'Scaduto'
+                          : 'Invito disponibile fino alla scadenza',
                     ),
                     trailing: expired
                         ? null
