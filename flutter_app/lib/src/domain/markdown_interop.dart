@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart';
 
 import 'note.dart';
 import 'planner.dart';
@@ -25,6 +26,16 @@ class MarkdownPortableDocument {
   final String? taskJson;
 
   bool get isTask => taskJson != null && taskJson!.trim().isNotEmpty;
+}
+
+class MarkdownWorkspacePackage {
+  const MarkdownWorkspacePackage({
+    required this.documents,
+    this.sourceInstance,
+  });
+
+  final List<MarkdownPortableDocument> documents;
+  final String? sourceInstance;
 }
 
 enum ExternalChangeDecision {
@@ -80,6 +91,7 @@ abstract final class MarkdownWorkspaceBundle {
   static Uint8List encode(
     List<Note> notes, {
     Map<String, SyncedBlock> syncedBlocks = const {},
+    String? sourceInstance,
   }) {
     final portable = notes
         .where((note) => !note.isDeleted && !note.isVisual)
@@ -138,6 +150,8 @@ abstract final class MarkdownWorkspaceBundle {
         jsonEncode({
           'format': format,
           'version': version,
+          if (sourceInstance?.trim().isNotEmpty == true)
+            'source_instance': sourceInstance!.trim(),
           'documents': manifest,
         }),
       ),
@@ -157,7 +171,7 @@ abstract final class MarkdownWorkspaceBundle {
     return Uint8List.fromList(bytes);
   }
 
-  static List<MarkdownPortableDocument> decode(Uint8List bytes) {
+  static MarkdownWorkspacePackage decodePackage(Uint8List bytes) {
     if (bytes.isEmpty || bytes.length > maxBytes) {
       throw const FormatException('Archivio Markdown non valido.');
     }
@@ -166,6 +180,7 @@ abstract final class MarkdownWorkspaceBundle {
       throw const FormatException('Troppi file Markdown.');
     }
     final result = <MarkdownPortableDocument>[];
+    String? sourceInstance;
     final seen = <String>{};
     var expanded = 0;
 
@@ -187,6 +202,24 @@ abstract final class MarkdownWorkspaceBundle {
       expanded += data.length;
       if (expanded > maxBytes) {
         throw const FormatException('Archivio Markdown espanso oltre 32 MiB.');
+      }
+      if (entry.name == 'manifest.json') {
+        try {
+          final manifest = jsonDecode(utf8.decode(data, allowMalformed: false));
+          if (manifest is Map &&
+              manifest['format'] == format &&
+              manifest['version'] == version) {
+            final rawInstance = manifest['source_instance']?.toString().trim();
+            if (rawInstance != null &&
+                rawInstance.isNotEmpty &&
+                rawInstance.length <= 200) {
+              sourceInstance = rawInstance;
+            }
+          }
+        } catch (_) {
+          throw const FormatException('Manifest Markdown non valido.');
+        }
+        continue;
       }
       if (!entry.name.startsWith('notes/')) continue;
 
@@ -215,7 +248,28 @@ abstract final class MarkdownWorkspaceBundle {
         throw const FormatException('Troppi documenti Markdown.');
       }
     }
-    return result;
+    return MarkdownWorkspacePackage(
+      documents: result,
+      sourceInstance: sourceInstance,
+    );
+  }
+
+  static List<MarkdownPortableDocument> decode(Uint8List bytes) =>
+      decodePackage(bytes).documents;
+
+  static String fallbackSourceInstance(
+    Iterable<MarkdownPortableDocument> documents,
+  ) {
+    final ids = documents
+        .map((document) => document.sourceId?.trim().isNotEmpty == true
+            ? document.sourceId!.trim()
+            : document.fileName.toLowerCase())
+        .toList(growable: false)
+      ..sort();
+    return sha256
+        .convert(utf8.encode(ids.join('\n')))
+        .toString()
+        .substring(0, 24);
   }
 
   static ({

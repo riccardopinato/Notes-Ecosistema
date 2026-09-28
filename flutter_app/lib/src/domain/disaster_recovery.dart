@@ -9,6 +9,7 @@ import 'backup.dart';
 import 'blocks.dart';
 import 'derivatives.dart';
 import 'documents.dart';
+import 'import_provenance.dart';
 import 'project_workspace.dart';
 import 'properties.dart';
 import 'research.dart';
@@ -26,6 +27,7 @@ class DisasterRecoveryPreview {
     required this.projects,
     required this.study,
     required this.documents,
+    required this.importProvenance,
     required this.sharedSpaces,
     required this.assets,
     required this.createdAt,
@@ -40,6 +42,7 @@ class DisasterRecoveryPreview {
   final Map<String, Object?> projects;
   final Map<String, Object?> study;
   final Map<String, Object?> documents;
+  final Map<String, Object?> importProvenance;
   final SharedSpacesSnapshot sharedSpaces;
   final Map<String, Uint8List> assets;
   final int createdAt;
@@ -63,12 +66,17 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> projects,
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
+    required Map<String, Object?> importProvenance,
     required SharedSpacesSnapshot sharedSpaces,
     required AttachmentStore store,
     int? createdAt,
   }) async {
     final assets = <String, Uint8List>{};
-    for (final key in _referencedAssets(snapshot)) {
+    for (final key in _referencedAssets(
+      snapshot,
+      derivatives: derivatives,
+      documents: documents,
+    )) {
       final bytes = await store.read(key);
       Attachments.verify(key, bytes);
       assets[key] = bytes;
@@ -83,6 +91,7 @@ abstract final class DisasterRecoveryBundle {
       projects: projects,
       study: study,
       documents: documents,
+      importProvenance: importProvenance,
       sharedSpaces: sharedSpaces,
       assets: assets,
       createdAt: createdAt,
@@ -99,6 +108,7 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> projects,
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
+    required Map<String, Object?> importProvenance,
     required SharedSpacesSnapshot sharedSpaces,
     required Map<String, Uint8List> assets,
     int? createdAt,
@@ -108,7 +118,11 @@ abstract final class DisasterRecoveryBundle {
     _validateBlocks(blocks, snapshot);
     SharedSpacesCodec.encode(sharedSpaces);
 
-    final referenced = _referencedAssets(snapshot);
+    final referenced = _referencedAssets(
+      snapshot,
+      derivatives: derivatives,
+      documents: documents,
+    );
     if (assets.length != referenced.length ||
         !assets.keys.toSet().containsAll(referenced) ||
         !referenced.containsAll(assets.keys)) {
@@ -130,6 +144,7 @@ abstract final class DisasterRecoveryBundle {
       'projects.json': _jsonBytes(projects),
       'study.json': _jsonBytes(study),
       'documents.json': _jsonBytes(documents),
+      'imports.json': _jsonBytes(importProvenance),
       'shared-spaces.json': Uint8List.fromList(
         utf8.encode(SharedSpacesCodec.encode(sharedSpaces)),
       ),
@@ -204,6 +219,7 @@ abstract final class DisasterRecoveryBundle {
           entry.name == 'projects.json' ||
           entry.name == 'study.json' ||
           entry.name == 'documents.json' ||
+          entry.name == 'imports.json' ||
           entry.name == 'shared-spaces.json' ||
           (entry.name.startsWith('assets/') &&
               Attachments.validKey(entry.name.substring('assets/'.length)));
@@ -295,23 +311,6 @@ abstract final class DisasterRecoveryBundle {
       Attachments.verify(key, entry.value);
       assets[key] = entry.value;
     }
-    final referenced = <String>{};
-    for (final note in snapshot.notes) {
-      if (!note.isVisual) {
-        referenced.addAll(Attachments.refs(note.body).map((ref) => ref.key));
-      }
-    }
-    for (final draft in snapshot.drafts) {
-      referenced.addAll(Attachments.refs(draft.body).map((ref) => ref.key));
-    }
-    if (referenced.length != assets.length ||
-        !referenced.containsAll(assets.keys) ||
-        !assets.keys.toSet().containsAll(referenced)) {
-      throw const FormatException(
-        'Allegati non coerenti con lo stato da ripristinare.',
-      );
-    }
-
     final sharedRaw = raw['shared-spaces.json'];
     if (sharedRaw == null) {
       throw const FormatException('Shared Spaces mancanti nel backup.');
@@ -323,6 +322,19 @@ abstract final class DisasterRecoveryBundle {
     final projects = _jsonMap(raw, 'projects.json');
     final study = _jsonMap(raw, 'study.json');
     final documents = _jsonMap(raw, 'documents.json');
+    final importProvenance = _jsonMap(raw, 'imports.json');
+    final referenced = _referencedAssets(
+      snapshot,
+      derivatives: derivatives,
+      documents: documents,
+    );
+    if (referenced.length != assets.length ||
+        !referenced.containsAll(assets.keys) ||
+        !assets.keys.toSet().containsAll(referenced)) {
+      throw const FormatException(
+        'Allegati non coerenti con lo stato da ripristinare.',
+      );
+    }
     final sharedSpaces = SharedSpacesCodec.decode(
       utf8.decode(sharedRaw, allowMalformed: false),
     );
@@ -334,6 +346,7 @@ abstract final class DisasterRecoveryBundle {
       projects: projects,
       study: study,
       documents: documents,
+      importProvenance: importProvenance,
       sharedSpaces: sharedSpaces,
       assetKeys: assets.keys.toSet(),
     );
@@ -348,6 +361,7 @@ abstract final class DisasterRecoveryBundle {
       projects: projects,
       study: study,
       documents: documents,
+      importProvenance: importProvenance,
       sharedSpaces: sharedSpaces,
       assets: Map.unmodifiable(assets),
       createdAt: createdAt,
@@ -362,6 +376,7 @@ abstract final class DisasterRecoveryBundle {
     required Map<String, Object?> projects,
     required Map<String, Object?> study,
     required Map<String, Object?> documents,
+    required Map<String, Object?> importProvenance,
     required SharedSpacesSnapshot sharedSpaces,
     required Set<String> assetKeys,
   }) {
@@ -533,9 +548,57 @@ abstract final class DisasterRecoveryBundle {
         throw const FormatException('Annotazione verso PDF mancante.');
       }
     }
+
+    if (importProvenance['version'] != 1 ||
+        importProvenance['records'] is! List ||
+        importProvenance['batches'] is! List) {
+      throw const FormatException('Provenance import recovery non valida.');
+    }
+    final recordKeys = <String>{};
+    for (final raw in importProvenance['records'] as List) {
+      if (raw is! Map) {
+        throw const FormatException('Record provenance recovery non valido.');
+      }
+      final record = ImportRecord.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      record.identity.validate();
+      if (!recordKeys.add(record.identity.key) ||
+          !noteIds.contains(record.targetNoteId) ||
+          record.externalFingerprint.length != 64 ||
+          record.localFingerprint.length != 64 ||
+          record.lastBatchId.trim().isEmpty ||
+          record.importedAt < 0 ||
+          record.lastSeenAt < 0) {
+        throw const FormatException('Record provenance recovery non valido.');
+      }
+    }
+    final batchIds = <String>{};
+    for (final raw in importProvenance['batches'] as List) {
+      if (raw is! Map) {
+        throw const FormatException('Batch provenance recovery non valido.');
+      }
+      final id = raw['id']?.toString() ?? '';
+      final source = raw['source']?.toString() ?? '';
+      final sourceInstance = raw['sourceInstance']?.toString() ?? '';
+      final startedAt = (raw['startedAt'] as num?)?.toInt() ?? -1;
+      final completedAt = (raw['completedAt'] as num?)?.toInt();
+      if (id.trim().isEmpty ||
+          !batchIds.add(id) ||
+          source.trim().isEmpty ||
+          sourceInstance.trim().isEmpty ||
+          startedAt < 0 ||
+          (completedAt != null && completedAt < startedAt)) {
+        throw const FormatException('Batch provenance recovery non valido.');
+      }
+    }
   }
 
-  static Set<String> _referencedAssets(BackupSnapshot snapshot) {
+  static Set<String> _referencedAssets(
+    BackupSnapshot snapshot, {
+    Map<String, Object?> derivatives = const {},
+    Map<String, Object?> documents = const {},
+  }) {
     final keys = <String>{};
     for (final note in snapshot.notes) {
       if (!note.isVisual) {
@@ -544,6 +607,20 @@ abstract final class DisasterRecoveryBundle {
     }
     for (final draft in snapshot.drafts) {
       keys.addAll(Attachments.refs(draft.body).map((ref) => ref.key));
+    }
+    final derivativeRows = derivatives['derivatives'];
+    if (derivativeRows is List) {
+      for (final raw in derivativeRows.whereType<Map>()) {
+        final key = raw['sourceAssetKey']?.toString();
+        if (key != null && Attachments.validKey(key)) keys.add(key);
+      }
+    }
+    final annotationRows = documents['annotations'];
+    if (annotationRows is List) {
+      for (final raw in annotationRows.whereType<Map>()) {
+        final key = raw['assetKey']?.toString();
+        if (key != null && Attachments.validKey(key)) keys.add(key);
+      }
     }
     return keys;
   }

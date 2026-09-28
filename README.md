@@ -1,8 +1,44 @@
-# Notes — Ecosistema 0.46.0
+# Notes — Ecosistema 0.51.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.51 — Product & UX Polish
+
+- layout adattivo: NavigationRail su tablet/desktop, NavigationBar su mobile;
+- shortcut Ctrl+K, Ctrl+N e Ctrl+Shift+F;
+- ricerca live con focus immediato e ranking condiviso;
+- stable link copiabili dalle Note.
+
+## 0.50 — Obsidian / Markdown Migration Pro
+
+- import vault Obsidian da ZIP;
+- conversione di frontmatter compatibile, wikilink e allegati supportati;
+- lossiness report per file/campi non mappati;
+- re-import idempotente attraverso lo stesso motore P2.5.
+
+## 0.49 — Interoperability Core
+
+- deep link `notes://object/<id>`, `notes://project/<id>`, `notes://study/<id>`;
+- Android cold-start e onNewIntent;
+- Open-in per Markdown/TXT/PDF usando la pipeline capture esistente.
+
+## 0.48 — Unified Retrieval & Search
+
+- ranking unico per Library Search e Quick Switcher;
+- Knowledge Search aggrega Note, Task, OCR/Derivatives, Study, PDF annotations e Research Sources;
+- più hit sidecar vengono ricondotte alla stessa Note canonica.
+
+## 0.47 — P2.5 Import Provenance & Idempotency
+
+- provenance persistente in sidecar locale;
+- source/sourceInstance/externalId + fingerprint + batch;
+- create / unchanged / update / keep-local / conflict;
+- conflitti non distruttivi;
+- Markdown re-import senza duplicazioni.
+
+Dettagli: `flutter_app/ROADMAP_0_47_0_51.md`.
 
 ## 0.46 — Consolidation & Quality Sweep
 
@@ -54,7 +90,7 @@ Validazione funzionale prima del bump release: **140 test**, analyze pulito, APK
 
 ## Stato corrente
 
-- Versione Flutter: **0.46.0+57**
+- Versione Flutter: **0.51.0+62**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact

@@ -71,6 +71,11 @@ void main() {
       projects: const {'version': 1, 'projects': [], 'links': []},
       study: const {'version': 1, 'items': [], 'logs': []},
       documents: const {'version': 1, 'annotations': []},
+      importProvenance: const {
+        'version': 1,
+        'records': [],
+        'batches': [],
+      },
       sharedSpaces: shared,
       assets: {key: asset},
       createdAt: 10,

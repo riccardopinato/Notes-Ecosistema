@@ -13,6 +13,7 @@ Future<void> showIntelligenceSheet({
   Note? currentNote,
   ValueChanged<Note>? onOpenNote,
   ValueChanged<String>? onInsertMarkdown,
+  Future<KnowledgeQueryResult> Function(String query)? unifiedSearch,
 }) =>
     showNotesBottomSheet<void>(
       context: context,
@@ -23,6 +24,7 @@ Future<void> showIntelligenceSheet({
         currentNote: currentNote,
         onOpenNote: onOpenNote,
         onInsertMarkdown: onInsertMarkdown,
+        unifiedSearch: unifiedSearch,
       ),
     );
 
@@ -33,6 +35,7 @@ class _IntelligenceSheet extends StatefulWidget {
     this.currentNote,
     this.onOpenNote,
     this.onInsertMarkdown,
+    this.unifiedSearch,
   });
 
   final List<Note> notes;
@@ -40,6 +43,7 @@ class _IntelligenceSheet extends StatefulWidget {
   final Note? currentNote;
   final ValueChanged<Note>? onOpenNote;
   final ValueChanged<String>? onInsertMarkdown;
+  final Future<KnowledgeQueryResult> Function(String query)? unifiedSearch;
 
   @override
   State<_IntelligenceSheet> createState() => _IntelligenceSheetState();
@@ -86,13 +90,30 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     }
   }
 
-  void _ask() {
+  Future<void> _ask() async {
     final query = _query.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _result = null;
+        _error = 'Scrivi una domanda o alcune parole chiave.';
+      });
+      return;
+    }
     setState(() {
-      _result = _engine.ask(query, widget.notes);
-      _error =
-          query.isEmpty ? 'Scrivi una domanda o alcune parole chiave.' : null;
+      _busy = true;
+      _error = null;
     });
+    try {
+      final unified = widget.unifiedSearch;
+      final result = unified == null
+          ? _engine.ask(query, widget.notes)
+          : await unified(query);
+      if (mounted) setState(() => _result = result);
+    } catch (error) {
+      if (mounted) setState(() => _error = userErrorText(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _createDerivative(DerivativeKind kind) async {

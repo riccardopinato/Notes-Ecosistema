@@ -93,6 +93,23 @@ jobs:
           '''
           if 'android.intent.action.SEND_MULTIPLE' not in ms:
               ms = ms.replace('</activity>', capture_filters + '\\n            </activity>', 1)
+          view_filters = r'''
+                <intent-filter>
+                    <action android:name="android.intent.action.VIEW"/>
+                    <category android:name="android.intent.category.DEFAULT"/>
+                    <category android:name="android.intent.category.BROWSABLE"/>
+                    <data android:scheme="notes"/>
+                </intent-filter>
+                <intent-filter>
+                    <action android:name="android.intent.action.VIEW"/>
+                    <category android:name="android.intent.category.DEFAULT"/>
+                    <data android:mimeType="text/plain"/>
+                    <data android:mimeType="text/markdown"/>
+                    <data android:mimeType="application/pdf"/>
+                </intent-filter>
+          '''
+          if 'android:scheme="notes"' not in ms:
+              ms = ms.replace('</activity>', view_filters + '\\n            </activity>', 1)
           widget_receiver = r'''
             <receiver
                 android:name=".QuickCaptureWidget"
