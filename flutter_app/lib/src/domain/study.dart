@@ -160,7 +160,7 @@ class SimpleStudyScheduler implements StudyScheduler {
     StudyRating rating, {
     required int reviewedAt,
   }) {
-    var ease = current.ease.clamp(1.3, 3.0);
+    var ease = current.ease.clamp(1.3, 3.0).toDouble();
     var repetitions = current.repetitions;
     var lapses = current.lapses;
     int interval;
@@ -169,15 +169,15 @@ class SimpleStudyScheduler implements StudyScheduler {
       case StudyRating.again:
         lapses++;
         repetitions = 0;
-        ease = (ease - 0.2).clamp(1.3, 3.0);
+        ease = (ease - 0.2).clamp(1.3, 3.0).toDouble();
         interval = 0;
         break;
       case StudyRating.hard:
         repetitions++;
-        ease = (ease - 0.05).clamp(1.3, 3.0);
+        ease = (ease - 0.05).clamp(1.3, 3.0).toDouble();
         interval = current.intervalDays <= 1
             ? 1
-            : (current.intervalDays * 1.2).round().clamp(1, 36500);
+            : (current.intervalDays * 1.2).round().clamp(1, 36500).toInt();
         break;
       case StudyRating.good:
         repetitions++;
@@ -185,16 +185,17 @@ class SimpleStudyScheduler implements StudyScheduler {
             ? 1
             : current.intervalDays == 1
                 ? 3
-                : (current.intervalDays * ease).round().clamp(1, 36500);
+                : (current.intervalDays * ease).round().clamp(1, 36500).toInt();
         break;
       case StudyRating.easy:
         repetitions++;
-        ease = (ease + 0.1).clamp(1.3, 3.0);
+        ease = (ease + 0.1).clamp(1.3, 3.0).toDouble();
         interval = current.intervalDays == 0
             ? 4
             : (current.intervalDays * ease * 1.3)
                 .round()
-                .clamp(1, 36500);
+                .clamp(1, 36500)
+                .toInt();
         break;
     }
 
