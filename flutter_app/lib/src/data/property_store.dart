@@ -222,6 +222,72 @@ class PropertyStore {
     };
   }
 
+  Future<void> restoreExact(
+    Map<String, Object?> payload, {
+    required Set<String> noteIds,
+  }) async {
+    if (payload['version'] != 1 ||
+        payload['definitions'] is! List ||
+        payload['values'] is! List) {
+      throw const FormatException('Backup proprietà non valido.');
+    }
+
+    final definitions = (payload['definitions'] as List).map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Definizione proprietà non valida.');
+      }
+      return PropertyDefinition.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }).toList(growable: false);
+    final values = (payload['values'] as List).map((raw) {
+      if (raw is! Map) {
+        throw const FormatException('Valore proprietà non valido.');
+      }
+      return NotePropertyValue.fromMap(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }).toList(growable: false);
+
+    if (definitions.length > PropertyRules.maxDefinitions ||
+        values.length > 200000 ||
+        definitions.map((item) => item.id).toSet().length !=
+            definitions.length) {
+      throw const FormatException('Backup proprietà non valido.');
+    }
+
+    final byId = {for (final item in definitions) item.id: item};
+    for (final value in values) {
+      final definition = byId[value.definitionId];
+      if (definition == null || !noteIds.contains(value.noteId)) {
+        throw const FormatException(
+          'Valore proprietà con riferimento mancante.',
+        );
+      }
+      PropertyRules.decodeValue(definition, value.valueJson);
+    }
+
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('property_values');
+      await txn.delete('property_definitions');
+      for (final definition in definitions) {
+        await txn.insert(
+          'property_definitions',
+          definition.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final value in values) {
+        await txn.insert(
+          'property_values',
+          value.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+    });
+  }
+
   Future<void> importBackup(
     Map<String, Object?> payload, {
     required Map<String, String> noteIdMap,
