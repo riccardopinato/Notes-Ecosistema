@@ -46,6 +46,12 @@ class _SketchScreenState extends State<SketchScreen> {
   String? _error;
   final GlobalKey _exportKey = GlobalKey();
 
+  int _inkColor = 0xFF111111;
+  int _highlighterColor = 0xFFFFD54F;
+  int _penWidth = 6;
+  int _highlighterWidth = 24;
+  int _shapeWidth = 5;
+
   final List<InkPoint> _workingPoints = [];
   Offset? _shapeStart;
   Offset? _shapeEnd;
@@ -262,6 +268,52 @@ class _SketchScreenState extends State<SketchScreen> {
     _replacePage(_page.copyWith(paper: paper));
   }
 
+  bool get _isShapeTool =>
+      _tool == _SketchTool.line ||
+      _tool == _SketchTool.rectangle ||
+      _tool == _SketchTool.ellipse ||
+      _tool == _SketchTool.arrow;
+
+  int get _workingColor => _tool == _SketchTool.highlighter
+      ? VisualInkDefaults.translucentMarker(_highlighterColor)
+      : _inkColor;
+
+  int get _workingWidth {
+    if (_tool == _SketchTool.highlighter) return _highlighterWidth;
+    if (_isShapeTool) return _shapeWidth;
+    return _penWidth;
+  }
+
+  List<int> get _widthOptions {
+    if (_tool == _SketchTool.highlighter) {
+      return VisualInkDefaults.highlighterWidths;
+    }
+    if (_isShapeTool) return VisualInkDefaults.shapeWidths;
+    return VisualInkDefaults.penWidths;
+  }
+
+  void _setCurrentColor(int value) {
+    setState(() {
+      if (_tool == _SketchTool.highlighter) {
+        _highlighterColor = value;
+      } else {
+        _inkColor = value;
+      }
+    });
+  }
+
+  void _setCurrentWidth(int value) {
+    setState(() {
+      if (_tool == _SketchTool.highlighter) {
+        _highlighterWidth = value;
+      } else if (_isShapeTool) {
+        _shapeWidth = value;
+      } else {
+        _penWidth = value;
+      }
+    });
+  }
+
   InkPoint _point(Offset local) => InkPoint(
         local.dx.round().clamp(0, SketchRules.width).toInt(),
         local.dy.round().clamp(0, SketchRules.height).toInt(),
@@ -299,8 +351,8 @@ class _SketchScreenState extends State<SketchScreen> {
     if ((_tool == _SketchTool.pen || _tool == _SketchTool.highlighter) &&
         _workingPoints.isNotEmpty) {
       final stroke = InkStroke(
-        color: _tool == _SketchTool.highlighter ? 0x88FFD54F : 0xFF111111,
-        width: _tool == _SketchTool.highlighter ? 24 : 6,
+        color: _workingColor,
+        width: _workingWidth,
         marker: _tool == _SketchTool.highlighter,
         points: [..._workingPoints],
       );
@@ -328,8 +380,8 @@ class _SketchScreenState extends State<SketchScreen> {
               ..._page.shapes,
               SketchShape(
                 kind: kind,
-                color: 0xFF111111,
-                width: 5,
+                color: _inkColor,
+                width: _shapeWidth,
                 x1: start.dx.round(),
                 y1: start.dy.round(),
                 x2: end.dx.round(),
@@ -379,7 +431,7 @@ class _SketchScreenState extends State<SketchScreen> {
           ..._page.texts,
           SketchText(
             text: text,
-            color: 0xFF111111,
+            color: _inkColor,
             x: point.x,
             y: point.y,
           ),
@@ -435,8 +487,8 @@ class _SketchScreenState extends State<SketchScreen> {
               _SketchTool.arrow => SketchShapeKind.arrow,
               _ => SketchShapeKind.line,
             },
-            color: 0xFF111111,
-            width: 5,
+            color: _inkColor,
+            width: _shapeWidth,
             x1: _shapeStart!.dx.round(),
             y1: _shapeStart!.dy.round(),
             x2: _shapeEnd!.dx.round(),
@@ -519,6 +571,71 @@ class _SketchScreenState extends State<SketchScreen> {
                     _SketchTool.arrow,
                   ),
                   _toolButton(Icons.text_fields, 'Testo', _SketchTool.text),
+                  if (_tool != _SketchTool.eraser && _tool != _SketchTool.text)
+                    PopupMenuButton<int>(
+                      tooltip: 'Colore',
+                      onSelected: _setCurrentColor,
+                      itemBuilder: (_) => VisualInkDefaults.palette
+                          .map(
+                            (value) => PopupMenuItem(
+                              value: value,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: Color(value),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text('Colore'),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Center(
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Color(
+                                _tool == _SketchTool.highlighter
+                                    ? _highlighterColor
+                                    : _inkColor,
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outlineVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_tool != _SketchTool.eraser && _tool != _SketchTool.text)
+                    PopupMenuButton<int>(
+                      tooltip: 'Spessore',
+                      onSelected: _setCurrentWidth,
+                      itemBuilder: (_) => _widthOptions
+                          .map(
+                            (value) => PopupMenuItem(
+                              value: value,
+                              child: Text('$value px'),
+                            ),
+                          )
+                          .toList(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Center(child: Text('$_workingWidth px')),
+                      ),
+                    ),
                   const VerticalDivider(),
                   PopupMenuButton<SketchPaper>(
                     tooltip: 'Tipo carta',
@@ -557,6 +674,9 @@ class _SketchScreenState extends State<SketchScreen> {
                     painter: _SketchPainter(
                       page: _page,
                       working: _workingPoints,
+                      workingColor: _workingColor,
+                      workingWidth: _workingWidth,
+                      workingMarker: _tool == _SketchTool.highlighter,
                       previewShape: previewShape,
                     ),
                   ),
@@ -638,11 +758,17 @@ class _SketchPainter extends CustomPainter {
   const _SketchPainter({
     required this.page,
     required this.working,
+    required this.workingColor,
+    required this.workingWidth,
+    required this.workingMarker,
     required this.previewShape,
   });
 
   final SketchPage page;
   final List<InkPoint> working;
+  final int workingColor;
+  final int workingWidth;
+  final bool workingMarker;
   final SketchShape? previewShape;
 
   @override
@@ -660,9 +786,9 @@ class _SketchPainter extends CustomPainter {
       _stroke(
         canvas,
         InkStroke(
-          color: 0xFF111111,
-          width: 6,
-          marker: false,
+          color: workingColor,
+          width: workingWidth,
+          marker: workingMarker,
           points: working,
         ),
       );
