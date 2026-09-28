@@ -192,7 +192,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         if (!mounted) return;
         if (note == null || note.isDeleted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contenuto collegato non disponibile.')),
+            const SnackBar(
+                content: Text('Contenuto collegato non disponibile.')),
           );
           return;
         }
@@ -1114,8 +1115,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
             return Scaffold(
               appBar: AppBar(
-                title:
-                    EditorialAppTitle(section == 'Home' ? 'Il tuo spazio' : section),
+                title: EditorialAppTitle(
+                    section == 'Home' ? 'Il tuo spazio' : section),
                 actions: [
                   IconButton(
                     tooltip: 'Knowledge Search',
@@ -1193,8 +1194,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             KnowledgeHit(
               note: note,
               score: hit.score,
-              excerpt:
-                  '${_retrievalLabel(hit.document.kind)} · ${hit.excerpt}',
+              excerpt: '${_retrievalLabel(hit.document.kind)} · ${hit.excerpt}',
             ),
           );
         }
@@ -1639,8 +1639,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final current = ref.read(workspaceProvider).notes;
       final currentById = {for (final note in current) note.id: note};
 
-      final planned = <
-          ({ObsidianDocument document, ImportIdentity identity, String id})>[];
+      final planned =
+          <({ObsidianDocument document, ImportIdentity identity, String id})>[];
       for (final document in vault.documents) {
         final identity = ImportIdentity(
           source: source,
