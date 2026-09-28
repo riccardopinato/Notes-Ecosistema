@@ -137,7 +137,7 @@ class SemanticVector {
     for (var index = 0; index < a.values.length; index++) {
       dot += a.values[index] * b.values[index];
     }
-    return (dot / (a.norm * b.norm)).clamp(-1.0, 1.0);
+    return (dot / (a.norm * b.norm)).clamp(-1.0, 1.0).toDouble();
   }
 
   static double _norm(List<double> values) {
@@ -208,7 +208,8 @@ abstract final class HybridSemanticRanker {
     final semanticByNote = <String, double>{};
     for (final score in semanticScores) {
       if (!docs.containsKey(score.documentId)) continue;
-      final normalized = ((score.score + 1) / 2).clamp(0.0, 1.0);
+      final normalized =
+          ((score.score + 1) / 2).clamp(0.0, 1.0).toDouble();
       semanticByNote.update(
         score.noteId,
         (value) => math.max(value, normalized),
@@ -284,7 +285,7 @@ class SemanticBenchmarkResult {
   final Map<String, double> perLanguageTop1;
   final int elapsedMilliseconds;
 
-  double get top1Accuracy => total == 0 ? 0 : top1 / total;
+  double get top1Accuracy => total == 0 ? 0.0 : top1 / total;
 
   bool get passesNotesGate {
     if (total == 0 || top1Accuracy < 0.78 || meanReciprocalRank < 0.84) {
@@ -447,7 +448,9 @@ abstract final class SemanticBenchmark {
       perLanguageTop1: {
         for (final entry in perLanguage.entries)
           entry.key:
-              entry.value.total == 0 ? 0 : entry.value.hits / entry.value.total,
+              entry.value.total == 0
+                  ? 0.0
+                  : entry.value.hits / entry.value.total,
       },
       elapsedMilliseconds: watch.elapsedMilliseconds,
     );
