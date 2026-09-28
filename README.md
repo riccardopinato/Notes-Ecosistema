@@ -1,8 +1,22 @@
-# Notes — Ecosistema 0.52.0
+# Notes — Ecosistema 0.53.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.53 — Knowledge Graph
+
+- grafo derivato dai dati canonici, senza nuovo database;
+- nodi Note, Task, Project, Study e PDF;
+- archi da internal link, relazioni esplicite, Projects, Study e Document Workspace;
+- focus 1-hop / 2-hop / tutto, filtri e ricerca nodo;
+- layout deterministico bounded;
+- apertura diretta degli oggetti sorgente rispettando i permessi Shared Spaces;
+- accesso da Home, Quick Switcher e shortcut Ctrl+Shift+G;
+- Web Preview aggiornata con il grafo interattivo;
+- nessun graph DB, vector store o AI obbligatoria.
+
+Dettagli: `flutter_app/KNOWLEDGE_GRAPH_0_53.md`.
 
 ## 0.52 — Collaborative Workspace
 
@@ -103,7 +117,7 @@ Validazione funzionale prima del bump release: **140 test**, analyze pulito, APK
 
 ## Stato corrente
 
-- Versione Flutter: **0.52.0+63**
+- Versione Flutter: **0.53.0+64**
 - Persistenza: SQLite/sqflite con compatibilità schema **Room v8**
 - Android: minSdk 26
 - CI: format, analyze, test, APK debug, APK release R8 split per ABI, size gate, evidence/hash artifact
