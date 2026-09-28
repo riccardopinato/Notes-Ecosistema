@@ -1987,8 +1987,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     constraints.maxHeight,
                   );
                   _scheduleInitialCenter(viewportSize);
-                  return InteractiveViewer.builder(
-                    key: const ValueKey('whiteboard-viewport'),
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: InteractiveViewer.builder(
+                          key: const ValueKey('whiteboard-viewport'),
                     transformationController: _viewport,
                     minScale: 0.2,
                     maxScale: 3.2,
@@ -2088,6 +2091,14 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                         ),
                       );
                     },
+                        ),
+                      ),
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: _miniMapWidget(),
+                      ),
+                    ],
                   );
                 },
               ),
