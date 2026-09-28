@@ -361,6 +361,7 @@ abstract final class DisasterRecoveryBundle {
       projects: projects,
       study: study,
       documents: documents,
+      importProvenance: importProvenance,
       sharedSpaces: sharedSpaces,
       assets: Map.unmodifiable(assets),
       createdAt: createdAt,
