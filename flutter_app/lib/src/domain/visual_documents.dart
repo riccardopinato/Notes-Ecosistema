@@ -475,15 +475,23 @@ class BoardNode {
   final int color;
   final String? linkedNoteId;
 
-  BoardNode copyWith({String? text, int? x, int? y}) => BoardNode(
+  BoardNode copyWith({
+    String? text,
+    int? x,
+    int? y,
+    int? width,
+    int? height,
+    int? color,
+  }) =>
+      BoardNode(
         id: id,
         kind: kind,
         text: text ?? this.text,
         x: x ?? this.x,
         y: y ?? this.y,
-        width: width,
-        height: height,
-        color: color,
+        width: width ?? this.width,
+        height: height ?? this.height,
+        color: color ?? this.color,
         linkedNoteId: linkedNoteId,
       );
 }
