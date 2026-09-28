@@ -223,6 +223,8 @@ class _PerfectBenchmarkProvider implements SemanticEmbeddingProvider {
       'recovery',
       'treino',
       'recuperação',
+      'entrenamiento',
+      'recuperación',
       'sueño',
     ])) {
       return 4;
