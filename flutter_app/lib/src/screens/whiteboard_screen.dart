@@ -67,7 +67,7 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
     if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
     final dx = (viewportSize.width - _canvasSize) / 2;
     final dy = (viewportSize.height - _canvasSize) / 2;
-    _viewport.value = Matrix4.identity()..translate(dx, dy);
+    _viewport.value = Matrix4.identity()..setTranslationRaw(dx, dy, 0);
   }
 
   void _scheduleInitialCenter(Size viewportSize) {
