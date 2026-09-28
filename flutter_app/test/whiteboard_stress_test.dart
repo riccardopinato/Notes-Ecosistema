@@ -9,6 +9,7 @@ void main() {
       (strokeIndex) => InkStroke(
         color: 0xFF111111,
         width: 6,
+        marker: false,
         points: List.generate(
           100,
           (pointIndex) => InkPoint(
@@ -50,6 +51,7 @@ void main() {
       (strokeIndex) => InkStroke(
         color: 0xFF111111,
         width: 4,
+        marker: false,
         points: List.generate(
           100,
           (pointIndex) => InkPoint(
