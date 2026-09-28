@@ -38,6 +38,9 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   String? _connectFrom;
   String? _error;
   final GlobalKey _exportKey = GlobalKey();
+  final TransformationController _viewport = TransformationController();
+  Size? _lastViewportSize;
+  bool _initialViewportCentered = false;
 
   @override
   void initState() {
@@ -56,7 +59,25 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   @override
   void dispose() {
     _title.dispose();
+    _viewport.dispose();
     super.dispose();
+  }
+
+  void _centerViewport(Size viewportSize) {
+    if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
+    final dx = (viewportSize.width - _canvasSize) / 2;
+    final dy = (viewportSize.height - _canvasSize) / 2;
+    _viewport.value = Matrix4.identity()..translate(dx, dy);
+  }
+
+  void _scheduleInitialCenter(Size viewportSize) {
+    _lastViewportSize = viewportSize;
+    if (_initialViewportCentered) return;
+    _initialViewportCentered = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _centerViewport(_lastViewportSize ?? viewportSize);
+    });
   }
 
   Future<void> _save() async {
@@ -421,28 +442,38 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
           Expanded(
             child: ColoredBox(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: InteractiveViewer(
-                minScale: 0.2,
-                maxScale: 3.2,
-                boundaryMargin: const EdgeInsets.all(1200),
-                constrained: false,
-                child: SizedBox(
-                  width: _canvasSize,
-                  height: _canvasSize,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _BoardPainter(
-                            document: _document,
-                            origin: _origin,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final viewportSize = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
+                  _scheduleInitialCenter(viewportSize);
+                  return InteractiveViewer(
+                    transformationController: _viewport,
+                    minScale: 0.2,
+                    maxScale: 3.2,
+                    boundaryMargin: const EdgeInsets.all(1200),
+                    constrained: false,
+                    child: SizedBox(
+                      width: _canvasSize,
+                      height: _canvasSize,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _BoardPainter(
+                                document: _document,
+                                origin: _origin,
+                              ),
+                            ),
                           ),
-                        ),
+                          ..._document.nodes.map(_nodeWidget),
+                        ],
                       ),
-                      ..._document.nodes.map(_nodeWidget),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
