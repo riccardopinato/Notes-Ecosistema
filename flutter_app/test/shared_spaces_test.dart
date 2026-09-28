@@ -532,4 +532,51 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test('shared live sync preserves delete versus offline edit as conflict', () {
+    const base = SyncDocument(
+      id: 'shared-life',
+      title: 'Base',
+      body: 'A',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 10,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const deleted = SyncDocument(
+      id: 'shared-life',
+      title: 'Base',
+      body: 'A',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 20,
+      deletedAt: 20,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+    const edited = SyncDocument(
+      id: 'shared-life',
+      title: 'Offline edit',
+      body: 'B',
+      favorite: false,
+      createdAt: 1,
+      updatedAt: 30,
+      pinned: false,
+      archived: false,
+      tags: [],
+    );
+
+    expect(
+      decideSharedLiveDocument(
+        baseHash: sharedLiveDocumentHash(base),
+        local: deleted,
+        remote: edited,
+      ),
+      SharedLiveDecision.conflict,
+    );
+  });
+
 }
