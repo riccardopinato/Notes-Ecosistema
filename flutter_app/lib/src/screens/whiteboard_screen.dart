@@ -1729,6 +1729,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     'Naviga',
                     _WhiteboardTool.navigate,
                   ),
+                  _toolButton(
+                    Icons.select_all,
+                    'Seleziona',
+                    _WhiteboardTool.select,
+                  ),
                   _toolButton(Icons.edit, 'Penna', _WhiteboardTool.pen),
                   _toolButton(
                     Icons.border_color,
@@ -1801,6 +1806,83 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                     },
                     tooltip: 'Torna al centro',
                     icon: const Icon(Icons.center_focus_strong),
+                  ),
+                ],
+              ),
+            ),
+          if (!widget.readOnly && _selectionMode)
+            SizedBox(
+              height: 52,
+              child: ListView(
+                key: const ValueKey('whiteboard-selection-bar'),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        '${_selectedNodeIds.length + _selectedTextIds.length} selezionati',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-select-all'),
+                    onPressed: _selectAllObjects,
+                    tooltip: 'Seleziona tutto',
+                    icon: const Icon(Icons.done_all),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: _selectedNodeIds.isEmpty &&
+                            _selectedTextIds.isEmpty
+                        ? null
+                        : _clearSelection,
+                    tooltip: 'Deseleziona tutto',
+                    icon: const Icon(Icons.deselect),
+                  ),
+                  const VerticalDivider(),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-duplicate-selection'),
+                    onPressed: _selectedNodeIds.isEmpty &&
+                            _selectedTextIds.isEmpty
+                        ? null
+                        : _duplicateSelection,
+                    tooltip: 'Duplica selezione',
+                    icon: const Icon(Icons.copy_all_outlined),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-resize-smaller'),
+                    onPressed:
+                        _selectedNodeIds.isEmpty ? null : () => _resizeSelection(-40),
+                    tooltip: 'Riduci post-it',
+                    icon: const Icon(Icons.zoom_in_map),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-resize-larger'),
+                    onPressed:
+                        _selectedNodeIds.isEmpty ? null : () => _resizeSelection(40),
+                    tooltip: 'Ingrandisci post-it',
+                    icon: const Icon(Icons.zoom_out_map),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-snap-grid'),
+                    onPressed: () =>
+                        setState(() => _snapToGrid = !_snapToGrid),
+                    isSelected: _snapToGrid,
+                    tooltip: _snapToGrid
+                        ? 'Snap griglia attivo'
+                        : 'Snap griglia disattivo',
+                    icon: const Icon(Icons.grid_4x4),
+                  ),
+                  IconButton.filledTonal(
+                    key: const ValueKey('whiteboard-delete-selection'),
+                    onPressed: _selectedNodeIds.isEmpty &&
+                            _selectedTextIds.isEmpty
+                        ? null
+                        : _deleteSelection,
+                    tooltip: 'Elimina selezione',
+                    icon: const Icon(Icons.delete_outline),
                   ),
                 ],
               ),
