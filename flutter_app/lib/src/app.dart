@@ -155,6 +155,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   String? _libraryCollectionId;
   String? _plannerTaskId;
   String _reminderSignature = '';
+  bool _semanticSearchEnabled = true;
+
+  static const _semanticSearchPreference = 'semantic_search_enabled';
 
   static const labels = [
     'Home',
@@ -169,6 +172,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    SharedPreferences.getInstance().then((prefs) {
+      if (!mounted) return;
+      setState(() {
+        _semanticSearchEnabled =
+            prefs.getBool(_semanticSearchPreference) ?? true;
+      });
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       QuickCaptureBridge.initialize(_handleIncomingCapture);
       DeepLinkBridge.initialize(_handleDeepLink);
@@ -1283,14 +1293,20 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       knowledgeStore: ref.read(knowledgeStoreProvider),
       propertyStore: ref.read(propertyStoreProvider),
       studyStore: ref.read(studyStoreProvider),
+      semanticStore: ref.read(semanticIndexStoreProvider),
     );
     await showIntelligenceSheet(
       context: context,
       notes: notes,
       derivativeStore: ref.read(derivativeStoreProvider),
+      semanticEnabled: _semanticSearchEnabled,
       onOpenNote: (note) => _openEditor(note),
       unifiedSearch: (query) async {
-        final hits = await service.search(query: query, notes: notes);
+        final hits = await service.search(
+          query: query,
+          notes: notes,
+          semanticEnabled: _semanticSearchEnabled,
+        );
         final byId = {for (final note in notes) note.id: note};
         final knowledgeHits = <KnowledgeHit>[];
         for (final hit in hits) {
@@ -2314,6 +2330,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     await ref.read(propertyStoreProvider).deleteValuesForNote(id);
     await ref.read(knowledgeStoreProvider).deleteForNote(id);
     await ref.read(derivativeStoreProvider).deleteForNote(id);
+    await ref.read(semanticIndexStoreProvider).deleteForNote(id);
     await ref.read(documentStoreProvider).deleteForNote(id);
     await ref.read(projectStoreProvider).deleteLinksForNote(id);
     await ref.read(importProvenanceStoreProvider).deleteForNote(id);
@@ -2410,6 +2427,22 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                 title: const Text('Tema scuro'),
                 value: widget.dark,
                 onChanged: widget.onDarkChanged,
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.hub_outlined),
+                title: const Text('Ricerca semantica locale'),
+                subtitle: const Text(
+                  'Indice vettoriale sul dispositivo. Disattivandolo resta sempre disponibile la ricerca classica.',
+                ),
+                value: _semanticSearchEnabled,
+                onChanged: (value) async {
+                  setState(() => _semanticSearchEnabled = value);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool(_semanticSearchPreference, value);
+                  if (!value) {
+                    await ref.read(semanticIndexStoreProvider).clear();
+                  }
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.security_update_good_outlined),
