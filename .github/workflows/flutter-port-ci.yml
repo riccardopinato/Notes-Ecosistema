@@ -50,7 +50,12 @@ jobs:
           s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
           if 'androidx.work:work-runtime:2.11.2' not in s:
-              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n}\n'
+              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")\n}\n'
+          elif 'litertlm-android:0.17.1' not in s:
+              s = s.replace(
+                  'implementation("androidx.work:work-runtime:2.11.2")',
+                  'implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")'
+              )
           if 'proguard-rules.pro' not in s:
               s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           p.write_text(s)
@@ -153,6 +158,14 @@ jobs:
           '''
           if 'android.service.quicksettings.action.QS_TILE' not in ms:
               ms = ms.replace('</application>', quick_sync_tile + '\\n    </application>')
+
+          opencl_library = r'''
+            <uses-native-library
+                android:name="libOpenCL.so"
+                android:required="false"/>
+          '''
+          if 'android:name="libOpenCL.so"' not in ms:
+              ms = ms.replace('</application>', opencl_library + '\\n    </application>')
           manifest.write_text(ms)
           PY
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
