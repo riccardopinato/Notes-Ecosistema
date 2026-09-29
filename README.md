@@ -1,8 +1,22 @@
-# Notes — Ecosistema 0.56.1
+# Notes — Ecosistema 0.56.2
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.56.2 — Notes Plus Local AI Delivery
+
+- Needle 3 20L definito come **Local AI Pack opzionale di Notes Plus**, non come dipendenza del Core;
+- modello `needle3.cact` pinnato per revisione e SHA-256, circa 35,3 MB;
+- Play AI Delivery on-demand con status/download/cancel/remove e path risolto a runtime;
+- entitlement `Free / Plus` esplicito: build release Free finché il billing reale non viene collegato, debug Plus per QA;
+- UI Plus dedicata nella superficie Intelligence, con download/rimozione e progress state;
+- parser Structured Intelligence reso multi-provider e già compatibile con source Needle;
+- runtime Needle tenuto fuori dal base APK; le build ARM64 recenti sono circa 1,6 MB e verranno agganciate tramite feature/runtime opzionale dopo il gate JNI;
+- size gate ARM64 base invariato a 38 MiB;
+- nessun peso Needle committato o incluso nell'APK standard.
+
+Dettagli: `flutter_app/PLUS_LOCAL_AI_0_56_2.md`.
 
 ## 0.56.1 — Structured Local Intelligence Core
 
@@ -25,7 +39,7 @@ Dettagli: `flutter_app/STRUCTURED_INTELLIGENCE_0_56_1.md`.
 - availability runtime esplicita: AVAILABLE / DOWNLOADABLE / DOWNLOADING / UNAVAILABLE;
 - **Chiedi a questa nota** e **Chiedi al workspace** usano Unified Retrieval + contesto locale bounded;
 - fallback sempre disponibile: Semantic Retrieval 0.55;
-- Needle 3 resta il candidato ultraleggero (8–29 MB) per tool-calling/extraction sui device senza Gemini Nano;
+- Needle 3 20L è il provider strutturato Plus on-demand: modello separato da circa 35,3 MB, senza pesi nel base APK;
 - nessun cloud fallback e nessun upload del contenuto;
 - Prompt API pin: `com.google.mlkit:genai-prompt:1.0.0-beta4`;
 - coroutines Android pin 1.11.0 per evitare il bug noto del download con 1.10.x;
