@@ -1,8 +1,21 @@
-# Notes — Ecosistema 0.56.0
+# Notes — Ecosistema 0.56.1
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.56.1 — Structured Local Intelligence Core
+
+- nuovo contratto provider-independent per comandi strutturati locali;
+- intent consentiti e bounded: crea task, aggiungi tag, imposta priorità e voce checklist;
+- Gemini Nano produce JSON locale validato quando AICore è disponibile;
+- fallback deterministico per checkbox/lista e hashtag espliciti quando il provider generativo non è disponibile;
+- output non valido, non supportato o distruttivo viene scartato;
+- nessuna azione viene applicata automaticamente: il core produce solo suggerimenti strutturati verificabili;
+- nessun nuovo modello o peso incluso nell'APK;
+- Needle 3 resta provider opzionale candidato per lo step nativo successivo, non una dipendenza del core.
+
+Dettagli: `flutter_app/STRUCTURED_INTELLIGENCE_0_56_1.md`.
 
 ## 0.56.0 — Adaptive Local Intelligence
 
