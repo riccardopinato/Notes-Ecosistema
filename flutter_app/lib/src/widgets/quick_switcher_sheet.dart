@@ -6,7 +6,8 @@ import '../domain/note.dart';
 import '../domain/project_workspace.dart';
 import '../domain/quick_switcher.dart';
 
-typedef QuickSwitcherSemanticRanker = Future<List<String>> Function(String query);
+typedef QuickSwitcherSemanticRanker = Future<List<String>> Function(
+    String query);
 
 Future<QuickSwitcherEntry?> showQuickSwitcher({
   required BuildContext context,
