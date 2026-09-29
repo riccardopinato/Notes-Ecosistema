@@ -1,5 +1,26 @@
 # Notes Ecosistema — Roadmap
 
+## 0.56.3 — Native Needle Runtime Activation
+
+**Implementato in 0.56.3+74; certificazione real-device separata.**
+
+- runtime Needle 3 Android ARM64 pinnato e integrato via CMake/JNI;
+- runtime compatto nel base APK, modello Needle 3 20L da ~35,3 MB nel Play AI pack on-demand Plus;
+- provider chain strutturata: Needle 20L → Gemini Nano → deterministic;
+- envelope tool-calling Needle normalizzato attraverso i validator canonici;
+- nessuna azione AI applicata automaticamente e nessun cloud fallback;
+- AAB Play costruibile con `notes_needle3_20l` separato dal modulo base;
+- benchmark debug real-device per exact tool match, latenza e PSS;
+- 38 MiB convertito da hard gate arbitrario a soft target di leggerezza;
+- model-weight leak nel base APK resta un errore bloccante.
+
+**Certificazione hardware pendente:** qualità, RAM e latenza Needle richiedono
+esecuzione su telefono Android ARM64 con il pack installato.
+
+**Step commerciale successivo candidato:** definizione completa di Notes Plus
+e collegamento billing/RevenueCat, senza mischiare entitlement commerciale e
+runtime AI.
+
 ## 0.56.2 — Notes Plus Local AI Delivery
 
 **Implementato in 0.56.2+73.**
@@ -15,10 +36,9 @@
 - size gate ARM64 base invariato a 38 MiB;
 - nessun model weight committato nel repository o incluso nell'APK standard.
 
-**0.56.3 candidato:** Native Needle Runtime Activation: JNI/C API, feature
-on-demand, telemetria disabilitata, benchmark real-device e provider chain
-Needle → Gemini Nano → deterministic per i comandi strutturati. Il billing
-commerciale completo di Notes Plus resta un asse separato.
+**0.56.3 completato:** runtime nativo attivato; resta separata la certificazione
+hardware real-device. Il billing commerciale completo di Notes Plus resta un
+asse separato.
 
 ## 0.56.1 — Structured Local Intelligence Core
 
@@ -297,7 +317,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.56.2+73**
+- Versione: **0.56.3+74**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
