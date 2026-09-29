@@ -48,7 +48,9 @@ void main() {
     expect(Needle20LPackPolicy.packName, 'notes_needle3_20l');
     expect(Needle20LPackPolicy.modelFileName, 'needle3.cact');
     expect(Needle20LPackPolicy.modelSha256, hasLength(64));
-    expect(Needle20LPackPolicy.androidArm64RuntimeSha256, hasLength(64));
-    expect(Needle20LPackPolicy.androidArm64RuntimeBytes, greaterThan(10000000));
+    expect(
+      Needle20LPackPolicy.approximateAndroidArm64RuntimeMegabytes,
+      lessThan(2),
+    );
   });
 }
