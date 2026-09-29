@@ -6,6 +6,7 @@ import '../domain/derivatives.dart';
 import '../domain/intelligence.dart';
 import '../domain/local_llm.dart';
 import '../domain/note.dart';
+import 'plus_local_ai_card.dart';
 import 'ui_resilience.dart';
 
 Future<void> showIntelligenceSheet({
@@ -433,6 +434,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                const PlusLocalAiCard(),
                 const SizedBox(height: 12),
                 Card(
                   child: Padding(
