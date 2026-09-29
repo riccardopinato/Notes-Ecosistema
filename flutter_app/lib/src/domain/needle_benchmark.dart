@@ -42,13 +42,11 @@ class NeedleBenchmarkReport {
 
   double get averageInferenceMs => total == 0
       ? 0
-      : samples.fold<int>(0, (sum, sample) => sum + sample.inferenceMs) /
-          total;
+      : samples.fold<int>(0, (sum, sample) => sum + sample.inferenceMs) / total;
 
   int get peakPssDeltaKb => samples.fold<int>(
         0,
-        (peak, sample) =>
-            sample.pssDeltaKb > peak ? sample.pssDeltaKb : peak,
+        (peak, sample) => sample.pssDeltaKb > peak ? sample.pssDeltaKb : peak,
       );
 }
 
@@ -61,7 +59,8 @@ abstract final class NeedleBenchmarkPolicy {
     ),
     NeedleBenchmarkCase(
       id: 'add_tags',
-      prompt: 'Nota sul progetto cucina professionale. Aggiungi i tag cucina e acquisti.',
+      prompt:
+          'Nota sul progetto cucina professionale. Aggiungi i tag cucina e acquisti.',
       expectedTool: 'add_tags',
     ),
     NeedleBenchmarkCase(
