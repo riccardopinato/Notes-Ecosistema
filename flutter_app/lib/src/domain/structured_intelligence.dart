@@ -121,13 +121,13 @@ $safeBody
   }) =>
       parseLocalJson(
         raw,
-        source: source,
+        source: StructuredAnalysisSource.geminiNano,
         modelName: modelName,
       );
 
   static StructuredAnalysis parseNeedle(
     String raw, {
-    String? modelName = Needle20LModelName,
+    String? modelName = needle20LModelName,
   }) =>
       parseLocalJson(
         raw,
@@ -135,7 +135,7 @@ $safeBody
         modelName: modelName,
       );
 
-  static const Needle20LModelName = 'Needle 3 20L';
+  static const needle20LModelName = 'Needle 3 20L';
 
   static StructuredAnalysis parseLocalJson(
     String raw, {
@@ -147,7 +147,7 @@ $safeBody
     if (commandsRaw is! List) {
       return StructuredAnalysis(
         commands: const [],
-        source: StructuredAnalysisSource.geminiNano,
+        source: source,
         modelName: modelName,
       );
     }
