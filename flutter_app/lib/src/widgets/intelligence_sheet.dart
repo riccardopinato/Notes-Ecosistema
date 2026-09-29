@@ -492,8 +492,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                                 label: const Text('Prepara Gemini Nano'),
                               ),
                             OutlinedButton.icon(
-                              onPressed:
-                                  _llmBusy ? null : _loadLocalLlmStatus,
+                              onPressed: _llmBusy ? null : _loadLocalLlmStatus,
                               icon: const Icon(Icons.refresh),
                               label: const Text('Ricontrolla'),
                             ),
