@@ -1,8 +1,25 @@
-# Notes — Ecosistema 0.55.1
+# Notes — Ecosistema 0.56.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.56.0 — Adaptive Local Intelligence
+
+- nessun modello da centinaia di MB incluso o consigliato come baseline;
+- **Gemini Nano via Android AICore / ML Kit Prompt API** come provider generativo primario quando il telefono lo supporta;
+- il modello è gestito dal sistema Android e non entra nell'APK di Notes;
+- availability runtime esplicita: AVAILABLE / DOWNLOADABLE / DOWNLOADING / UNAVAILABLE;
+- **Chiedi a questa nota** e **Chiedi al workspace** usano Unified Retrieval + contesto locale bounded;
+- fallback sempre disponibile: Semantic Retrieval 0.55;
+- Needle 3 resta il candidato ultraleggero (8–29 MB) per tool-calling/extraction sui device senza Gemini Nano;
+- nessun cloud fallback e nessun upload del contenuto;
+- Prompt API pin: `com.google.mlkit:genai-prompt:1.0.0-beta4`;
+- coroutines Android pin 1.11.0 per evitare il bug noto del download con 1.10.x;
+- size gate ARM64 standard invariato a 38 MiB;
+- nessuna seconda APK “pesante” Local AI.
+
+Dettagli: `flutter_app/LOCAL_LLM_0_56.md`.
 
 ## 0.55.1 — Semantic Integration & Quality
 

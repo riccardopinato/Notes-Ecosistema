@@ -1,5 +1,19 @@
 # Notes Ecosistema — Roadmap
 
+## 0.56.0 — Adaptive Local Intelligence
+
+**Implementato in 0.56.0+71.**
+
+- Gemini Nano/AICore come provider generativo di sistema quando disponibile;
+- nessun modello generativo pesante dentro Notes;
+- Ask this note / Ask workspace con RAG locale bounded;
+- fallback deterministico al Semantic Retrieval 0.55;
+- status capability-aware e preparazione del modello di sistema;
+- APK unico e size gate ARM64 invariato a 38 MiB;
+- nessun cloud fallback.
+
+**0.56.1 candidato:** Needle 3 ultraleggero come provider nativo per tool-calling, estrazione strutturata e comandi sui device senza Gemini Nano.
+
 ## 0.55.1 — Semantic Integration & Quality
 
 **Implementato in 0.55.1+70.**

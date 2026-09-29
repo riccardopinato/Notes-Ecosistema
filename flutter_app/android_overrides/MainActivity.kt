@@ -51,6 +51,7 @@ class MainActivity : FlutterActivity() {
         private const val VISUAL_SHARE_CHANNEL = "notes.ecosystem/visual_share"
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
         private const val DEEP_LINK_CHANNEL = "notes.ecosystem/deep_links"
+        private const val LOCAL_LLM_CHANNEL = "notes.ecosystem/local_llm"
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
         private const val PERMISSION_REQUEST = 4102
@@ -75,6 +76,7 @@ class MainActivity : FlutterActivity() {
     private var pendingQuickSync = false
     private var pendingSharedSpaceId: String? = null
     private var pendingReminderAction: Map<String, Any?>? = null
+    private val localLlmBridge by lazy { LocalLlmBridge(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingDeepLink = parseStableLink(intent)
@@ -285,6 +287,13 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
+            LOCAL_LLM_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            localLlmBridge.handle(call, result)
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
             SECURE_CHANNEL,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -310,6 +319,11 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun onDestroy() {
+        localLlmBridge.destroy()
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
