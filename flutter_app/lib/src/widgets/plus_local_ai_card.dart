@@ -22,8 +22,7 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
   bool _busy = false;
   String? _error;
 
-  bool get _unlocked =>
-      _entitlement?.allows(PlusFeature.localAi20L) == true;
+  bool get _unlocked => _entitlement?.allows(PlusFeature.localAi20L) == true;
 
   @override
   void initState() {
@@ -147,9 +146,7 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
                     ),
               ),
             ],
-            if (progress != null &&
-                status != null &&
-                status.downloading) ...[
+            if (progress != null && status != null && status.downloading) ...[
               const SizedBox(height: 10),
               LinearProgressIndicator(value: progress),
               const SizedBox(height: 4),
