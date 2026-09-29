@@ -446,59 +446,64 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'LLM locale · ${_llmStatus?.runtime ?? LocalLlmPolicy.runtime}',
+                                'AI locale adattiva',
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ),
-                            if (_llmStatus?.loaded == true)
-                              const Chip(label: Text('Caricato'))
-                            else if (_llmStatus?.installed == true)
-                              const Chip(label: Text('Installato')),
+                            if (_llmStatus?.available == true)
+                              const Chip(label: Text('Gemini Nano'))
+                            else
+                              const Chip(label: Text('Semantic fallback')),
                           ],
                         ),
                         const SizedBox(height: 6),
                         Text(
                           _llmStatus == null
-                              ? 'Controllo runtime…'
-                              : !_llmStatus!.supported
-                                  ? (_llmStatus!.error ??
-                                      'Runtime locale non disponibile.')
-                                  : _llmStatus!.installed
-                                      ? '${_llmStatus!.modelName} · CPU · '
-                                          '${(_llmStatus!.modelBytes / (1024 * 1024)).toStringAsFixed(0)} MiB'
-                                      : 'Installa un modello .litertlm compatibile. '
-                                          'Consigliato: ${LocalLlmPolicy.preferredModel}.',
+                              ? 'Controllo Android AICore…'
+                              : _llmStatus!.available
+                                  ? 'Gemini Nano è già disponibile sul dispositivo. '
+                                      'Il modello è gestito da Android e non aumenta il peso di Notes.'
+                                  : _llmStatus!.downloadable
+                                      ? 'Gemini Nano è supportato ma non ancora pronto. '
+                                          'Android può preparare il modello di sistema senza inserirlo nell’APK di Notes.'
+                                      : _llmStatus!.downloading
+                                          ? 'Android sta preparando Gemini Nano…'
+                                          : 'Gemini Nano non è disponibile su questo dispositivo. '
+                                              'Notes continua con Semantic Retrieval locale; '
+                                              '${LocalLlmPolicy.lightweightFallback} resta il fallback ultraleggero candidato.',
                         ),
+                        if (_llmStatus?.error != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _llmStatus!.error!,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            if (_llmStatus?.supported == true)
+                            if (_llmStatus?.downloadable == true)
                               FilledButton.tonalIcon(
-                                onPressed: _llmBusy ? null : _installLocalLlm,
-                                icon: const Icon(Icons.install_mobile_outlined),
-                                label: Text(
-                                  _llmStatus?.installed == true
-                                      ? 'Sostituisci modello'
-                                      : 'Installa modello',
-                                ),
+                                onPressed:
+                                    _llmBusy ? null : _downloadSystemModel,
+                                icon: const Icon(Icons.download_outlined),
+                                label: const Text('Prepara Gemini Nano'),
                               ),
-                            if (_llmStatus?.installed == true)
-                              TextButton.icon(
-                                onPressed: _llmBusy ? null : _deleteLocalLlm,
-                                icon: const Icon(Icons.delete_outline),
-                                label: const Text('Rimuovi'),
-                              ),
-                            if (_llmStatus?.supported == false)
-                              const Chip(
-                                avatar: Icon(Icons.memory_outlined, size: 18),
-                                label: Text('Richiede APK Local AI'),
-                              ),
+                            OutlinedButton.icon(
+                              onPressed:
+                                  _llmBusy ? null : _loadLocalLlmStatus,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Ricontrolla'),
+                            ),
                           ],
                         ),
-                        if (_llmStatus?.supported == true &&
-                            _llmStatus?.installed == true) ...[
+                        if (_llmStatus?.downloading == true || _llmBusy) ...[
+                          const SizedBox(height: 10),
+                          const LinearProgressIndicator(),
+                        ],
+                        if (_llmStatus?.available == true) ...[
                           const SizedBox(height: 10),
                           TextField(
                             controller: _localQuestion,
@@ -507,7 +512,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                             maxLength: LocalLlmPolicy.maxQuestionChars,
                             decoration: const InputDecoration(
                               prefixIcon: Icon(Icons.psychology_outlined),
-                              hintText: 'Fai una domanda al modello locale…',
+                              hintText:
+                                  'Fai una domanda all’AI locale del telefono…',
                             ),
                           ),
                           Wrap(
@@ -537,10 +543,6 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                                 ),
                             ],
                           ),
-                          if (_llmBusy) ...[
-                            const SizedBox(height: 10),
-                            const LinearProgressIndicator(),
-                          ],
                           if (_llmAnswer != null) ...[
                             const SizedBox(height: 12),
                             Container(
