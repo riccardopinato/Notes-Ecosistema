@@ -50,12 +50,7 @@ jobs:
           s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
           if 'androidx.work:work-runtime:2.11.2' not in s:
-              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")\n}\n'
-          elif 'litertlm-android:0.17.1' not in s:
-              s = s.replace(
-                  'implementation("androidx.work:work-runtime:2.11.2")',
-                  'implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")'
-              )
+              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n}\n'
           if 'proguard-rules.pro' not in s:
               s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           p.write_text(s)
@@ -159,16 +154,10 @@ jobs:
           if 'android.service.quicksettings.action.QS_TILE' not in ms:
               ms = ms.replace('</application>', quick_sync_tile + '\\n    </application>')
 
-          opencl_library = r'''
-            <uses-native-library
-                android:name="libOpenCL.so"
-                android:required="false"/>
-          '''
-          if 'android:name="libOpenCL.so"' not in ms:
-              ms = ms.replace('</application>', opencl_library + '\\n    </application>')
           manifest.write_text(ms)
           PY
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
+          cp android_overrides/LocalLlmBridgeStub.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalLlmBridge.kt
           cp android_overrides/QuickCaptureWidget.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickCaptureWidget.kt
           cp android_overrides/QuickSyncTileService.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickSyncTileService.kt
           cp android_overrides/SharedActivityBackgroundWorker.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/SharedActivityBackgroundWorker.kt
@@ -275,5 +264,85 @@ jobs:
         with:
           name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-symbols
           path: flutter_app/build/symbols
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Prepare Local AI Android runtime
+        shell: bash
+        run: |
+          cp android_overrides/LocalLlmBridgeLiteRt.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalLlmBridge.kt
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+          if 'litertlm-android:0.17.1' not in s:
+              marker = 'implementation("androidx.work:work-runtime:2.11.2")'
+              s = s.replace(
+                  marker,
+                  marker + '\n    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")'
+              )
+          p.write_text(s)
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          ms = manifest.read_text()
+          opencl_library = r'''
+            <uses-native-library
+                android:name="libOpenCL.so"
+                android:required="false"/>
+          '''
+          if 'android:name="libOpenCL.so"' not in ms:
+              ms = ms.replace('</application>', opencl_library + '\n    </application>')
+          manifest.write_text(ms)
+          PY
+
+      - name: Build Local AI ARM64 APK
+        run: >
+          flutter build apk --release --target-platform android-arm64 --no-pub
+          --obfuscate --split-debug-info=build/symbols-local-ai
+          && mv build/app/outputs/flutter-apk/app-release.apk
+          build/app/outputs/flutter-apk/app-arm64-v8a-local-ai-release.apk
+
+      - name: Local AI APK size report and evidence
+        shell: bash
+        run: |
+          AI="build/app/outputs/flutter-apk/app-arm64-v8a-local-ai-release.apk"
+          test -f "$AI"
+          BYTES="$(stat -c%s "$AI")"
+          LIMIT="$((70 * 1024 * 1024))"
+          SHA256="$(sha256sum "$AI" | awk '{print $1}')"
+          echo "Local AI arm64 bytes: $BYTES / regression ceiling: $LIMIT"
+          test "$BYTES" -le "$LIMIT"
+          {
+            echo "version=${{ steps.app_version.outputs.version }}"
+            echo "build_sha=$GITHUB_SHA"
+            echo "git_ref=$GITHUB_REF"
+            echo "edition=local-ai"
+            echo "runtime=LiteRT-LM 0.17.1"
+            echo "artifact=app-arm64-v8a-local-ai-release.apk"
+            echo "bytes=$BYTES"
+            echo "sha256=$SHA256"
+          } | tee build/release-evidence/arm64-local-ai-release.txt
+
+      - name: Upload Local AI APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-Local-AI-arm64
+          path: flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-local-ai-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Local AI evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-Local-AI-evidence
+          path: flutter_app/build/release-evidence/arm64-local-ai-release.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Local AI obfuscation symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-Local-AI-symbols
+          path: flutter_app/build/symbols-local-ai
           if-no-files-found: error
           retention-days: 30
