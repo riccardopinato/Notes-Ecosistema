@@ -84,7 +84,7 @@ Note per #progetto_x e #cliente
       analysis.commands.any(
         (command) =>
             command.kind == StructuredCommandKind.addTags &&
-            command.tags.containsAll(['progetto_x', 'cliente']),
+            ['progetto_x', 'cliente'].every(command.tags.contains),
       ),
       isTrue,
     );
