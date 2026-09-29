@@ -1,5 +1,19 @@
 # Notes Ecosistema — Roadmap
 
+## 0.56.1 — Structured Local Intelligence Core
+
+**Implementato in 0.56.1+72.**
+
+- schema bounded per create task / add tags / set priority / checklist item;
+- generazione strutturata via Gemini Nano quando disponibile;
+- parser e validator locale: comandi sconosciuti o payload non validi vengono rifiutati;
+- fallback deterministico da marker espliciti e hashtag;
+- nessuna esecuzione automatica e nessuna azione distruttiva/esterna;
+- zero nuovi pesi nell'APK e size gate invariato;
+- core provider-independent pronto per un provider tiny dedicato.
+
+**0.56.2 candidato:** provider Needle 3 opzionale e scaricabile/packaged solo dopo validazione real-device di JNI, licenza, RAM, latenza e qualità. Il provider non deve diventare requisito del Core e non deve spingere l'APK oltre il budget.
+
 ## 0.56.0 — Adaptive Local Intelligence
 
 **Implementato in 0.56.0+71.**
@@ -12,7 +26,7 @@
 - APK unico e size gate ARM64 invariato a 38 MiB;
 - nessun cloud fallback.
 
-**0.56.1 candidato:** Needle 3 ultraleggero come provider nativo per tool-calling, estrazione strutturata e comandi sui device senza Gemini Nano.
+**Step successivo:** 0.56.2 valuta Needle 3 come provider tiny opzionale sopra il contratto strutturato 0.56.1, senza bundling automatico dei pesi.
 
 ## 0.55.1 — Semantic Integration & Quality
 
