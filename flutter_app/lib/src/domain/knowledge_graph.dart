@@ -114,7 +114,7 @@ abstract final class KnowledgeGraphSearch {
           semanticRank[node.entityId],
         _ => null,
       };
-      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320);
+      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320).toInt();
       final score = lexical + semantic;
       if (score <= 0) continue;
       rows.add((node: node, score: score));
