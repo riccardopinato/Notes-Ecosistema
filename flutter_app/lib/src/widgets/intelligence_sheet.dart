@@ -495,24 +495,32 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            FilledButton.tonalIcon(
-                              onPressed: _llmBusy ? null : _installLocalLlm,
-                              icon: const Icon(Icons.install_mobile_outlined),
-                              label: Text(
-                                _llmStatus?.installed == true
-                                    ? 'Sostituisci modello'
-                                    : 'Installa modello',
+                            if (_llmStatus?.supported == true)
+                              FilledButton.tonalIcon(
+                                onPressed: _llmBusy ? null : _installLocalLlm,
+                                icon:
+                                    const Icon(Icons.install_mobile_outlined),
+                                label: Text(
+                                  _llmStatus?.installed == true
+                                      ? 'Sostituisci modello'
+                                      : 'Installa modello',
+                                ),
                               ),
-                            ),
                             if (_llmStatus?.installed == true)
                               TextButton.icon(
                                 onPressed: _llmBusy ? null : _deleteLocalLlm,
                                 icon: const Icon(Icons.delete_outline),
                                 label: const Text('Rimuovi'),
                               ),
+                            if (_llmStatus?.supported == false)
+                              const Chip(
+                                avatar: Icon(Icons.memory_outlined, size: 18),
+                                label: Text('Richiede APK Local AI'),
+                              ),
                           ],
                         ),
-                        if (_llmStatus?.installed == true) ...[
+                        if (_llmStatus?.supported == true &&
+                            _llmStatus?.installed == true) ...[
                           const SizedBox(height: 10),
                           TextField(
                             controller: _localQuestion,
