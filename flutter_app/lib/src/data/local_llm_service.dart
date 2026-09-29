@@ -242,8 +242,7 @@ class LocalLlmService {
     final directory = await _modelDirectory();
     if (!await directory.exists()) return;
     await for (final entity in directory.list()) {
-      if (entity is File &&
-          entity.path.toLowerCase().endsWith('.litertlm')) {
+      if (entity is File && entity.path.toLowerCase().endsWith('.litertlm')) {
         await entity.delete();
       }
     }
