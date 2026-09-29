@@ -1,5 +1,18 @@
 # Notes Ecosistema — Roadmap
 
+## 0.55.1 — Semantic Integration & Quality
+
+**Implementato in 0.55.1+70.**
+
+- Quick Switcher integrato con il ranking ibrido canonico;
+- ricerca globale Notes semantic-aware senza perdere filtri e scope;
+- Knowledge Graph search semantic-aware per Note/Task;
+- ranking centralizzato tramite `UnifiedRetrievalService.rankNoteIds`;
+- lexical exact/prefix preservato come segnale forte;
+- Web Preview allineata alle superfici Android;
+- quality harness con Recall@K e MRR;
+- regressioni semantic-only su Quick Switcher, Search e Graph.
+
 ## 0.55.0 — Local Semantic Retrieval
 
 **Implementato in 0.55.0+69.**
