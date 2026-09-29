@@ -140,7 +140,8 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
       return;
     }
     if (!workspace && widget.currentNote == null) {
-      setState(() => _error = 'Apri una nota per usare “Chiedi a questa nota”.');
+      setState(
+          () => _error = 'Apri una nota per usare “Chiedi a questa nota”.');
       return;
     }
 
