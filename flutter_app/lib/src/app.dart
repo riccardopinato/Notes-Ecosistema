@@ -1129,9 +1129,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             ref.read(workspaceProvider.notifier).deleteEmptyCollection(
                   collection,
                 ),
-        semanticRanker: _index == 5
-            ? (query) => _rankNoteIds(query, personalNotes)
-            : null,
+        semanticRanker:
+            _index == 5 ? (query) => _rankNoteIds(query, personalNotes) : null,
         initialCollectionId: _index == 1 ? _libraryCollectionId : null,
       );
     } else if (_index == 2) {
