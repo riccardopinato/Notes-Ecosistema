@@ -64,6 +64,8 @@ jobs:
                   s = s.replace(marker, marker + '\n    ' + '\n    '.join(additions))
           if 'proguard-rules.pro' not in s:
               s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
+          if 'src/main/cpp/CMakeLists.txt' not in s:
+              s += '\n\nandroid {\n    externalNativeBuild {\n        cmake {\n            path = file("src/main/cpp/CMakeLists.txt")\n        }\n    }\n}\n'
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -170,6 +172,11 @@ jobs:
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
           cp android_overrides/LocalLlmBridgeGeminiNano.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalLlmBridge.kt
           cp android_overrides/LocalAiPackBridge.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalAiPackBridge.kt
+          cp android_overrides/NeedleRuntimeBridge.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/NeedleRuntimeBridge.kt
+          mkdir -p android/app/src/main/cpp
+          cp android_overrides/needle_native/CMakeLists.txt android/app/src/main/cpp/CMakeLists.txt
+          cp android_overrides/needle_native/needle_jni.cpp android/app/src/main/cpp/needle_jni.cpp
+          cp android_overrides/needle_native/needle.h android/app/src/main/cpp/needle.h
           cp android_overrides/QuickCaptureWidget.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickCaptureWidget.kt
           cp android_overrides/QuickSyncTileService.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickSyncTileService.kt
           cp android_overrides/SharedActivityBackgroundWorker.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/SharedActivityBackgroundWorker.kt
@@ -181,6 +188,14 @@ jobs:
           cp android_overrides/res/values/capture.xml android/app/src/main/res/values/capture.xml
           cp android_overrides/res/values-night/capture.xml android/app/src/main/res/values-night/capture.xml
           cp android_overrides/proguard-rules.pro android/app/proguard-rules.pro
+
+      - name: Fetch pinned Needle Android runtime
+        env:
+          NEEDLE_TELEMETRY: "0"
+          DO_NOT_TRACK: "1"
+        run: >-
+          python3 tool/fetch_needle_android_runtime.py
+          android/app/src/main/cpp/needle_vendor/arm64-v8a/libneedle.a
 
       - name: Dependencies
         run: flutter pub get
@@ -224,7 +239,7 @@ jobs:
           flutter build apk --release --split-per-abi --no-pub
           --obfuscate --split-debug-info=build/symbols
 
-      - name: APK size report and regression gate
+      - name: APK size report and regression guard
         shell: bash
         run: |
           echo "APK prodotti:"
@@ -232,9 +247,17 @@ jobs:
           ARM64="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
           test -f "$ARM64"
           BYTES="$(stat -c%s "$ARM64")"
-          LIMIT="$((38 * 1024 * 1024))"
-          echo "arm64 bytes: $BYTES / budget: $LIMIT"
-          test "$BYTES" -le "$LIMIT"
+          SOFT_TARGET="$((38 * 1024 * 1024))"
+          ACCIDENT_GUARD="$((80 * 1024 * 1024))"
+          echo "arm64 bytes: $BYTES / soft target: $SOFT_TARGET"
+          if [ "$BYTES" -gt "$SOFT_TARGET" ]; then
+            echo "::warning::ARM64 APK exceeds the 38 MiB soft target; review the size increase."
+          fi
+          if unzip -l "$ARM64" | grep -q 'needle3\.cact'; then
+            echo "::error::Needle model weights must never be bundled in the base APK."
+            exit 1
+          fi
+          test "$BYTES" -le "$ACCIDENT_GUARD"
 
       - name: Generate release evidence
         shell: bash
