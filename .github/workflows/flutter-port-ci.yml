@@ -50,12 +50,16 @@ jobs:
           s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
           if 'androidx.work:work-runtime:2.11.2' not in s:
-              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")\n}\n'
-          elif 'genai-prompt:1.0.0-beta4' not in s:
-              s = s.replace(
-                  'implementation("androidx.work:work-runtime:2.11.2")',
-                  'implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")'
-              )
+              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")\n    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")\n}\n'
+          else:
+              marker = 'implementation("androidx.work:work-runtime:2.11.2")'
+              additions = []
+              if 'genai-prompt:1.0.0-beta4' not in s:
+                  additions.append('implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")')
+              if 'kotlinx-coroutines-android:1.11.0' not in s:
+                  additions.append('implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")')
+              if additions:
+                  s = s.replace(marker, marker + '\n    ' + '\n    '.join(additions))
           if 'proguard-rules.pro' not in s:
               s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           p.write_text(s)
