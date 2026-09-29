@@ -1,0 +1,10 @@
+plugins {
+    id 'com.android.ai-pack'
+}
+
+aiPack {
+    packName = "notes_needle3_20l"
+    dynamicDelivery {
+        deliveryType = "on-demand"
+    }
+}

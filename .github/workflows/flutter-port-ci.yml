@@ -50,12 +50,14 @@ jobs:
           s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
           if 'androidx.work:work-runtime:2.11.2' not in s:
-              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")\n    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")\n}\n'
+              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")\n    implementation("com.google.android.play:ai-delivery:0.1.1-alpha01")\n    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")\n}\n'
           else:
               marker = 'implementation("androidx.work:work-runtime:2.11.2")'
               additions = []
               if 'genai-prompt:1.0.0-beta4' not in s:
                   additions.append('implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")')
+              if 'ai-delivery:0.1.1-alpha01' not in s:
+                  additions.append('implementation("com.google.android.play:ai-delivery:0.1.1-alpha01")')
               if 'kotlinx-coroutines-android:1.11.0' not in s:
                   additions.append('implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")')
               if additions:
@@ -167,6 +169,7 @@ jobs:
           PY
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
           cp android_overrides/LocalLlmBridgeGeminiNano.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalLlmBridge.kt
+          cp android_overrides/LocalAiPackBridge.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalAiPackBridge.kt
           cp android_overrides/QuickCaptureWidget.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickCaptureWidget.kt
           cp android_overrides/QuickSyncTileService.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/QuickSyncTileService.kt
           cp android_overrides/SharedActivityBackgroundWorker.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/SharedActivityBackgroundWorker.kt

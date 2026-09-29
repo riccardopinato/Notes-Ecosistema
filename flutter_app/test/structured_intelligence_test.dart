@@ -103,4 +103,16 @@ Note per #progetto_x e #cliente
     expect(analysis.commands.single.priority, 'high');
     expect(analysis.commands.single.confidence, 1);
   });
+
+  test('Needle structured output uses the same validator contract', () {
+    final result = StructuredIntelligencePolicy.parseNeedle(
+      '{"commands":[{"kind":"create_task","title":"Invia report","confidence":0.91}]}',
+    );
+
+    expect(result.source, StructuredAnalysisSource.needle);
+    expect(result.modelName, 'Needle 3 20L');
+    expect(result.commands, hasLength(1));
+    expect(result.commands.single.kind, StructuredCommandKind.createTask);
+    expect(result.commands.single.title, 'Invia report');
+  });
 }

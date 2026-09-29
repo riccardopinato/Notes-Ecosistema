@@ -11,6 +11,7 @@ enum StructuredCommandKind {
 
 enum StructuredAnalysisSource {
   geminiNano,
+  needle,
   deterministic,
 }
 
@@ -117,13 +118,36 @@ $safeBody
   static StructuredAnalysis parseGemini(
     String raw, {
     String? modelName = LocalLlmPolicy.preferredModel,
+  }) =>
+      parseLocalJson(
+        raw,
+        source: StructuredAnalysisSource.geminiNano,
+        modelName: modelName,
+      );
+
+  static StructuredAnalysis parseNeedle(
+    String raw, {
+    String? modelName = needle20LModelName,
+  }) =>
+      parseLocalJson(
+        raw,
+        source: StructuredAnalysisSource.needle,
+        modelName: modelName,
+      );
+
+  static const needle20LModelName = 'Needle 3 20L';
+
+  static StructuredAnalysis parseLocalJson(
+    String raw, {
+    required StructuredAnalysisSource source,
+    String? modelName,
   }) {
     final decoded = _decodeObject(raw);
     final commandsRaw = decoded['commands'];
     if (commandsRaw is! List) {
       return StructuredAnalysis(
         commands: const [],
-        source: StructuredAnalysisSource.geminiNano,
+        source: source,
         modelName: modelName,
       );
     }
@@ -137,7 +161,7 @@ $safeBody
 
     return StructuredAnalysis(
       commands: commands,
-      source: StructuredAnalysisSource.geminiNano,
+      source: source,
       modelName: modelName,
     );
   }

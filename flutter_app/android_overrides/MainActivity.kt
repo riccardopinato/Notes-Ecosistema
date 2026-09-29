@@ -52,6 +52,7 @@ class MainActivity : FlutterActivity() {
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
         private const val DEEP_LINK_CHANNEL = "notes.ecosystem/deep_links"
         private const val LOCAL_LLM_CHANNEL = "notes.ecosystem/local_llm"
+        private const val LOCAL_AI_PACK_CHANNEL = "notes.ecosystem/local_ai_pack"
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
         private const val PERMISSION_REQUEST = 4102
@@ -77,6 +78,7 @@ class MainActivity : FlutterActivity() {
     private var pendingSharedSpaceId: String? = null
     private var pendingReminderAction: Map<String, Any?>? = null
     private val localLlmBridge by lazy { LocalLlmBridge(this) }
+    private val localAiPackBridge by lazy { LocalAiPackBridge(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingDeepLink = parseStableLink(intent)
@@ -290,6 +292,13 @@ class MainActivity : FlutterActivity() {
             LOCAL_LLM_CHANNEL,
         ).setMethodCallHandler { call, result ->
             localLlmBridge.handle(call, result)
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            LOCAL_AI_PACK_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            localAiPackBridge.handle(call, result)
         }
 
         MethodChannel(

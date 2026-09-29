@@ -1,5 +1,25 @@
 # Notes Ecosistema — Roadmap
 
+## 0.56.2 — Notes Plus Local AI Delivery
+
+**Implementato in 0.56.2+73.**
+
+- Needle 3 20L promosso a Local AI Pack opzionale di Notes Plus;
+- modello on-demand separato dal base APK, circa 35,3 MB;
+- artifact model pinnato con revisione e SHA-256;
+- contratto entitlement Free / Plus senza falso acquisto in release;
+- Play AI Delivery bridge per status, download, cancel e remove;
+- UI Plus dedicata nella superficie Intelligence;
+- Structured Intelligence parser multi-provider con source Needle;
+- runtime nativo escluso dal base APK e preparato come feature opzionale;
+- size gate ARM64 base invariato a 38 MiB;
+- nessun model weight committato nel repository o incluso nell'APK standard.
+
+**0.56.3 candidato:** Native Needle Runtime Activation: JNI/C API, feature
+on-demand, telemetria disabilitata, benchmark real-device e provider chain
+Needle → Gemini Nano → deterministic per i comandi strutturati. Il billing
+commerciale completo di Notes Plus resta un asse separato.
+
 ## 0.56.1 — Structured Local Intelligence Core
 
 **Implementato in 0.56.1+72.**
@@ -12,7 +32,7 @@
 - zero nuovi pesi nell'APK e size gate invariato;
 - core provider-independent pronto per un provider tiny dedicato.
 
-**0.56.2 candidato:** provider Needle 3 opzionale e scaricabile/packaged solo dopo validazione real-device di JNI, licenza, RAM, latenza e qualità. Il provider non deve diventare requisito del Core e non deve spingere l'APK oltre il budget.
+**0.56.2 completato:** la delivery Plus è separata dal Core; l'attivazione del runtime Needle resta il gate nativo successivo.
 
 ## 0.56.0 — Adaptive Local Intelligence
 
@@ -26,7 +46,7 @@
 - APK unico e size gate ARM64 invariato a 38 MiB;
 - nessun cloud fallback.
 
-**Step successivo:** 0.56.2 valuta Needle 3 come provider tiny opzionale sopra il contratto strutturato 0.56.1, senza bundling automatico dei pesi.
+**Step successivo:** 0.56.3 attiva il runtime Needle nativo sopra la delivery Plus 0.56.2, senza bundling nel base APK.
 
 ## 0.55.1 — Semantic Integration & Quality
 
@@ -277,7 +297,7 @@ P6 resta **non avviata** fino alla chiusura della stabilizzazione. Il gate FULL 
 
 ## Stato corrente
 
-- Versione: **0.54.3+68**
+- Versione: **0.56.2+73**
 - Stack attivo: Flutter + SQLite/sqflite
 - Baseline dati: compatibilità schema Room v8
 - Strategia: local-first, private-by-default, REUSE-FIRST
