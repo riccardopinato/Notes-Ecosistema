@@ -7,7 +7,9 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 ## 0.56.0 — Local LLM Runtime
 
 - primo vero runtime generativo on-device: LiteRT-LM 0.17.1 su Android API 26+;
-- modello non incluso nell'APK: installazione esplicita di un file `.litertlm` nello storage privato dell'app;
+- due artefatti: APK standard leggero e APK **Local AI** ARM64 con runtime nativo;
+- il budget da 38 MiB resta applicato all'APK standard; il runtime non viene nascosto dentro quel pacchetto;
+- modello non incluso in nessun APK: installazione esplicita di un file `.litertlm` nello storage privato dell'app;
 - baseline consigliata: Gemma 3 270M IT;
 - backend CPU iniziale per stabilità e compatibilità, con max context bounded a 3072 token;
 - inizializzazione e inferenza fuori dal main thread;
