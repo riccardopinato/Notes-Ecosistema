@@ -97,9 +97,7 @@ abstract final class Needle20LPackPolicy {
   // Play may report a different compressed transfer size at runtime.
   static const approximateModelMegabytes = 35.3;
 
-  // Current Android ARM64 static runtime artifact observed upstream.
-  // It must not be bundled in the base APK; ship it in an on-demand feature.
-  static const androidArm64RuntimeBytes = 12121380;
-  static const androidArm64RuntimeSha256 =
-      'e11d0a4ac455a4a5d9d3ed7fcd29fb0d7adc7d8832b1e1511c2b22b173cfb133';
+  // Recent production Android ARM64 runtime builds are around 1.6 MB.
+  // Pin the exact runtime revision/hash only when the JNI integration lands.
+  static const approximateAndroidArm64RuntimeMegabytes = 1.6;
 }
