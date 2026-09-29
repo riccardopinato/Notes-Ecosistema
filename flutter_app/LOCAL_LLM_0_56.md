@@ -1,103 +1,122 @@
-# Local LLM Runtime 0.56
+# Adaptive Local Intelligence 0.56
 
-## Decisione runtime
+## Obiettivo
 
-Notes 0.56.0 introduce un runtime generativo locale reale su Android usando LiteRT-LM 0.17.1.
+Notes deve restare leggera. La 0.56 non incorpora un modello generativo da centinaia di MB e non richiede un download LLM proprietario dentro lo storage dell'app.
 
-La release produce due APK:
+Il percorso generativo è adattivo:
 
-- **Standard**: mantiene il budget ARM64 da 38 MiB e usa un bridge stub; tutte le funzioni Notes non-LLM restano disponibili.
-- **Local AI (ARM64)**: include le librerie native LiteRT-LM e abilita il motore generativo reale.
+1. **Gemini Nano tramite Android AICore / ML Kit Prompt API**, quando disponibile sul dispositivo.
+2. **Semantic Retrieval 0.55** come fallback sempre disponibile.
+3. **Needle 3** resta il provider nativo ultraleggero candidato per 0.56.1, soprattutto per tool-calling, extraction e routing.
 
-Il modello non viene incorporato in nessuno dei due APK. L'utente seleziona un file `.litertlm`, che viene copiato nello storage privato dell'app e usato solo sul dispositivo.
+Non esiste alcun cloud fallback automatico.
 
-Baseline consigliata per il primo ciclo di QA:
+## Provider primario: Gemini Nano / AICore
 
-- Gemma 3 270M IT;
-- backend CPU;
-- contesto massimo runtime: 3072 token;
-- output massimo predefinito: 384 token.
+Dipendenza client:
 
-Il backend GPU non viene abilitato nella baseline 0.56.0. Viene mantenuto fuori dal percorso standard finché i bundle Gemma 3 270M non risultano affidabili sui device target.
+`com.google.mlkit:genai-prompt:1.0.0-beta4`
 
-## Architettura
+Il modello è gestito da Android AICore. Non viene inserito nell'APK di Notes e non viene copiato nello storage privato dell'app.
 
-### Dart
+Status runtime esposti:
 
-`LocalLlmPolicy`
+- `AVAILABLE`: generazione locale attiva;
+- `DOWNLOADABLE`: il telefono supporta Gemini Nano ma Android deve preparare il modello;
+- `DOWNLOADING`: preparazione in corso;
+- `UNAVAILABLE`: il device non è compatibile o AICore non è pronto.
 
-- limiti prompt e contesto;
-- system instruction;
-- composizione Ask this note;
-- composizione Ask workspace con massimo 6 fonti.
+La UI mostra sempre lo stato reale prima di esporre i comandi generativi.
 
-`LocalLlmService`
+## Compatibilità
 
-- selezione del file `.litertlm`;
-- validazione dimensione 32 MiB – 2 GiB;
-- copia atomica in Application Support / `local_llm`;
-- un solo modello installato alla volta;
-- MethodChannel `notes.ecosystem/local_llm`;
-- status/load/generate/cancel/unload/delete.
+Prompt API richiede Android API 26+.
 
-### Android
+La disponibilità effettiva dipende dal dispositivo e dalla configurazione AICore. Notes non presume mai che Gemini Nano sia presente.
 
-`MainActivity.kt` ospita il bridge LiteRT-LM:
+Su device non compatibili:
 
-- `EngineConfig` CPU;
-- massimo 4 thread;
-- cache dedicata;
-- engine inizializzato in executor single-thread fuori dalla UI;
-- `ConversationConfig` senza tool calling automatico e senza thinking channels;
-- cancellazione attiva;
-- unload esplicito;
-- file model consentito solo sotto lo storage privato dell'app.
+- Search/Quick Switcher/Knowledge Graph semantic-aware continuano a funzionare;
+- Related Notes continua a funzionare;
+- Ask Note/Workspace generativo viene nascosto;
+- nessun errore core impedisce l'uso dell'app.
 
-Dipendenza Android pin:
+## Ask this note
 
-`com.google.ai.edge.litertlm:litertlm-android:0.17.1`
+Il prompt include solo:
 
-## UX
+- domanda;
+- titolo;
+- tag;
+- contenuto bounded della nota.
 
-La sezione Intelligence mostra lo stato LLM locale.
+Il contesto della nota è limitato a 10.000 caratteri prima dell'invio ad AICore.
 
-Senza modello:
+## Ask workspace
 
-- l'intera Knowledge Search continua a funzionare;
-- Semantic Retrieval continua a funzionare;
-- compare il comando “Installa modello”.
+Pipeline:
 
-Con modello:
+1. domanda utente;
+2. Unified Retrieval locale;
+3. massimo 5 fonti rilevanti;
+4. contesto workspace bounded a 12.000 caratteri;
+5. generazione Gemini Nano locale;
+6. risposta opzionalmente inseribile nella nota.
 
-- “Chiedi a questa nota” usa titolo, tag e contenuto della nota;
-- “Chiedi al workspace” esegue prima Unified Retrieval e passa al modello solo le fonti locali più rilevanti;
-- la risposta può essere inserita nella nota;
-- “Interrompi” cancella l'inferenza;
-- “Rimuovi” scarica il runtime e cancella il file modello.
+Il modello riceve esclusivamente le fonti locali selezionate.
 
 ## Privacy
 
-Il percorso 0.56.0 è local-only:
+- nessun contenuto inviato a provider cloud;
+- nessun endpoint remoto configurato;
+- nessun fallback cloud;
+- il modello Gemini Nano è gestito dal sistema Android;
+- Semantic Retrieval rimane locale;
+- la risposta generativa è salvata solo se l'utente la inserisce nella nota.
 
-- nessun prompt inviato a provider cloud;
-- nessun cloud fallback;
-- nessun modello scaricato automaticamente;
-- nessuna indicizzazione LLM inclusa nei backup;
-- il modello resta nello storage privato dell'app.
+## Peso applicazione
 
-## Limiti
+La 0.56 mantiene un unico APK standard.
 
-Gemma 3 270M è deliberatamente piccolo. È indicato per:
+Il size gate ARM64 resta invariato:
 
-- Q&A bounded;
-- riassunti brevi;
-- estrazione semplice;
-- trasformazioni di testo;
-- risposte RAG su contesto selezionato.
+`38 MiB`
 
-Non va trattato come sostituto di un modello cloud di fascia alta.
+Non esiste più la variante LiteRT-LM/Gemma 3 da ~57 MiB e non viene consigliato alcun modello esterno da ~300 MB.
 
-## Gate
+## Download AICore
+
+ML Kit Prompt API 1.0.0-beta4 ha un problema noto con `download()` quando il progetto risolve `kotlinx-coroutines` 1.10.x o precedenti.
+
+La CI pinna:
+
+`org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0`
+
+per evitare quella incompatibilità.
+
+## Needle 3
+
+Needle 3 è stato valutato come fallback ultraleggero:
+
+- engine Android sotto 1 MB;
+- pesi laddered circa 8–29 MB;
+- target ufficiale android-arm64;
+- inference offline;
+- specializzazione forte su tool-calling, extraction, classification ed embedding.
+
+Non viene usato come chatbot generalista perché sacrifica intenzionalmente la capacità di free-form chat.
+
+Il provider Needle viene separato nella 0.56.1 così da poter validare:
+
+- JNI/static library Android;
+- licenza e redistribuzione;
+- depth ottimale;
+- RAM e latenza real-device;
+- qualità su tool schema Notes;
+- eventuale modello fine-tuned per Notes.
+
+## Gate 0.56.0
 
 Prima del merge:
 
@@ -105,25 +124,21 @@ Prima del merge:
 - Flutter analyze;
 - suite test completa;
 - test policy prompt/context;
-- APK standard debug/release senza LiteRT-LM;
-- size gate ARM64 standard invariato a 38 MiB;
-- build separata **Local AI ARM64** che compila il bridge Kotlin contro LiteRT-LM 0.17.1;
-- regression ceiling dedicato Local AI a 70 MiB, separato dal budget dell'app standard;
-- evidence e SHA-256 separati per le due edizioni;
-- Web Preview invariata e funzionante.
+- compilazione Kotlin del bridge Gemini Nano;
+- APK debug;
+- APK release split ABI;
+- ARM64 <= 38 MiB;
+- Evidence Bundle + SHA-256;
+- Web Preview PASS;
+- nessuna dipendenza LiteRT-LM o modello generativo bundled.
 
-## Step successivi
+## Step successivo
 
-0.56.1:
+0.56.1 — Needle Structured Intelligence:
 
-- benchmark real-device;
-- streaming token;
-- TTFT e token/s;
-- memory pressure;
-- backend capability matrix.
-
-0.56.2:
-
-- backend adattivo GPU/NPU quando verificato stabile;
-- provider alternativo Needle per tool calling/structured extraction;
-- eventuale embedding neurale locale tramite runtime reale, mantenendo invariato Unified Retrieval.
+- tool routing locale;
+- extraction di task/action item;
+- classification/tag suggestion;
+- structured note commands;
+- benchmark 4L/8L/20L;
+- fallback chain Gemini Nano → Needle → Semantic Retrieval.
