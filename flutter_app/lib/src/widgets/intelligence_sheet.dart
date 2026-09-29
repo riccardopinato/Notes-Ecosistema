@@ -96,36 +96,15 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
     if (mounted) setState(() => _llmStatus = status);
   }
 
-  Future<void> _installLocalLlm() async {
+  Future<void> _downloadSystemModel() async {
     setState(() {
       _llmBusy = true;
       _error = null;
     });
     try {
-      final installed = await _localLlm.pickAndInstallModel();
-      if (installed != null) {
-        await _loadLocalLlmStatus();
-      }
-    } catch (error) {
-      if (mounted) setState(() => _error = userErrorText(error));
-    } finally {
-      if (mounted) setState(() => _llmBusy = false);
-    }
-  }
-
-  Future<void> _deleteLocalLlm() async {
-    setState(() {
-      _llmBusy = true;
-      _error = null;
-    });
-    try {
-      await _localLlm.deleteModel();
-      if (mounted) {
-        setState(() {
-          _llmAnswer = null;
-        });
-      }
-      await _loadLocalLlmStatus();
+      final status = await _localLlm.downloadSystemModel();
+      if (!mounted) return;
+      setState(() => _llmStatus = status);
     } catch (error) {
       if (mounted) setState(() => _error = userErrorText(error));
     } finally {
