@@ -119,34 +119,56 @@ class LocalAiPackBridge(private val activity: MainActivity) {
     }
 
     fun installedModelPath(): String? {
-        val location = manager.getPackLocation(PACK) ?: return null
-        val model = File(location.assetsPath(), MODEL)
-        return model.takeIf { it.isFile }?.absolutePath
+        val playLocation = manager.getPackLocation(PACK)
+        if (playLocation != null) {
+            val playModel = File(playLocation.assetsPath(), MODEL)
+            if (playModel.isFile) return playModel.absolutePath
+        }
+        return bundledQaModelPath()
     }
 
     private fun installedMap(): Map<String, Any?>? {
-        val location = manager.getPackLocation(PACK) ?: return null
-        val model = File(location.assetsPath(), MODEL)
-        if (!model.isFile) {
-            return mapOf(
-                "supported" to true,
-                "phase" to "failed",
-                "bytesDownloaded" to 0L,
-                "totalBytes" to 0L,
-                "modelPath" to null,
-                "error" to "Pacchetto AI installato ma modello $MODEL mancante.",
-            )
-        }
-
+        val path = installedModelPath() ?: return null
+        val model = File(path)
         return mapOf(
             "supported" to true,
             "phase" to "installed",
             "bytesDownloaded" to model.length(),
             "totalBytes" to model.length(),
             "modelPath" to model.absolutePath,
+            "bundledQa" to path.contains("needle_qa"),
             "error" to null,
         )
     }
+
+    private fun bundledQaModelPath(): String? = runCatching {
+        val targetDir = File(activity.filesDir, "needle_qa")
+        val target = File(targetDir, MODEL)
+        val expectedBytes = 35335380L
+
+        if (target.isFile && target.length() == expectedBytes) {
+            return@runCatching target.absolutePath
+        }
+
+        activity.assets.open(MODEL).use { input ->
+            targetDir.mkdirs()
+            val temporary = File(targetDir, "$MODEL.tmp")
+            temporary.outputStream().use { output ->
+                input.copyTo(output)
+            }
+            if (temporary.length() != expectedBytes) {
+                temporary.delete()
+                error("Modello Needle QA non valido.")
+            }
+            if (target.exists()) target.delete()
+            if (!temporary.renameTo(target)) {
+                temporary.copyTo(target, overwrite = true)
+                temporary.delete()
+            }
+        }
+
+        target.takeIf { it.isFile && it.length() == expectedBytes }?.absolutePath
+    }.getOrNull()
 
     private fun stateMap(state: AiPackState): Map<String, Any?> {
         val phase = when (state.status()) {
