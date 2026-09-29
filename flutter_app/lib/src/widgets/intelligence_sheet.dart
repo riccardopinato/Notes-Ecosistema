@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/derivative_store.dart';
+import '../data/local_llm_service.dart';
 import '../domain/derivatives.dart';
 import '../domain/intelligence.dart';
+import '../domain/local_llm.dart';
 import '../domain/note.dart';
 import 'ui_resilience.dart';
 
@@ -59,16 +61,22 @@ class _IntelligenceSheet extends StatefulWidget {
 
 class _IntelligenceSheetState extends State<_IntelligenceSheet> {
   final _query = TextEditingController();
+  final _localQuestion = TextEditingController();
   final _engine = const LocalKnowledgeRetrieval();
+  final _localLlm = LocalLlmService();
   KnowledgeQueryResult? _result;
   List<KnowledgeHit> _related = const [];
   List<SourceDerivative> _derivatives = const [];
+  LocalLlmStatus? _llmStatus;
+  LocalLlmGeneration? _llmAnswer;
   bool _busy = false;
+  bool _llmBusy = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _loadLocalLlmStatus();
     final note = widget.currentNote;
     if (note != null) {
       _loadRelated();
@@ -79,7 +87,115 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
   @override
   void dispose() {
     _query.dispose();
+    _localQuestion.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLocalLlmStatus() async {
+    final status = await _localLlm.status();
+    if (mounted) setState(() => _llmStatus = status);
+  }
+
+  Future<void> _installLocalLlm() async {
+    setState(() {
+      _llmBusy = true;
+      _error = null;
+    });
+    try {
+      final installed = await _localLlm.pickAndInstallModel();
+      if (installed != null) {
+        await _loadLocalLlmStatus();
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = userErrorText(error));
+    } finally {
+      if (mounted) setState(() => _llmBusy = false);
+    }
+  }
+
+  Future<void> _deleteLocalLlm() async {
+    setState(() {
+      _llmBusy = true;
+      _error = null;
+    });
+    try {
+      await _localLlm.deleteModel();
+      if (mounted) {
+        setState(() {
+          _llmAnswer = null;
+        });
+      }
+      await _loadLocalLlmStatus();
+    } catch (error) {
+      if (mounted) setState(() => _error = userErrorText(error));
+    } finally {
+      if (mounted) setState(() => _llmBusy = false);
+    }
+  }
+
+  Future<void> _askLocalLlm({required bool workspace}) async {
+    final question = _localQuestion.text.trim();
+    if (question.isEmpty) {
+      setState(() => _error = 'Scrivi una domanda per il modello locale.');
+      return;
+    }
+    if (!workspace && widget.currentNote == null) {
+      setState(() => _error = 'Apri una nota per usare “Chiedi a questa nota”.');
+      return;
+    }
+
+    setState(() {
+      _llmBusy = true;
+      _llmAnswer = null;
+      _error = null;
+    });
+    try {
+      String prompt;
+      if (workspace) {
+        final unified = widget.unifiedSearch;
+        final retrieval = unified == null
+            ? _engine.ask(question, widget.notes)
+            : await unified(question);
+        if (retrieval.hits.isEmpty) {
+          throw const LocalLlmException(
+            'Nessuna fonte locale rilevante per questa domanda.',
+          );
+        }
+        prompt = LocalLlmPolicy.workspacePrompt(
+          question: question,
+          sources: retrieval.hits.map(
+            (hit) => (
+              title: hit.note.title.trim().isEmpty
+                  ? 'Senza titolo'
+                  : hit.note.title,
+              excerpt: hit.excerpt,
+            ),
+          ),
+        );
+      } else {
+        final note = widget.currentNote!;
+        prompt = LocalLlmPolicy.notePrompt(
+          question: question,
+          title: note.title,
+          body: _sourceText(note),
+          tags: note.tags,
+        );
+      }
+
+      final answer = await _localLlm.generate(prompt: prompt);
+      if (!mounted) return;
+      setState(() => _llmAnswer = answer);
+      await _loadLocalLlmStatus();
+    } catch (error) {
+      if (mounted) setState(() => _error = userErrorText(error));
+    } finally {
+      if (mounted) setState(() => _llmBusy = false);
+    }
+  }
+
+  Future<void> _cancelLocalLlm() async {
+    await _localLlm.cancel();
+    if (mounted) setState(() => _llmBusy = false);
   }
 
   Future<void> _loadRelated() async {
@@ -336,6 +452,152 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                       child: const Text('Cerca'),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.memory_outlined),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'LLM locale · ${_llmStatus?.runtime ?? LocalLlmPolicy.runtime}',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            if (_llmStatus?.loaded == true)
+                              const Chip(label: Text('Caricato'))
+                            else if (_llmStatus?.installed == true)
+                              const Chip(label: Text('Installato')),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _llmStatus == null
+                              ? 'Controllo runtime…'
+                              : !_llmStatus!.supported
+                                  ? (_llmStatus!.error ??
+                                      'Runtime locale non disponibile.')
+                                  : _llmStatus!.installed
+                                      ? '${_llmStatus!.modelName} · CPU · '
+                                          '${(_llmStatus!.modelBytes / (1024 * 1024)).toStringAsFixed(0)} MiB'
+                                      : 'Installa un modello .litertlm compatibile. '
+                                          'Consigliato: ${LocalLlmPolicy.preferredModel}.',
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed: _llmBusy ? null : _installLocalLlm,
+                              icon: const Icon(Icons.install_mobile_outlined),
+                              label: Text(
+                                _llmStatus?.installed == true
+                                    ? 'Sostituisci modello'
+                                    : 'Installa modello',
+                              ),
+                            ),
+                            if (_llmStatus?.installed == true)
+                              TextButton.icon(
+                                onPressed: _llmBusy ? null : _deleteLocalLlm,
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Rimuovi'),
+                              ),
+                          ],
+                        ),
+                        if (_llmStatus?.installed == true) ...[
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _localQuestion,
+                            minLines: 1,
+                            maxLines: 4,
+                            maxLength: LocalLlmPolicy.maxQuestionChars,
+                            decoration: const InputDecoration(
+                              prefixIcon: Icon(Icons.psychology_outlined),
+                              hintText: 'Fai una domanda al modello locale…',
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (widget.currentNote != null)
+                                FilledButton.icon(
+                                  onPressed: _llmBusy
+                                      ? null
+                                      : () => _askLocalLlm(workspace: false),
+                                  icon: const Icon(Icons.description_outlined),
+                                  label: const Text('Chiedi a questa nota'),
+                                ),
+                              FilledButton.icon(
+                                onPressed: _llmBusy
+                                    ? null
+                                    : () => _askLocalLlm(workspace: true),
+                                icon: const Icon(Icons.hub_outlined),
+                                label: const Text('Chiedi al workspace'),
+                              ),
+                              if (_llmBusy)
+                                TextButton.icon(
+                                  onPressed: _cancelLocalLlm,
+                                  icon: const Icon(Icons.stop_circle_outlined),
+                                  label: const Text('Interrompi'),
+                                ),
+                            ],
+                          ),
+                          if (_llmBusy) ...[
+                            const SizedBox(height: 10),
+                            const LinearProgressIndicator(),
+                          ],
+                          if (_llmAnswer != null) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: SelectableText(_llmAnswer!.text),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${_llmAnswer!.modelName} · '
+                                    '${_llmAnswer!.backend} · '
+                                    '${(_llmAnswer!.elapsedMs / 1000).toStringAsFixed(1)} s',
+                                    style:
+                                        Theme.of(context).textTheme.labelSmall,
+                                  ),
+                                ),
+                                if (widget.onInsertMarkdown != null)
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      widget.onInsertMarkdown!(
+                                        '\n\n${_llmAnswer!.text}\n',
+                                      );
+                                      Navigator.pop(context);
+                                    },
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Inserisci'),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
