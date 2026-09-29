@@ -7,16 +7,14 @@ necessario a Needle 3 per Notes Plus:
 - runtime Needle ARM64;
 - nessun model weight.
 
-Il runtime non deve essere collegato staticamente al base APK, perché
-l'artifact `libneedle.a` ARM64 corrente misura 12.121.380 byte e farebbe
-saltare inutilmente il budget dell'app per gli utenti Free.
+Il runtime resta fuori dal base APK per non imporre alcun costo Needle agli
+utenti Free. Le build Android ARM64 di produzione recenti sono circa **1,6 MB**.
 
-## Artifact runtime pinnato
+## Artifact runtime
 
-- SHA-256:
-  `e11d0a4ac455a4a5d9d3ed7fcd29fb0d7adc7d8832b1e1511c2b22b173cfb133`
-- bytes: `12121380`
-- target: Android ARM64.
+Il target è Android ARM64. L'hash/revision esatto del runtime verrà pinnato
+nello stesso commit che introdurrà JNI e test real-device: non congeliamo una
+build transitoria prima di averne verificato l'ABI.
 
 La feature deve usare delivery **on-demand** e lo stesso entitlement
 `PlusFeature.localAi20L` del model pack.
