@@ -8,6 +8,7 @@ import 'project_workspace.dart';
 import 'research.dart';
 import 'stable_links.dart';
 import 'study.dart';
+import 'unified_retrieval.dart';
 
 enum KnowledgeGraphNodeKind { note, task, project, study, pdf }
 
@@ -82,6 +83,52 @@ class KnowledgeGraphSnapshot {
       if (edge.targetId == nodeId) result.add(edge.sourceId);
     }
     return result;
+  }
+}
+
+abstract final class KnowledgeGraphSearch {
+  static List<KnowledgeGraphNode> search({
+    required KnowledgeGraphSnapshot graph,
+    required String query,
+    List<String> semanticNoteIds = const [],
+    int limit = 12,
+  }) {
+    final needle = UnifiedRetrieval.normalize(query);
+    if (needle.isEmpty) return const [];
+    if (limit < 1 || limit > 50) {
+      throw const FormatException('Limite ricerca grafo non valido.');
+    }
+
+    final semanticRank = <String, int>{
+      for (var i = 0; i < semanticNoteIds.length; i++) semanticNoteIds[i]: i,
+    };
+    final rows = <({KnowledgeGraphNode node, int score})>[];
+    for (final node in graph.nodes) {
+      final lexical = UnifiedRetrieval.scoreText(
+        query: needle,
+        title: node.label,
+        text: node.subtitle ?? '',
+      );
+      final rank = switch (node.kind) {
+        KnowledgeGraphNodeKind.note || KnowledgeGraphNodeKind.task =>
+          semanticRank[node.entityId],
+        _ => null,
+      };
+      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320);
+      final score = lexical + semantic;
+      if (score <= 0) continue;
+      rows.add((node: node, score: score));
+    }
+    rows.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      final byDegree = graph.degree(b.node.id).compareTo(graph.degree(a.node.id));
+      if (byDegree != 0) return byDegree;
+      final byUpdated = b.node.updatedAt.compareTo(a.node.updatedAt);
+      if (byUpdated != 0) return byUpdated;
+      return a.node.id.compareTo(b.node.id);
+    });
+    return rows.take(limit).map((row) => row.node).toList(growable: false);
   }
 }
 
