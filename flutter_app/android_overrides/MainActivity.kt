@@ -5,7 +5,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.ActivityManager
 import android.appwidget.AppWidgetManager
 import android.content.ClipData
 import android.content.ComponentName
@@ -18,8 +17,6 @@ import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
@@ -35,17 +32,9 @@ import androidx.work.WorkerParameters
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import io.flutter.plugin.common.MethodChannel
-import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Contents
-import com.google.ai.edge.litertlm.Conversation
-import com.google.ai.edge.litertlm.ConversationConfig
-import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.LogSeverity
 import java.io.File
 import java.security.KeyStore
 import java.util.UUID
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -63,7 +52,6 @@ class MainActivity : FlutterActivity() {
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
         private const val DEEP_LINK_CHANNEL = "notes.ecosystem/deep_links"
         private const val LOCAL_LLM_CHANNEL = "notes.ecosystem/local_llm"
-        private const val LOCAL_LLM_RUNTIME = "LiteRT-LM 0.17.1"
         private const val GITHUB_KEY_ALIAS = "notes-github-v1"
         const val NOTIFICATION_CHANNEL = "task_reminders"
         private const val PERMISSION_REQUEST = 4102
@@ -88,11 +76,7 @@ class MainActivity : FlutterActivity() {
     private var pendingQuickSync = false
     private var pendingSharedSpaceId: String? = null
     private var pendingReminderAction: Map<String, Any?>? = null
-    private val localLlmExecutor = Executors.newSingleThreadExecutor()
-    private val mainHandler = Handler(Looper.getMainLooper())
-    @Volatile private var localLlmEngine: Engine? = null
-    @Volatile private var localLlmConversation: Conversation? = null
-    @Volatile private var localLlmModelPath: String? = null
+    private val localLlmBridge by lazy { LocalLlmBridge(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingDeepLink = parseStableLink(intent)
@@ -305,41 +289,7 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             LOCAL_LLM_CHANNEL,
         ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "status" -> {
-                    val args = call.arguments as? Map<*, *>
-                    result.success(
-                        localLlmStatus(args?.get("modelPath")?.toString())
-                    )
-                }
-                "load" -> {
-                    val args = call.arguments as? Map<*, *>
-                    val modelPath = args?.get("modelPath")?.toString()
-                    runLocalLlm(result) {
-                        localLlmLoad(modelPath)
-                        localLlmStatus(modelPath)
-                    }
-                }
-                "generate" -> {
-                    val args = call.arguments as? Map<*, *>
-                    runLocalLlm(result) {
-                        localLlmGenerate(args)
-                    }
-                }
-                "cancel" -> {
-                    runCatching {
-                        localLlmConversation?.cancelProcess()
-                    }
-                    result.success(null)
-                }
-                "unload" -> {
-                    runLocalLlm(result) {
-                        localLlmUnload()
-                        null
-                    }
-                }
-                else -> result.notImplemented()
-            }
+            localLlmBridge.handle(call, result)
         }
 
         MethodChannel(
@@ -371,163 +321,8 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun runLocalLlm(
-        result: MethodChannel.Result,
-        block: () -> Any?,
-    ) {
-        localLlmExecutor.execute {
-            runCatching(block)
-                .onSuccess { value ->
-                    mainHandler.post { result.success(value) }
-                }
-                .onFailure { error ->
-                    mainHandler.post {
-                        result.error(
-                            "LOCAL_LLM",
-                            error.message ?: "Inferenza locale non riuscita.",
-                            null,
-                        )
-                    }
-                }
-        }
-    }
-
-    private fun validateLocalModel(path: String?): File {
-        val raw = path?.trim().orEmpty()
-        require(raw.isNotEmpty()) { "Percorso modello mancante." }
-        val file = File(raw).canonicalFile
-        val root = filesDir.canonicalFile
-        require(file.path.startsWith(root.path + File.separator)) {
-            "Il modello deve essere nello storage privato dell’app."
-        }
-        require(file.isFile && file.extension.lowercase() == "litertlm") {
-            "File .litertlm non valido."
-        }
-        require(file.length() in (32L * 1024 * 1024)..(2L * 1024 * 1024 * 1024)) {
-            "Dimensione modello non valida."
-        }
-        return file
-    }
-
-    private fun localLlmStatus(modelPath: String?): Map<String, Any?> {
-        val file = runCatching {
-            modelPath?.let(::validateLocalModel)
-        }.getOrNull()
-        val activityManager =
-            getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        return mapOf(
-            "supported" to true,
-            "installed" to (file != null),
-            "loaded" to (
-                localLlmEngine?.isInitialized() == true &&
-                    localLlmModelPath == file?.absolutePath
-            ),
-            "runtime" to LOCAL_LLM_RUNTIME,
-            "backend" to "CPU",
-            "modelName" to file?.name,
-            "modelBytes" to (file?.length() ?: 0L),
-            "memoryClassMb" to activityManager.memoryClass,
-            "processors" to Runtime.getRuntime().availableProcessors(),
-            "error" to null,
-        )
-    }
-
-    private fun localLlmLoad(modelPath: String?) {
-        val file = validateLocalModel(modelPath)
-        if (
-            localLlmEngine?.isInitialized() == true &&
-            localLlmModelPath == file.absolutePath
-        ) {
-            return
-        }
-
-        localLlmUnload()
-        Engine.setNativeMinLogSeverity(LogSeverity.ERROR)
-        val threads = (
-            Runtime.getRuntime().availableProcessors() - 1
-        ).coerceIn(1, 4)
-        val runtimeCache = File(cacheDir, "litert_lm").apply { mkdirs() }
-        val engine = Engine(
-            EngineConfig(
-                modelPath = file.absolutePath,
-                backend = Backend.CPU(threadCount = threads),
-                maxNumTokens = 3072,
-                cacheDir = runtimeCache.absolutePath,
-            )
-        )
-        engine.initialize()
-        localLlmEngine = engine
-        localLlmModelPath = file.absolutePath
-    }
-
-    private fun localLlmGenerate(args: Map<*, *>?): Map<String, Any?> {
-        val modelPath = args?.get("modelPath")?.toString()
-        localLlmLoad(modelPath)
-        val prompt = args?.get("prompt")?.toString()?.trim().orEmpty()
-        require(prompt.isNotEmpty() && prompt.length <= 26000) {
-            "Prompt locale vuoto o troppo lungo."
-        }
-        val systemInstruction =
-            args?.get("systemInstruction")?.toString()?.trim().orEmpty()
-                .take(5000)
-        val maxOutputTokens = (
-            args?.get("maxOutputTokens") as? Number
-        )?.toInt()?.coerceIn(64, 768) ?: 384
-        val engine = localLlmEngine
-            ?: error("Runtime locale non inizializzato.")
-
-        val started = System.nanoTime()
-        val conversation = engine.createConversation(
-            ConversationConfig(
-                systemInstruction = if (systemInstruction.isBlank()) {
-                    null
-                } else {
-                    Contents.of(systemInstruction)
-                },
-                automaticToolCalling = false,
-                channels = emptyList(),
-                maxOutputToken = maxOutputTokens,
-            )
-        )
-        localLlmConversation = conversation
-        try {
-            val response = conversation.sendMessage(prompt).toString().trim()
-            require(response.isNotEmpty()) {
-                "Il modello locale non ha restituito testo."
-            }
-            return mapOf(
-                "text" to response,
-                "elapsedMs" to (
-                    (System.nanoTime() - started) / 1_000_000L
-                ),
-                "modelName" to File(localLlmModelPath.orEmpty()).name,
-                "backend" to "CPU",
-            )
-        } finally {
-            localLlmConversation = null
-            runCatching { conversation.close() }
-        }
-    }
-
-    private fun localLlmUnload() {
-        localLlmConversation?.let { conversation ->
-            runCatching { conversation.cancelProcess() }
-            runCatching { conversation.close() }
-        }
-        localLlmConversation = null
-        localLlmEngine?.let { engine ->
-            if (engine.isInitialized()) {
-                runCatching { engine.close() }
-            }
-        }
-        localLlmEngine = null
-        localLlmModelPath = null
-    }
-
     override fun onDestroy() {
-        runCatching { localLlmConversation?.cancelProcess() }
-        localLlmExecutor.execute { runCatching { localLlmUnload() } }
-        localLlmExecutor.shutdown()
+        localLlmBridge.destroy()
         super.onDestroy()
     }
 
