@@ -24,7 +24,7 @@ void main() {
     );
   });
 
-  test('workspace prompt keeps at most six ranked local sources', () {
+  test('workspace prompt keeps bounded ranked local sources', () {
     final sources = List.generate(
       10,
       (index) => (
@@ -39,15 +39,36 @@ void main() {
     );
 
     expect(prompt, contains('[1] Fonte 0'));
-    expect(prompt, contains('[6] Fonte 5'));
-    expect(prompt, isNot(contains('Fonte 6')));
+    expect(
+      prompt,
+      contains('[${LocalLlmPolicy.maxWorkspaceSources}] Fonte 4'),
+    );
+    expect(prompt, isNot(contains('Fonte 5')));
     expect(prompt, contains('Non inventare fatti mancanti'));
   });
 
-  test('local runtime policy keeps model external to the APK', () {
-    expect(LocalLlmPolicy.runtime, 'LiteRT-LM 0.17.1');
-    expect(LocalLlmPolicy.modelExtension, '.litertlm');
-    expect(LocalLlmPolicy.minModelBytes, greaterThan(0));
-    expect(LocalLlmPolicy.maxModelBytes, greaterThan(1024 * 1024 * 1024));
+  test('adaptive runtime keeps Gemini Nano system-managed', () {
+    expect(LocalLlmPolicy.runtime, contains('AICore'));
+    expect(LocalLlmPolicy.preferredModel, 'Gemini Nano');
+    expect(LocalLlmPolicy.lightweightFallback, 'Needle 3');
+    expect(LocalLlmPolicy.maxWorkspaceContextChars, lessThanOrEqualTo(12000));
+  });
+
+  test('status maps provider capability without bundling a model', () {
+    final status = LocalLlmStatus.fromMap(const {
+      'supported': true,
+      'available': true,
+      'downloadable': false,
+      'downloading': false,
+      'runtime': 'ML Kit Prompt API 1.0.0-beta4',
+      'backend': 'Android AICore',
+      'modelName': 'Gemini Nano',
+      'systemManaged': true,
+      'provider': 'geminiNano',
+    });
+
+    expect(status.available, isTrue);
+    expect(status.systemManaged, isTrue);
+    expect(status.provider, LocalAiProvider.geminiNano);
   });
 }
