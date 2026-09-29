@@ -35,16 +35,15 @@ Modello valutato per questa release:
   `c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38`;
 - dimensione upstream mostrata: circa **35,3 MB**.
 
-Runtime Android ARM64 osservato nella stessa linea di produzione:
+Runtime Android ARM64:
 
 - file: `libneedle.a`;
-- bytes: **12.121.380**;
-- SHA-256:
-  `e11d0a4ac455a4a5d9d3ed7fcd29fb0d7adc7d8832b1e1511c2b22b173cfb133`.
+- le build di produzione recenti sono tornate a circa **1,6 MB**;
+- l'hash esatto verrà pinnato insieme al JNI quando il provider nativo viene
+  promosso da delivery foundation a runtime attivo.
 
-Perciò il costo raw complessivo modello + runtime è oggi più vicino a
-**47–50 MB** che a 30 MB. Il download effettivo da Play può differire per
-compressione e patching.
+Il footprint raw atteso modello + runtime è quindi nell'ordine di **~37 MB**.
+Il download effettivo da Play può differire per compressione e patching.
 
 ## Entitlement
 
