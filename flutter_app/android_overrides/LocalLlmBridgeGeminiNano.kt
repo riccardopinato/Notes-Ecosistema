@@ -131,6 +131,9 @@ class LocalLlmBridge(private val activity: MainActivity) {
         val systemInstruction =
             args?.get("systemInstruction")?.toString()?.trim().orEmpty()
                 .take(3000)
+        val maxOutputTokens = (
+            args?.get("maxOutputTokens") as? Number
+        )?.toInt()?.coerceIn(64, 768) ?: 384
         val combinedPrompt = buildString {
             if (systemInstruction.isNotBlank()) {
                 append(systemInstruction)
