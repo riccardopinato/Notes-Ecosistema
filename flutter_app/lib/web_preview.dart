@@ -68,7 +68,7 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notes Ecosistema 0.55 · Web',
+      title: 'Notes Ecosistema 0.55.1 · Web',
       theme: NotesTheme.light(),
       darkTheme: NotesTheme.dark(),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
@@ -577,6 +577,51 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     );
   }
 
+  Future<List<String>> _webRankNoteIds(String query) async {
+    final documents = UnifiedRetrieval.noteDocuments(_personalNotes);
+    final lexical = UnifiedRetrieval.search(query, documents, limit: 60);
+    if (query.trim().isEmpty) {
+      return lexical.map((hit) => hit.document.noteId).toList(growable: false);
+    }
+
+    const engine = LocalHashEmbeddingEngine();
+    final queryVector = engine.embed(query);
+    final semantic = <({String noteId, double score})>[];
+    for (final document in documents) {
+      final score = LocalHashEmbeddingEngine.cosine(
+        queryVector,
+        engine.embed(
+          '${document.title}\n${document.tags.join(' ')}\n${document.text}',
+        ),
+      );
+      if (score >= 0.10) {
+        semantic.add((noteId: document.noteId, score: score));
+      }
+    }
+    semantic.sort((a, b) => b.score.compareTo(a.score));
+
+    final scores = <String, double>{};
+    for (var i = 0; i < lexical.length; i++) {
+      final noteId = lexical[i].document.noteId;
+      scores.update(
+        noteId,
+        (value) => value + 1 / (61 + i),
+        ifAbsent: () => 1 / (61 + i),
+      );
+    }
+    for (var i = 0; i < semantic.length; i++) {
+      final noteId = semantic[i].noteId;
+      scores.update(
+        noteId,
+        (value) => value + 0.85 / (61 + i),
+        ifAbsent: () => 0.85 / (61 + i),
+      );
+    }
+
+    return scores.keys.toList(growable: false)
+      ..sort((a, b) => scores[b]!.compareTo(scores[a]!));
+  }
+
   Future<void> _openKnowledgeGraph() async {
     final notes = _personalNotes;
     final noteIds = notes.map((note) => note.id).toSet();
@@ -658,6 +703,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
             Navigator.pop(context);
             unawaited(_openStudy());
           },
+          semanticRanker: _webRankNoteIds,
         ),
       ),
     );
@@ -745,7 +791,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('Notes Ecosistema 0.54'),
+              title: Text('Notes Ecosistema 0.55.1'),
               subtitle: Text(
                 'Web Preview fedele · stato demo locale alla sessione browser.',
               ),
@@ -905,6 +951,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           onBulkEdit: _bulkEdit,
           onRenameCollection: _renameCollection,
           onDeleteCollection: _deleteCollection,
+          semanticRanker: _webRankNoteIds,
         ),
     };
 
@@ -939,7 +986,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               appBar: AppBar(
                 title: EditorialAppTitle(
                   section == 'Home' ? 'Il tuo spazio' : section,
-                  eyebrow: 'NOTES · WEB PREVIEW 0.54',
+                  eyebrow: 'NOTES · WEB PREVIEW 0.55.1',
                 ),
                 actions: [
                   IconButton(
@@ -2305,19 +2352,32 @@ class _WebQuickSwitcherState extends State<_WebQuickSwitcher> {
   @override
   Widget build(BuildContext context) {
     final query = UnifiedRetrieval.normalize(_query.text);
-    final notes = widget.notes
-        .where((note) {
-          if (query.isEmpty) return true;
-          return UnifiedRetrieval.scoreText(
-                query: query,
-                title: note.title,
-                text: note.isVisual ? '' : note.body,
-                tags: note.tags,
-              ) >
-              0;
+    final rows = widget.notes
+        .where((note) => !note.isDeleted && !note.isVisual)
+        .map((note) {
+          if (query.isEmpty) return (note: note, score: 1.0);
+          final lexical = UnifiedRetrieval.scoreText(
+            query: query,
+            title: note.title,
+            text: note.body,
+            tags: note.tags,
+          );
+          const engine = LocalHashEmbeddingEngine();
+          final semantic = LocalHashEmbeddingEngine.cosine(
+            engine.embed(query),
+            engine.embed('${note.title}\n${note.tags.join(' ')}\n${note.body}'),
+          );
+          final semanticBonus = semantic >= 0.10 ? semantic * 320 : 0;
+          return (note: note, score: lexical + semanticBonus);
         })
-        .take(8)
-        .toList();
+        .where((row) => query.isEmpty || row.score > 0)
+        .toList()
+      ..sort((a, b) {
+        final score = b.score.compareTo(a.score);
+        if (score != 0) return score;
+        return b.note.updatedAt.compareTo(a.note.updatedAt);
+      });
+    final notes = rows.take(8).map((row) => row.note).toList(growable: false);
 
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
