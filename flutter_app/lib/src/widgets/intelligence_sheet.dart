@@ -498,8 +498,7 @@ class _IntelligenceSheetState extends State<_IntelligenceSheet> {
                             if (_llmStatus?.supported == true)
                               FilledButton.tonalIcon(
                                 onPressed: _llmBusy ? null : _installLocalLlm,
-                                icon:
-                                    const Icon(Icons.install_mobile_outlined),
+                                icon: const Icon(Icons.install_mobile_outlined),
                                 label: Text(
                                   _llmStatus?.installed == true
                                       ? 'Sostituisci modello'
