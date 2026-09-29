@@ -3,8 +3,10 @@ package it.notes.ecosystem.notes_ecosistema
 import com.google.mlkit.genai.common.DownloadCallback
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
+import com.google.mlkit.genai.prompt.GenerateContentRequest
 import com.google.mlkit.genai.prompt.GenerateContentResponse
 import com.google.mlkit.genai.prompt.Generation
+import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.java.GenerativeModelFutures
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -137,8 +139,15 @@ class LocalLlmBridge(private val activity: MainActivity) {
             append(prompt)
         }
 
+        val request = GenerateContentRequest.Builder(
+            TextPart(combinedPrompt),
+        ).apply {
+            this.maxOutputTokens = maxOutputTokens
+            candidateCount = 1
+        }.build()
+
         val started = System.nanoTime()
-        val pending = futures.generateContent(combinedPrompt)
+        val pending = futures.generateContent(request)
         activeGeneration = pending
         try {
             val response = pending.get()
