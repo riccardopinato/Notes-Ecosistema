@@ -74,8 +74,7 @@ class LocalAiPackStatus {
     );
   }
 
-  factory LocalAiPackStatus.unavailable([String? error]) =>
-      LocalAiPackStatus(
+  factory LocalAiPackStatus.unavailable([String? error]) => LocalAiPackStatus(
         phase: LocalAiPackPhase.unavailable,
         supported: false,
         error: error,
@@ -88,8 +87,7 @@ abstract final class Needle20LPackPolicy {
   static const modelLabel = 'Needle 3 20L';
 
   // Production Needle 3 archive pinned during the 0.56.2 integration.
-  static const upstreamRevision =
-      '3e8e2a66057a29694052d915128b91b53e7e5ead';
+  static const upstreamRevision = '3e8e2a66057a29694052d915128b91b53e7e5ead';
   static const modelSha256 =
       'c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38';
 
