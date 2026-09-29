@@ -48,7 +48,14 @@ void main() {
   test('Needle 20L artifact identity is pinned', () {
     expect(Needle20LPackPolicy.packName, 'notes_needle3_20l');
     expect(Needle20LPackPolicy.modelFileName, 'needle3.cact');
+    expect(
+      Needle20LPackPolicy.upstreamRevision,
+      'b274efcb211a9eef48c9a88da4b43bd569696a39',
+    );
     expect(Needle20LPackPolicy.modelSha256, hasLength(64));
+    expect(Needle20LPackPolicy.modelBytes, 35335380);
+    expect(Needle20LPackPolicy.androidArm64RuntimeSha256, hasLength(64));
+    expect(Needle20LPackPolicy.androidArm64RuntimeBytes, 1663992);
     expect(
       Needle20LPackPolicy.approximateAndroidArm64RuntimeMegabytes,
       lessThan(2),
