@@ -1,5 +1,21 @@
 # Notes Ecosistema — Roadmap
 
+## 0.56.0 — Local LLM Runtime
+
+**Implementato in 0.56.0+71.**
+
+- bridge Flutter → Android LiteRT-LM 0.17.1;
+- modello `.litertlm` installabile e separato dall'APK;
+- storage privato e lifecycle load/cancel/unload;
+- CPU backend bounded per la prima release;
+- Ask this note;
+- Ask workspace con Unified Retrieval/RAG locale;
+- output inseribile nella nota;
+- nessun cloud fallback;
+- policy/test sui limiti di contesto.
+
+Step successivi 0.56.x: benchmark real-device, streaming token, scelta backend adattiva CPU/GPU/NPU quando stabile e provider ultraleggero Needle per tool-calling/extraction.
+
 ## 0.55.1 — Semantic Integration & Quality
 
 **Implementato in 0.55.1+70.**
