@@ -122,7 +122,7 @@ abstract final class QuickSwitcher {
           semanticRank[entry.id],
         _ => null,
       };
-      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320);
+      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320).toInt();
       return lexical + semantic;
     }
 
