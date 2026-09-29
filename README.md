@@ -1,8 +1,19 @@
-# Notes — Ecosistema 0.55.0
+# Notes — Ecosistema 0.55.1
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.55.1 — Semantic Integration & Quality
+
+- Quick Switcher usa lo stesso ranking Unified Retrieval + semantic index della Knowledge Search;
+- la sezione Cerca accetta match semantici mantenendo scope, raccolte, tag e filtri esistenti;
+- Knowledge Graph trova Note/Task anche per concetti, senza cambiare la topologia del grafo;
+- exact/prefix lexical match restano prioritari rispetto ai soli match semantici;
+- un solo metodo `rankNoteIds` alimenta le superfici, evitando ranking divergenti;
+- Web Preview allineata per Cerca, Quick Switcher e Knowledge Graph;
+- nuovo quality harness con Recall@K e Mean Reciprocal Rank;
+- gate automatici su semantic-only matches e dataset multilingua curato.
 
 ## 0.55.0 — Local Semantic Retrieval
 
