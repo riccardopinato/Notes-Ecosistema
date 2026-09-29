@@ -7,6 +7,10 @@ import '../domain/note.dart';
 import '../widgets/editorial.dart';
 import '../widgets/ui_resilience.dart';
 
+typedef KnowledgeGraphSemanticRanker = Future<List<String>> Function(
+  String query,
+);
+
 class KnowledgeGraphScreen extends StatefulWidget {
   const KnowledgeGraphScreen({
     required this.loadGraph,
@@ -14,6 +18,7 @@ class KnowledgeGraphScreen extends StatefulWidget {
     required this.onOpenNote,
     required this.onOpenProject,
     required this.onOpenStudy,
+    this.semanticRanker,
     super.key,
   });
 
@@ -22,6 +27,7 @@ class KnowledgeGraphScreen extends StatefulWidget {
   final ValueChanged<Note> onOpenNote;
   final ValueChanged<String> onOpenProject;
   final VoidCallback onOpenStudy;
+  final KnowledgeGraphSemanticRanker? semanticRanker;
 
   @override
   State<KnowledgeGraphScreen> createState() => _KnowledgeGraphScreenState();
@@ -193,18 +199,29 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
               Expanded(
                 child: Autocomplete<KnowledgeGraphNode>(
                   displayStringForOption: (node) => node.label,
-                  optionsBuilder: (value) {
-                    final query = value.text.trim().toLowerCase();
-                    if (query.isEmpty) return const Iterable.empty();
-                    return graph.nodes
-                        .where(
-                          (node) =>
-                              node.label.toLowerCase().contains(query) ||
-                              (node.subtitle ?? '')
-                                  .toLowerCase()
-                                  .contains(query),
-                        )
-                        .take(12);
+                  optionsBuilder: (value) async {
+                    final query = value.text.trim();
+                    if (query.isEmpty) return const <KnowledgeGraphNode>[];
+                    final ranker = widget.semanticRanker;
+                    if (ranker == null) {
+                      return KnowledgeGraphSearch.search(
+                        graph: graph,
+                        query: query,
+                      );
+                    }
+                    try {
+                      final semantic = await ranker(query);
+                      return KnowledgeGraphSearch.search(
+                        graph: graph,
+                        query: query,
+                        semanticNoteIds: semantic,
+                      );
+                    } catch (_) {
+                      return KnowledgeGraphSearch.search(
+                        graph: graph,
+                        query: query,
+                      );
+                    }
                   },
                   onSelected: _focus,
                   fieldViewBuilder: (
@@ -218,7 +235,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> {
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.search),
-                        hintText: 'Trova un nodo…',
+                        hintText: 'Trova un nodo per parole o concetti…',
                       ),
                     );
                   },

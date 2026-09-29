@@ -726,6 +726,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             Navigator.of(context).pop();
             unawaited(_openStudy());
           },
+          semanticRanker: (query) => _rankNoteIds(
+            query,
+            ref.read(workspaceProvider).notes,
+            limit: 40,
+          ),
         ),
       ),
     );
@@ -1124,6 +1129,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             ref.read(workspaceProvider.notifier).deleteEmptyCollection(
                   collection,
                 ),
+        semanticRanker:
+            _index == 5 ? (query) => _rankNoteIds(query, personalNotes) : null,
         initialCollectionId: _index == 1 ? _libraryCollectionId : null,
       );
     } else if (_index == 2) {
@@ -1286,15 +1293,29 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     );
   }
 
+  UnifiedRetrievalService _retrievalService() => UnifiedRetrievalService(
+        derivativeStore: ref.read(derivativeStoreProvider),
+        documentStore: ref.read(documentStoreProvider),
+        knowledgeStore: ref.read(knowledgeStoreProvider),
+        propertyStore: ref.read(propertyStoreProvider),
+        studyStore: ref.read(studyStoreProvider),
+        semanticStore: ref.read(semanticIndexStoreProvider),
+      );
+
+  Future<List<String>> _rankNoteIds(
+    String query,
+    List<Note> notes, {
+    int limit = 80,
+  }) =>
+      _retrievalService().rankNoteIds(
+        query: query,
+        notes: notes,
+        limit: limit,
+        semanticEnabled: _semanticSearchEnabled,
+      );
+
   Future<void> _knowledgeSearch(List<Note> notes) async {
-    final service = UnifiedRetrievalService(
-      derivativeStore: ref.read(derivativeStoreProvider),
-      documentStore: ref.read(documentStoreProvider),
-      knowledgeStore: ref.read(knowledgeStoreProvider),
-      propertyStore: ref.read(propertyStoreProvider),
-      studyStore: ref.read(studyStoreProvider),
-      semanticStore: ref.read(semanticIndexStoreProvider),
-    );
+    final service = _retrievalService();
     await showIntelligenceSheet(
       context: context,
       notes: notes,
@@ -1368,6 +1389,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       notes: notes,
       collections: workspace.collections,
       projects: ref.read(projectWorkspaceProvider).projects,
+      semanticRanker: (query) => _rankNoteIds(
+        query,
+        notes,
+        limit: 60,
+      ),
     );
     if (selected == null || !mounted) return;
 

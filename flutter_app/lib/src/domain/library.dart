@@ -51,9 +51,13 @@ List<Note> searchNotes(
   SearchOptions options = const SearchOptions(),
   String kind = 'Tutte',
   NoteOrder order = NoteOrder.recent,
+  List<String> semanticNoteIds = const [],
 }) {
   final needle = query.trim().toLowerCase();
   final tags = NoteTags.normalize(options.tags);
+  final semanticRank = <String, int>{
+    for (var i = 0; i < semanticNoteIds.length; i++) semanticNoteIds[i]: i,
+  };
   final filtered = notes.where((note) {
     // Deleted tasks must remain reachable from the universal trash so they can
     // be restored or permanently deleted like every other user-owned item.
@@ -73,7 +77,9 @@ List<Note> searchNotes(
 
     if (needle.isNotEmpty) {
       final normalized = needle.startsWith('#') ? needle.substring(1) : needle;
-      if (!UnifiedRetrieval.matchesNote(note, normalized)) return false;
+      final lexical = UnifiedRetrieval.matchesNote(note, normalized);
+      final semantic = semanticRank.containsKey(note.id);
+      if (!lexical && !semantic) return false;
     }
 
     if (options.favoritesOnly && !note.favorite) return false;
@@ -122,21 +128,22 @@ List<Note> searchNotes(
   }).toList();
 
   if (needle.isNotEmpty && order == NoteOrder.recent) {
-    filtered.sort((a, b) {
-      final relevance = UnifiedRetrieval.scoreText(
+    int relevance(Note note) {
+      final lexical = UnifiedRetrieval.scoreText(
         query: needle,
-        title: b.title,
-        text: b.isVisual ? '' : b.body,
-        tags: b.tags,
-      ).compareTo(
-        UnifiedRetrieval.scoreText(
-          query: needle,
-          title: a.title,
-          text: a.isVisual ? '' : a.body,
-          tags: a.tags,
-        ),
+        title: note.title,
+        text: note.isVisual ? '' : note.body,
+        tags: note.tags,
       );
-      if (relevance != 0) return relevance;
+      final rank = semanticRank[note.id];
+      final semantic =
+          rank == null ? 0 : (320 - rank * 8).clamp(80, 320).toInt();
+      return lexical + semantic;
+    }
+
+    filtered.sort((a, b) {
+      final byRelevance = relevance(b).compareTo(relevance(a));
+      if (byRelevance != 0) return byRelevance;
       return _comparator(order)(a, b);
     });
   } else {
