@@ -1,21 +1,18 @@
 # Notes Ecosistema — Roadmap
 
-## 0.56.0 — Local LLM Runtime
+## 0.56.0 — Adaptive Local Intelligence
 
 **Implementato in 0.56.0+71.**
 
-- bridge Flutter → Android LiteRT-LM 0.17.1;
-- doppio artefatto: Standard sotto il gate 38 MiB + Local AI ARM64 con runtime nativo;
-- modello `.litertlm` installabile e separato da entrambi gli APK;
-- storage privato e lifecycle load/cancel/unload;
-- CPU backend bounded per la prima release;
-- Ask this note;
-- Ask workspace con Unified Retrieval/RAG locale;
-- output inseribile nella nota;
-- nessun cloud fallback;
-- policy/test sui limiti di contesto.
+- Gemini Nano/AICore come provider generativo di sistema quando disponibile;
+- nessun modello generativo pesante dentro Notes;
+- Ask this note / Ask workspace con RAG locale bounded;
+- fallback deterministico al Semantic Retrieval 0.55;
+- status capability-aware e preparazione del modello di sistema;
+- APK unico e size gate ARM64 invariato a 38 MiB;
+- nessun cloud fallback.
 
-Step successivi 0.56.x: benchmark real-device, streaming token, scelta backend adattiva CPU/GPU/NPU quando stabile e provider ultraleggero Needle per tool-calling/extraction.
+**0.56.1 candidato:** Needle 3 ultraleggero come provider nativo per tool-calling, estrazione strutturata e comandi sui device senza Gemini Nano.
 
 ## 0.55.1 — Semantic Integration & Quality
 
