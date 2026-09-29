@@ -96,7 +96,9 @@ class _NotesScreenState extends State<NotesScreen> {
     if (oldWidget.query != widget.query && widget.searchMode) {
       _scheduleSemantic(widget.query);
     }
-    if (oldWidget.searchMode && !widget.searchMode && _semanticNoteIds.isNotEmpty) {
+    if (oldWidget.searchMode &&
+        !widget.searchMode &&
+        _semanticNoteIds.isNotEmpty) {
       setState(() => _semanticNoteIds = const []);
     }
   }
