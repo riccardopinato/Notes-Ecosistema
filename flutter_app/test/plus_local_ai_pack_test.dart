@@ -14,7 +14,8 @@ void main() {
     expect(snapshot.allows(PlusFeature.localAi20L), isFalse);
   });
 
-  test('debug entitlement unlocks local AI pack without fake billing', () async {
+  test('debug entitlement unlocks local AI pack without fake billing',
+      () async {
     final snapshot =
         await const PlusEntitlementService(debugPlus: true).snapshot();
 
