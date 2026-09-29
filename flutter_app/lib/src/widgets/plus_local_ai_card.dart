@@ -86,8 +86,7 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
       if (!mounted) return;
       final peakMb = report.peakPssDeltaKb / 1024;
       setState(() {
-        _benchmarkText =
-            '${report.passed}/${report.total} tool corretti · '
+        _benchmarkText = '${report.passed}/${report.total} tool corretti · '
             '${report.averageInferenceMs.toStringAsFixed(0)} ms medi · '
             'ΔPSS picco ${peakMb.toStringAsFixed(1)} MB';
       });
@@ -251,8 +250,7 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
                   ),
                 if (kDebugMode && status?.installed == true)
                   OutlinedButton.icon(
-                    onPressed:
-                        _busy || _benchmarkBusy ? null : _runBenchmark,
+                    onPressed: _busy || _benchmarkBusy ? null : _runBenchmark,
                     icon: const Icon(Icons.speed_outlined),
                     label: Text(
                       _benchmarkBusy ? 'Benchmark…' : 'Test Needle',
