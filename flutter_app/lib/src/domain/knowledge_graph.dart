@@ -110,11 +110,13 @@ abstract final class KnowledgeGraphSearch {
         text: node.subtitle ?? '',
       );
       final rank = switch (node.kind) {
-        KnowledgeGraphNodeKind.note || KnowledgeGraphNodeKind.task =>
+        KnowledgeGraphNodeKind.note ||
+        KnowledgeGraphNodeKind.task =>
           semanticRank[node.entityId],
         _ => null,
       };
-      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320).toInt();
+      final semantic =
+          rank == null ? 0 : (320 - rank * 8).clamp(80, 320).toInt();
       final score = lexical + semantic;
       if (score <= 0) continue;
       rows.add((node: node, score: score));
@@ -122,7 +124,8 @@ abstract final class KnowledgeGraphSearch {
     rows.sort((a, b) {
       final byScore = b.score.compareTo(a.score);
       if (byScore != 0) return byScore;
-      final byDegree = graph.degree(b.node.id).compareTo(graph.degree(a.node.id));
+      final byDegree =
+          graph.degree(b.node.id).compareTo(graph.degree(a.node.id));
       if (byDegree != 0) return byDegree;
       final byUpdated = b.node.updatedAt.compareTo(a.node.updatedAt);
       if (byUpdated != 0) return byUpdated;
