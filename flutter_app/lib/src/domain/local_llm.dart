@@ -93,7 +93,8 @@ $safeBody
 
 ISTRUZIONE
 Rispondi usando prima di tutto il contesto fornito. Se il contesto non basta per una risposta affidabile, dichiaralo chiaramente. Non inventare dati mancanti.
-'''.trim();
+'''
+        .trim();
   }
 
   static String workspacePrompt({
@@ -133,8 +134,7 @@ Rispondi usando prima di tutto il contesto fornito. Se il contesto non basta per
     return buffer.toString().trim();
   }
 
-  static const systemInstruction =
-      'Sei il motore locale di Notes Ecosistema. '
+  static const systemInstruction = 'Sei il motore locale di Notes Ecosistema. '
       'Lavora esclusivamente con il contesto fornito dall’app. '
       'Sii conciso, concreto e verificabile. '
       'Non affermare di aver consultato Internet o fonti esterne.';
