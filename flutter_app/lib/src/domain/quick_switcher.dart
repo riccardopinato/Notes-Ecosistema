@@ -118,11 +118,13 @@ abstract final class QuickSwitcher {
         text: entry.subtitle ?? '',
       );
       final rank = switch (entry.kind) {
-        QuickSwitcherKind.note || QuickSwitcherKind.task =>
+        QuickSwitcherKind.note ||
+        QuickSwitcherKind.task =>
           semanticRank[entry.id],
         _ => null,
       };
-      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320).toInt();
+      final semantic =
+          rank == null ? 0 : (320 - rank * 8).clamp(80, 320).toInt();
       return lexical + semantic;
     }
 
