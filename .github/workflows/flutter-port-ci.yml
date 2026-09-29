@@ -2,7 +2,7 @@ name: Flutter Port CI
 
 on:
   push:
-    branches: [ "main", "flutter-port" ]
+    branches: [ "main", "flutter-port", "qa-needle-bundled-apk" ]
     paths:
       - "flutter_app/**"
       - ".github/workflows/flutter-port-ci.yml"
@@ -223,6 +223,42 @@ jobs:
         with:
           name: Notes-Ecosistema-Flutter-debug
           path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Materialize bundled Needle 20L for QA APK
+        if: github.ref == 'refs/heads/qa-needle-bundled-apk'
+        env:
+          NEEDLE_TELEMETRY: "0"
+          DO_NOT_TRACK: "1"
+        run: |
+          mkdir -p android/app/src/debug/assets
+          python3 tool/fetch_needle_model.py android/app/src/debug/assets/needle3.cact
+
+      - name: Build ARM64 Needle QA APK
+        if: github.ref == 'refs/heads/qa-needle-bundled-apk'
+        run: >-
+          flutter build apk --debug --no-pub
+          --target-platform android-arm64 --split-per-abi
+
+      - name: Verify bundled Needle QA APK
+        if: github.ref == 'refs/heads/qa-needle-bundled-apk'
+        shell: bash
+        run: |
+          QA_APK="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*arm64*debug*.apk' | head -n1)"
+          test -n "$QA_APK"
+          test -f "$QA_APK"
+          unzip -l "$QA_APK" | grep -q 'assets/needle3.cact'
+          echo "qa_apk=$QA_APK"
+          echo "qa_bytes=$(stat -c%s "$QA_APK")"
+          sha256sum "$QA_APK"
+
+      - name: Upload ARM64 Needle QA APK
+        if: github.ref == 'refs/heads/qa-needle-bundled-apk'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Needle20L-QA-arm64
+          path: flutter_app/build/app/outputs/flutter-apk/*arm64*debug*.apk
           if-no-files-found: error
           retention-days: 14
 
