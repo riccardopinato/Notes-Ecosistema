@@ -4,7 +4,12 @@
 
 Notes 0.56.0 introduce un runtime generativo locale reale su Android usando LiteRT-LM 0.17.1.
 
-Il modello non viene incorporato nell'APK. L'utente seleziona un file `.litertlm`, che viene copiato nello storage privato dell'app e usato solo sul dispositivo.
+La release produce due APK:
+
+- **Standard**: mantiene il budget ARM64 da 38 MiB e usa un bridge stub; tutte le funzioni Notes non-LLM restano disponibili.
+- **Local AI (ARM64)**: include le librerie native LiteRT-LM e abilita il motore generativo reale.
+
+Il modello non viene incorporato in nessuno dei due APK. L'utente seleziona un file `.litertlm`, che viene copiato nello storage privato dell'app e usato solo sul dispositivo.
 
 Baseline consigliata per il primo ciclo di QA:
 
@@ -100,11 +105,11 @@ Prima del merge:
 - Flutter analyze;
 - suite test completa;
 - test policy prompt/context;
-- compilazione Kotlin con LiteRT-LM 0.17.1;
-- APK debug;
-- APK release split ABI;
-- size gate;
-- release evidence;
+- APK standard debug/release senza LiteRT-LM;
+- size gate ARM64 standard invariato a 38 MiB;
+- build separata **Local AI ARM64** che compila il bridge Kotlin contro LiteRT-LM 0.17.1;
+- regression ceiling dedicato Local AI a 70 MiB, separato dal budget dell'app standard;
+- evidence e SHA-256 separati per le due edizioni;
 - Web Preview invariata e funzionante.
 
 ## Step successivi
