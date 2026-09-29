@@ -24,6 +24,7 @@ abstract final class QuickSwitcher {
     required List<Note> notes,
     required List<NoteCollection> collections,
     List<ProjectWorkspace> projects = const [],
+    List<String> semanticNoteIds = const [],
     int limit = 20,
   }) {
     final needle = _normalize(query);
@@ -103,15 +104,26 @@ abstract final class QuickSwitcher {
           ),
     ];
 
+    final semanticRank = <String, int>{
+      for (var i = 0; i < semanticNoteIds.length; i++) semanticNoteIds[i]: i,
+    };
+
     int score(QuickSwitcherEntry entry) {
       if (needle.isEmpty) {
         return entry.kind == QuickSwitcherKind.command ? 3 : 1;
       }
-      return UnifiedRetrieval.scoreText(
+      final lexical = UnifiedRetrieval.scoreText(
         query: needle,
         title: entry.label,
         text: entry.subtitle ?? '',
       );
+      final rank = switch (entry.kind) {
+        QuickSwitcherKind.note || QuickSwitcherKind.task =>
+          semanticRank[entry.id],
+        _ => null,
+      };
+      final semantic = rank == null ? 0 : (320 - rank * 8).clamp(80, 320);
+      return lexical + semantic;
     }
 
     final ranked = entries
