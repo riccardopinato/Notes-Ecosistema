@@ -1,0 +1,10 @@
+{
+  "packName": "notes_needle3_20l",
+  "model": "Needle 3 20L",
+  "fileName": "needle3.cact",
+  "upstreamRevision": "3e8e2a66057a29694052d915128b91b53e7e5ead",
+  "sha256": "c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38",
+  "approximateSizeMB": 35.3,
+  "delivery": "on-demand",
+  "bundledInBaseApk": false
+}
