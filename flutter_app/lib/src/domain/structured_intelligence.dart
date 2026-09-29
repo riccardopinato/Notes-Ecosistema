@@ -129,11 +129,62 @@ $safeBody
     String raw, {
     String? modelName = needle20LModelName,
   }) =>
-      parseLocalJson(
-        raw,
+      parseNeedleEnvelope(raw, modelName: modelName);
+
+  static StructuredAnalysis parseNeedleEnvelope(
+    String raw, {
+    String? modelName = needle20LModelName,
+  }) {
+    final decoded = _decodeObject(raw);
+    final calls = decoded['function_calls'];
+    if (decoded['type']?.toString() != 'call' || calls is! List) {
+      return StructuredAnalysis(
+        commands: const [],
         source: StructuredAnalysisSource.needle,
         modelName: modelName,
       );
+    }
+
+    final envelopeConfidence = _confidence(decoded['confidence']);
+    final commands = <StructuredCommand>[];
+    for (final item in calls.take(maxCommands)) {
+      if (item is! Map) continue;
+      final name = item['name']?.toString().trim().toLowerCase();
+      final arguments = item['arguments'];
+      if (arguments is! Map) continue;
+      final kind = switch (name) {
+        'create_task' => 'create_task',
+        'add_tags' => 'add_tags',
+        'set_priority' => 'set_priority',
+        'checklist_item' => 'checklist_item',
+        _ => null,
+      };
+      if (kind == null) continue;
+
+      final normalized = <Object?, Object?>{
+        ...arguments,
+        'kind': kind,
+        'confidence': envelopeConfidence,
+      };
+      final command = _parseCommand(normalized);
+      if (command != null) commands.add(command);
+    }
+
+    return StructuredAnalysis(
+      commands: commands,
+      source: StructuredAnalysisSource.needle,
+      modelName: modelName,
+    );
+  }
+
+  static String needleNotePrompt({
+    required String title,
+    required String body,
+  }) {
+    final safeTitle = _trim(title, 500);
+    final safeBody = _trim(body, maxBodyChars);
+    return 'Titolo: $safeTitle\n\nNota:\n$safeBody';
+  }
 
   static const needle20LModelName = 'Needle 3 20L';
 
