@@ -86,16 +86,14 @@ abstract final class Needle20LPackPolicy {
   static const modelFileName = 'needle3.cact';
   static const modelLabel = 'Needle 3 20L';
 
-  // Production Needle 3 archive pinned during the 0.56.2 integration.
-  static const upstreamRevision = '3e8e2a66057a29694052d915128b91b53e7e5ead';
+  static const upstreamRevision = 'b274efcb211a9eef48c9a88da4b43bd569696a39';
   static const modelSha256 =
       'c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38';
-
-  // Current upstream file is displayed as 35.3 MB. Keep UX approximate:
-  // Play may report a different compressed transfer size at runtime.
+  static const modelBytes = 35335380;
   static const approximateModelMegabytes = 35.3;
 
-  // Recent production Android ARM64 runtime builds are around 1.6 MB.
-  // Pin the exact runtime revision/hash only when the JNI integration lands.
+  static const androidArm64RuntimeSha256 =
+      '5e0a5daaadca1fbe1c518110bee6bbb1cc97a5e53a16a1e964d0af0186eac60a';
+  static const androidArm64RuntimeBytes = 1663992;
   static const approximateAndroidArm64RuntimeMegabytes = 1.6;
 }

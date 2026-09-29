@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../data/local_ai_pack_service.dart';
+import '../data/needle_benchmark_service.dart';
+import '../data/needle_runtime_service.dart';
 import '../data/plus_entitlement_service.dart';
 import '../domain/local_ai_pack.dart';
+import '../domain/needle_runtime.dart';
 import '../domain/plus.dart';
 import 'ui_resilience.dart';
 
@@ -16,10 +20,15 @@ class PlusLocalAiCard extends StatefulWidget {
 class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
   final _entitlements = const PlusEntitlementService();
   final _pack = const LocalAiPackService();
+  final _runtime = const NeedleRuntimeService();
+  final _benchmark = NeedleBenchmarkService();
 
   PlusEntitlementSnapshot? _entitlement;
   LocalAiPackStatus? _status;
+  NeedleRuntimeStatus? _runtimeStatus;
   bool _busy = false;
+  bool _benchmarkBusy = false;
+  String? _benchmarkText;
   String? _error;
 
   bool get _unlocked => _entitlement?.allows(PlusFeature.localAi20L) == true;
@@ -33,13 +42,18 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
   Future<void> _load() async {
     final entitlement = await _entitlements.snapshot();
     LocalAiPackStatus? status;
+    NeedleRuntimeStatus? runtimeStatus;
     if (entitlement.allows(PlusFeature.localAi20L)) {
       status = await _pack.status();
+      if (status.installed) {
+        runtimeStatus = await _runtime.status();
+      }
     }
     if (!mounted) return;
     setState(() {
       _entitlement = entitlement;
       _status = status;
+      _runtimeStatus = runtimeStatus;
     });
   }
 
@@ -58,6 +72,28 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
       if (mounted) setState(() => _error = userErrorText(error));
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _runBenchmark() async {
+    setState(() {
+      _benchmarkBusy = true;
+      _benchmarkText = null;
+      _error = null;
+    });
+    try {
+      final report = await _benchmark.run();
+      if (!mounted) return;
+      final peakMb = report.peakPssDeltaKb / 1024;
+      setState(() {
+        _benchmarkText = '${report.passed}/${report.total} tool corretti · '
+            '${report.averageInferenceMs.toStringAsFixed(0)} ms medi · '
+            'ΔPSS picco ${peakMb.toStringAsFixed(1)} MB';
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = userErrorText(error));
+    } finally {
+      if (mounted) setState(() => _benchmarkBusy = false);
     }
   }
 
@@ -130,6 +166,22 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
               'modello separato dall’app base.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (_runtimeStatus != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _runtimeStatus!.ready
+                    ? 'Runtime Needle nativo pronto · ${_runtimeStatus!.abi ?? 'ARM64'}'
+                    : (_runtimeStatus!.error ?? 'Runtime Needle non pronto.'),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (_benchmarkText != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Benchmark: $_benchmarkText',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             if (_entitlement?.source == EntitlementSource.debug) ...[
               const SizedBox(height: 6),
               Text(
@@ -195,6 +247,14 @@ class _PlusLocalAiCardState extends State<PlusLocalAiCard> {
                     onPressed: _busy ? null : _load,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Ricontrolla'),
+                  ),
+                if (kDebugMode && status?.installed == true)
+                  OutlinedButton.icon(
+                    onPressed: _busy || _benchmarkBusy ? null : _runBenchmark,
+                    icon: const Icon(Icons.speed_outlined),
+                    label: Text(
+                      _benchmarkBusy ? 'Benchmark…' : 'Test Needle',
+                    ),
                   ),
               ],
             ),

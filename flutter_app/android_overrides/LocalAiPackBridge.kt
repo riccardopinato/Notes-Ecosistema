@@ -118,6 +118,12 @@ class LocalAiPackBridge(private val activity: MainActivity) {
         }
     }
 
+    fun installedModelPath(): String? {
+        val location = manager.getPackLocation(PACK) ?: return null
+        val model = File(location.assetsPath(), MODEL)
+        return model.takeIf { it.isFile }?.absolutePath
+    }
+
     private fun installedMap(): Map<String, Any?>? {
         val location = manager.getPackLocation(PACK) ?: return null
         val model = File(location.assetsPath(), MODEL)

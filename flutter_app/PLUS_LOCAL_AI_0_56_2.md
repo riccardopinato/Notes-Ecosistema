@@ -1,5 +1,10 @@
 # Notes Plus Local AI — 0.56.2
 
+> **Superseded in 0.56.3:** il runtime Needle ARM64 si è dimostrato abbastanza
+> piccolo (~1,6 MB) da essere incluso nel base APK. Rimane on-demand soltanto
+> il modello 20L (~35,3 MB). Il documento 0.56.3 è
+> `NATIVE_NEEDLE_0_56_3.md`.
+
 ## Decisione prodotto
 
 Needle 3 20L viene trattato come **Local AI Pack di Notes Plus**, non come

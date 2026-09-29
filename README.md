@@ -1,8 +1,23 @@
-# Notes — Ecosistema 0.56.2
+# Notes — Ecosistema 0.56.3
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.56.3 — Native Needle Runtime Activation
+
+- Needle 3 20L è ora il primo provider **Structured Intelligence** quando Notes Plus è attivo e il model pack è installato;
+- provider chain: `Needle 3 20L → Gemini Nano → fallback deterministico`;
+- runtime Android ARM64 pinnato a **1.663.992 byte** e collegato via CMake/JNI;
+- il runtime compatto entra nel base APK; il modello `needle3.cact` da **35.335.380 byte** resta un Play AI pack on-demand;
+- artifact runtime e modello verificati per revisione, dimensione e SHA-256 durante la build;
+- AAB Play costruito con pack `notes_needle3_20l` separato dal modulo base;
+- parser Needle usa l'envelope tool-calling nativo e gli stessi validator di sicurezza 0.56.1;
+- benchmark real-device debug per exact tool match, latenza e delta PSS;
+- telemetria disabilitata e nessun cloud fallback;
+- **38 MiB è un soft target**, non più un blocco arbitrario; il leak dei pesi nel base APK resta invece bloccante.
+
+Dettagli: `flutter_app/NATIVE_NEEDLE_0_56_3.md`.
 
 ## 0.56.2 — Notes Plus Local AI Delivery
 
@@ -12,8 +27,8 @@ La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo
 - entitlement `Free / Plus` esplicito: build release Free finché il billing reale non viene collegato, debug Plus per QA;
 - UI Plus dedicata nella superficie Intelligence, con download/rimozione e progress state;
 - parser Structured Intelligence reso multi-provider e già compatibile con source Needle;
-- runtime Needle tenuto fuori dal base APK; le build ARM64 recenti sono circa 1,6 MB e verranno agganciate tramite feature/runtime opzionale dopo il gate JNI;
-- size gate ARM64 base invariato a 38 MiB;
+- la 0.56.3 ha successivamente promosso il runtime Needle compatto nel base APK, lasciando on-demand soltanto il modello;
+- 38 MiB resta un target di leggerezza, non un limite funzionale assoluto;
 - nessun peso Needle committato o incluso nell'APK standard.
 
 Dettagli: `flutter_app/PLUS_LOCAL_AI_0_56_2.md`.
@@ -43,7 +58,7 @@ Dettagli: `flutter_app/STRUCTURED_INTELLIGENCE_0_56_1.md`.
 - nessun cloud fallback e nessun upload del contenuto;
 - Prompt API pin: `com.google.mlkit:genai-prompt:1.0.0-beta4`;
 - coroutines Android pin 1.11.0 per evitare il bug noto del download con 1.10.x;
-- size gate ARM64 standard invariato a 38 MiB;
+- target ARM64 leggero monitorato dalla CI senza sacrificare funzioni utili per pochi MB;
 - nessuna seconda APK “pesante” Local AI.
 
 Dettagli: `flutter_app/LOCAL_LLM_0_56.md`.

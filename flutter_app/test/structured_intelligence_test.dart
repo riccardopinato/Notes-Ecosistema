@@ -104,9 +104,20 @@ Note per #progetto_x e #cliente
     expect(analysis.commands.single.confidence, 1);
   });
 
-  test('Needle structured output uses the same validator contract', () {
-    final result = StructuredIntelligencePolicy.parseNeedle(
-      '{"commands":[{"kind":"create_task","title":"Invia report","confidence":0.91}]}',
+  test('Needle tool-call envelope uses the same validator contract', () {
+    final result = StructuredIntelligencePolicy.parseNeedleEnvelope(
+      '''
+      {
+        "type":"call",
+        "confidence":0.91,
+        "function_calls":[
+          {
+            "name":"create_task",
+            "arguments":{"title":"Invia report"}
+          }
+        ]
+      }
+      ''',
     );
 
     expect(result.source, StructuredAnalysisSource.needle);
@@ -114,5 +125,40 @@ Note per #progetto_x e #cliente
     expect(result.commands, hasLength(1));
     expect(result.commands.single.kind, StructuredCommandKind.createTask);
     expect(result.commands.single.title, 'Invia report');
+    expect(result.commands.single.confidence, 0.91);
+  });
+
+  test('Needle envelope rejects unknown tools and invalid arguments', () {
+    final result = StructuredIntelligencePolicy.parseNeedleEnvelope(
+      '''
+      {
+        "type":"call",
+        "confidence":4,
+        "function_calls":[
+          {"name":"delete_note","arguments":{"title":"No"}},
+          {"name":"set_priority","arguments":{"priority":"urgent"}},
+          {"name":"add_tags","arguments":{"tags":["Cliente","tag non valido"]}}
+        ]
+      }
+      ''',
+    );
+
+    expect(result.commands, hasLength(1));
+    expect(result.commands.single.kind, StructuredCommandKind.addTags);
+    expect(result.commands.single.tags, ['cliente']);
+    expect(result.commands.single.confidence, 1);
+  });
+
+  test('Needle note prompt is bounded', () {
+    final prompt = StructuredIntelligencePolicy.needleNotePrompt(
+      title: 'Riunione',
+      body: 'x' * 50000,
+    );
+
+    expect(prompt, startsWith('Titolo: Riunione'));
+    expect(
+      prompt.length,
+      lessThan(StructuredIntelligencePolicy.maxBodyChars + 700),
+    );
   });
 }
