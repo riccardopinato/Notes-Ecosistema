@@ -1,8 +1,26 @@
-# Notes — Ecosistema 0.55.1
+# Notes — Ecosistema 0.56.0
 
 Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** per note, attività, pianificazione, knowledge management, cattura rapida e collaborazione selettiva.
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
+
+## 0.56.0 — Local LLM Runtime
+
+- primo vero runtime generativo on-device: LiteRT-LM 0.17.1 su Android API 26+;
+- modello non incluso nell'APK: installazione esplicita di un file `.litertlm` nello storage privato dell'app;
+- baseline consigliata: Gemma 3 270M IT;
+- backend CPU iniziale per stabilità e compatibilità, con max context bounded a 3072 token;
+- inizializzazione e inferenza fuori dal main thread;
+- cancel/unload e rilascio memoria espliciti;
+- **Chiedi a questa nota** con contesto sorgente bounded;
+- **Chiedi al workspace** via Unified Retrieval + fonti locali RAG;
+- system instruction locale che vieta di inventare fonti esterne;
+- risposta inseribile nella nota;
+- nessun upload del contenuto e nessun fallback cloud;
+- Web Preview e dispositivi senza runtime continuano a funzionare senza LLM;
+- test automatici su limiti del prompt e policy del modello esterno.
+
+Dettagli: `flutter_app/LOCAL_LLM_0_56.md`.
 
 ## 0.55.1 — Semantic Integration & Quality
 
