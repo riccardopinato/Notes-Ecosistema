@@ -1,14 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../domain/note.dart';
-import '../domain/quick_switcher.dart';
 import '../domain/project_workspace.dart';
+import '../domain/quick_switcher.dart';
+
+typedef QuickSwitcherSemanticRanker = Future<List<String>> Function(String query);
 
 Future<QuickSwitcherEntry?> showQuickSwitcher({
   required BuildContext context,
   required List<Note> notes,
   required List<NoteCollection> collections,
   List<ProjectWorkspace> projects = const [],
+  QuickSwitcherSemanticRanker? semanticRanker,
 }) =>
     showDialog<QuickSwitcherEntry>(
       context: context,
@@ -16,6 +21,7 @@ Future<QuickSwitcherEntry?> showQuickSwitcher({
         notes: notes,
         collections: collections,
         projects: projects,
+        semanticRanker: semanticRanker,
       ),
     );
 
@@ -24,11 +30,13 @@ class _QuickSwitcherDialog extends StatefulWidget {
     required this.notes,
     required this.collections,
     required this.projects,
+    required this.semanticRanker,
   });
 
   final List<Note> notes;
   final List<NoteCollection> collections;
   final List<ProjectWorkspace> projects;
+  final QuickSwitcherSemanticRanker? semanticRanker;
 
   @override
   State<_QuickSwitcherDialog> createState() => _QuickSwitcherDialogState();
@@ -36,6 +44,45 @@ class _QuickSwitcherDialog extends StatefulWidget {
 
 class _QuickSwitcherDialogState extends State<_QuickSwitcherDialog> {
   String _query = '';
+  List<String> _semanticNoteIds = const [];
+  bool _semanticBusy = false;
+  int _generation = 0;
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _changed(String value) {
+    setState(() {
+      _query = value;
+      if (value.trim().length < 2) {
+        _semanticNoteIds = const [];
+        _semanticBusy = false;
+      }
+    });
+    final ranker = widget.semanticRanker;
+    _debounce?.cancel();
+    if (ranker == null || value.trim().length < 2) return;
+    final generation = ++_generation;
+    _debounce = Timer(const Duration(milliseconds: 120), () async {
+      if (mounted) setState(() => _semanticBusy = true);
+      try {
+        final ranked = await ranker(value);
+        if (!mounted || generation != _generation) return;
+        setState(() => _semanticNoteIds = ranked);
+      } catch (_) {
+        if (!mounted || generation != _generation) return;
+        setState(() => _semanticNoteIds = const []);
+      } finally {
+        if (mounted && generation == _generation) {
+          setState(() => _semanticBusy = false);
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +91,7 @@ class _QuickSwitcherDialogState extends State<_QuickSwitcherDialog> {
       notes: widget.notes,
       collections: widget.collections,
       projects: widget.projects,
+      semanticNoteIds: _semanticNoteIds,
     );
     return AlertDialog(
       title: const Text('Quick Switcher'),
@@ -54,10 +102,19 @@ class _QuickSwitcherDialogState extends State<_QuickSwitcherDialog> {
           children: [
             TextField(
               autofocus: true,
-              onChanged: (value) => setState(() => _query = value),
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
+              onChanged: _changed,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
                 hintText: 'Nota, attività, progetto, raccolta o comando…',
+                suffixIcon: _semanticBusy
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
               ),
             ),
             const SizedBox(height: 10),
