@@ -204,6 +204,25 @@ class UnifiedRetrievalService {
     }
   }
 
+  Future<List<String>> rankNoteIds({
+    required String query,
+    required List<Note> notes,
+    int limit = 80,
+    bool semanticEnabled = true,
+  }) async {
+    final hits = await search(
+      query: query,
+      notes: notes,
+      limit: limit.clamp(1, 100),
+      semanticEnabled: semanticEnabled,
+    );
+    final seen = <String>{};
+    return [
+      for (final hit in hits)
+        if (seen.add(hit.document.noteId)) hit.document.noteId,
+    ];
+  }
+
   Future<List<RetrievalHit>> related({
     required Note source,
     required List<Note> notes,
