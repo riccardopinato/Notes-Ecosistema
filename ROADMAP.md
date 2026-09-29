@@ -5,7 +5,8 @@
 **Implementato in 0.56.0+71.**
 
 - bridge Flutter → Android LiteRT-LM 0.17.1;
-- modello `.litertlm` installabile e separato dall'APK;
+- doppio artefatto: Standard sotto il gate 38 MiB + Local AI ARM64 con runtime nativo;
+- modello `.litertlm` installabile e separato da entrambi gli APK;
 - storage privato e lifecycle load/cancel/unload;
 - CPU backend bounded per la prima release;
 - Ask this note;
