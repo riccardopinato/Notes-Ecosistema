@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -5,6 +7,8 @@ import '../domain/library.dart';
 import '../widgets/ui_resilience.dart';
 import '../domain/note.dart';
 import '../widgets/editorial.dart';
+
+typedef NotesSemanticRanker = Future<List<String>> Function(String query);
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({
@@ -24,6 +28,7 @@ class NotesScreen extends StatefulWidget {
     required this.onBulkEdit,
     required this.onRenameCollection,
     required this.onDeleteCollection,
+    this.semanticRanker,
     this.initialCollectionId,
     super.key,
   });
@@ -44,6 +49,7 @@ class NotesScreen extends StatefulWidget {
   final Future<int> Function(List<Note>, BulkChange) onBulkEdit;
   final Future<void> Function(NoteCollection, String) onRenameCollection;
   final Future<void> Function(NoteCollection) onDeleteCollection;
+  final NotesSemanticRanker? semanticRanker;
   final String? initialCollectionId;
 
   @override
@@ -61,6 +67,10 @@ class _NotesScreenState extends State<NotesScreen> {
   bool _busy = false;
   final Set<String> _selected = {};
   List<SavedSearch> _saved = const [];
+  List<String> _semanticNoteIds = const [];
+  bool _semanticBusy = false;
+  int _semanticGeneration = 0;
+  Timer? _semanticDebounce;
   String? _error;
 
   @override
@@ -71,11 +81,23 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   @override
+  void dispose() {
+    _semanticDebounce?.cancel();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(covariant NotesScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialCollectionId != widget.initialCollectionId &&
         widget.initialCollectionId != _collectionId) {
       setState(() => _collectionId = widget.initialCollectionId);
+    }
+    if (oldWidget.query != widget.query && widget.searchMode) {
+      _scheduleSemantic(widget.query);
+    }
+    if (oldWidget.searchMode && !widget.searchMode && _semanticNoteIds.isNotEmpty) {
+      setState(() => _semanticNoteIds = const []);
     }
   }
 
@@ -125,7 +147,44 @@ class _NotesScreenState extends State<NotesScreen> {
         options: _options,
         kind: _kind,
         order: _order,
+        semanticNoteIds: widget.searchMode ? _semanticNoteIds : const [],
       );
+
+  void _queryChanged(String value) {
+    widget.onQueryChanged(value);
+    _scheduleSemantic(value);
+  }
+
+  void _scheduleSemantic(String value) {
+    _semanticDebounce?.cancel();
+    final ranker = widget.semanticRanker;
+    final query = value.trim();
+    if (!widget.searchMode || ranker == null || query.length < 2) {
+      if (_semanticNoteIds.isNotEmpty || _semanticBusy) {
+        setState(() {
+          _semanticNoteIds = const [];
+          _semanticBusy = false;
+        });
+      }
+      return;
+    }
+    final generation = ++_semanticGeneration;
+    _semanticDebounce = Timer(const Duration(milliseconds: 140), () async {
+      if (mounted) setState(() => _semanticBusy = true);
+      try {
+        final ranked = await ranker(query);
+        if (!mounted || generation != _semanticGeneration) return;
+        setState(() => _semanticNoteIds = ranked);
+      } catch (_) {
+        if (!mounted || generation != _semanticGeneration) return;
+        setState(() => _semanticNoteIds = const []);
+      } finally {
+        if (mounted && generation == _semanticGeneration) {
+          setState(() => _semanticBusy = false);
+        }
+      }
+    });
+  }
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
@@ -694,16 +753,24 @@ class _NotesScreenState extends State<NotesScreen> {
         if (widget.searchMode) ...[
           TextFormField(
             initialValue: widget.query,
-            onChanged: widget.onQueryChanged,
+            onChanged: _queryChanged,
             decoration: InputDecoration(
-              labelText: 'Cerca nel titolo, nel testo e nei tag',
+              labelText: 'Cerca per parole o concetti',
               prefixIcon: const Icon(Icons.search),
-              suffixIcon: widget.query.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: () => widget.onQueryChanged(''),
-                      icon: const Icon(Icons.close),
-                    ),
+              suffixIcon: _semanticBusy
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : widget.query.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: () => _queryChanged(''),
+                          icon: const Icon(Icons.close),
+                        ),
             ),
           ),
           const SizedBox(height: 10),
