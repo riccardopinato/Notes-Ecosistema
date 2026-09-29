@@ -1,39 +1,61 @@
+enum LocalAiProvider { geminiNano, needle, semantic }
+
 class LocalLlmStatus {
   const LocalLlmStatus({
     required this.supported,
-    required this.installed,
-    required this.loaded,
+    required this.available,
+    required this.downloadable,
+    required this.downloading,
     required this.runtime,
     required this.backend,
     required this.modelName,
-    required this.modelBytes,
-    required this.memoryClassMb,
-    required this.processors,
+    required this.systemManaged,
+    required this.provider,
     this.error,
   });
 
   final bool supported;
-  final bool installed;
-  final bool loaded;
+  final bool available;
+  final bool downloadable;
+  final bool downloading;
   final String runtime;
   final String backend;
-  final String? modelName;
-  final int modelBytes;
-  final int memoryClassMb;
-  final int processors;
+  final String modelName;
+  final bool systemManaged;
+  final LocalAiProvider provider;
   final String? error;
 
-  factory LocalLlmStatus.fromMap(Map<Object?, Object?> raw) => LocalLlmStatus(
-        supported: raw['supported'] == true,
-        installed: raw['installed'] == true,
-        loaded: raw['loaded'] == true,
-        runtime: raw['runtime']?.toString() ?? 'LiteRT-LM',
-        backend: raw['backend']?.toString() ?? 'CPU',
-        modelName: raw['modelName']?.toString(),
-        modelBytes: (raw['modelBytes'] as num?)?.toInt() ?? 0,
-        memoryClassMb: (raw['memoryClassMb'] as num?)?.toInt() ?? 0,
-        processors: (raw['processors'] as num?)?.toInt() ?? 0,
-        error: raw['error']?.toString(),
+  factory LocalLlmStatus.fromMap(Map<Object?, Object?> raw) {
+    final provider = switch (raw['provider']?.toString()) {
+      'geminiNano' => LocalAiProvider.geminiNano,
+      'needle' => LocalAiProvider.needle,
+      _ => LocalAiProvider.semantic,
+    };
+    return LocalLlmStatus(
+      supported: raw['supported'] == true,
+      available: raw['available'] == true,
+      downloadable: raw['downloadable'] == true,
+      downloading: raw['downloading'] == true,
+      runtime: raw['runtime']?.toString() ?? LocalLlmPolicy.runtime,
+      backend: raw['backend']?.toString() ?? 'AICore',
+      modelName: raw['modelName']?.toString() ?? LocalLlmPolicy.preferredModel,
+      systemManaged: raw['systemManaged'] != false,
+      provider: provider,
+      error: raw['error']?.toString(),
+    );
+  }
+
+  factory LocalLlmStatus.unsupported([String? error]) => LocalLlmStatus(
+        supported: false,
+        available: false,
+        downloadable: false,
+        downloading: false,
+        runtime: LocalLlmPolicy.runtime,
+        backend: 'Semantic Retrieval',
+        modelName: LocalLlmPolicy.preferredModel,
+        systemManaged: true,
+        provider: LocalAiProvider.semantic,
+        error: error,
       );
 }
 
@@ -43,32 +65,39 @@ class LocalLlmGeneration {
     required this.elapsedMs,
     required this.modelName,
     required this.backend,
+    required this.provider,
   });
 
   final String text;
   final int elapsedMs;
   final String modelName;
   final String backend;
+  final LocalAiProvider provider;
 
-  factory LocalLlmGeneration.fromMap(Map<Object?, Object?> raw) =>
-      LocalLlmGeneration(
-        text: raw['text']?.toString().trim() ?? '',
-        elapsedMs: (raw['elapsedMs'] as num?)?.toInt() ?? 0,
-        modelName: raw['modelName']?.toString() ?? 'Modello locale',
-        backend: raw['backend']?.toString() ?? 'CPU',
-      );
+  factory LocalLlmGeneration.fromMap(Map<Object?, Object?> raw) {
+    final provider = switch (raw['provider']?.toString()) {
+      'needle' => LocalAiProvider.needle,
+      'semantic' => LocalAiProvider.semantic,
+      _ => LocalAiProvider.geminiNano,
+    };
+    return LocalLlmGeneration(
+      text: raw['text']?.toString().trim() ?? '',
+      elapsedMs: (raw['elapsedMs'] as num?)?.toInt() ?? 0,
+      modelName: raw['modelName']?.toString() ?? LocalLlmPolicy.preferredModel,
+      backend: raw['backend']?.toString() ?? 'AICore',
+      provider: provider,
+    );
+  }
 }
 
 abstract final class LocalLlmPolicy {
-  static const runtime = 'LiteRT-LM 0.17.1';
-  static const preferredModel = 'Gemma 3 270M IT';
-  static const modelExtension = '.litertlm';
-  static const minModelBytes = 32 * 1024 * 1024;
-  static const maxModelBytes = 2 * 1024 * 1024 * 1024;
-  static const maxQuestionChars = 4000;
-  static const maxNoteContextChars = 16000;
-  static const maxWorkspaceContextChars = 22000;
-  static const maxWorkspaceSources = 6;
+  static const runtime = 'Android AICore / ML Kit Prompt API';
+  static const preferredModel = 'Gemini Nano';
+  static const lightweightFallback = 'Needle 3';
+  static const maxQuestionChars = 3500;
+  static const maxNoteContextChars = 10000;
+  static const maxWorkspaceContextChars = 12000;
+  static const maxWorkspaceSources = 5;
   static const defaultMaxOutputTokens = 384;
 
   static String notePrompt({
@@ -92,7 +121,7 @@ Contenuto:
 $safeBody
 
 ISTRUZIONE
-Rispondi usando prima di tutto il contesto fornito. Se il contesto non basta per una risposta affidabile, dichiaralo chiaramente. Non inventare dati mancanti.
+Rispondi usando il contesto fornito. Se il contesto non basta per una risposta affidabile, dichiaralo chiaramente. Non inventare dati mancanti.
 '''
         .trim();
   }
