@@ -32,7 +32,8 @@ void main() {
           ),
         ),
       );
-      await tester.scrollUntilVisible(find.text('Ripassa dalle tue note.'), 100);
+      await tester.scrollUntilVisible(
+          find.text('Ripassa dalle tue note.'), 100);
       final foreground = theme.colorScheme.onTertiary;
       final title = tester.widget<Text>(find.text('Ripassa dalle tue note.'));
       final body = tester.widget<Text>(
@@ -42,10 +43,12 @@ void main() {
       expect(title.style?.color, foreground);
       expect(body.style?.color, foreground);
       expect(eyebrow.style?.color, foreground);
-      final studyCard = find.ancestor(
-        of: find.text('Ripassa dalle tue note.'),
-        matching: find.byType(Material),
-      ).first;
+      final studyCard = find
+          .ancestor(
+            of: find.text('Ripassa dalle tue note.'),
+            matching: find.byType(Material),
+          )
+          .first;
       final material = tester.widget<Material>(studyCard);
       expect(material.color, theme.colorScheme.tertiaryContainer);
       final icons = find.descendant(
