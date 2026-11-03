@@ -156,7 +156,9 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 
   Future<void> _addGuidedItem() async {
     final current = ref.read(studyProvider);
-    final suggestions = ref.read(workspaceProvider).notes
+    final suggestions = ref
+        .read(workspaceProvider)
+        .notes
         .expand(
           (note) => GuidedStudyExtractor.extract(
             note,
@@ -223,7 +225,9 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       ),
     );
     if (accepted != true || !mounted) return;
-    final source = ref.read(workspaceProvider).notes
+    final source = ref
+        .read(workspaceProvider)
+        .notes
         .where((note) => note.id == selected.source.id)
         .toList(growable: false);
     if (source.length != 1 ||
