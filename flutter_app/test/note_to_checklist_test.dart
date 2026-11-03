@@ -41,7 +41,8 @@ Riunione; ricordarsi di chiamare.
   });
 
   test('deduplicates case-insensitively and limits bounded preview', () {
-    final input = note(body: [
+    final input = note(
+        body: [
       '- [ ] Invia report',
       '- [ ] invia report',
       for (var i = 0; i < 50; i++) '- [ ] Attività $i',
@@ -71,10 +72,12 @@ Riunione; ricordarsi di chiamare.
     expect(created.body, isEmpty);
     expect(created.tags, isEmpty);
     expect(created.id, isNot(source.id));
-    expect(source.body, '- [ ] Telefonare\n- Preparare slides\n1. Spedire email');
+    expect(
+        source.body, '- [ ] Telefonare\n- Preparare slides\n1. Spedire email');
   });
 
-  test('rejects unreviewed items, duplicate selection or empty confirmation', () {
+  test('rejects unreviewed items, duplicate selection or empty confirmation',
+      () {
     final source = note();
     for (final selection in [
       <String>[],
@@ -93,9 +96,15 @@ Riunione; ricordarsi di chiamare.
     }
   });
 
-  test('never offers private deleted, visual, or task records for conversion', () {
+  test('never offers private deleted, visual, or task records for conversion',
+      () {
     expect(NoteToChecklist.candidates(note(deletedAt: 10)), isEmpty);
-    expect(NoteToChecklist.candidates(note(taskJson: TaskDetails.empty().encode())), isEmpty);
-    expect(NoteToChecklist.candidates(note(sketchJson: '{"kind":"WHITEBOARD"}')), isEmpty);
+    expect(
+        NoteToChecklist.candidates(
+            note(taskJson: TaskDetails.empty().encode())),
+        isEmpty);
+    expect(
+        NoteToChecklist.candidates(note(sketchJson: '{"kind":"WHITEBOARD"}')),
+        isEmpty);
   });
 }
