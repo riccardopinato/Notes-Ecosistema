@@ -551,8 +551,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                 title: Text(
                   guidance.first.kind == NextActionKind.missingNextAction
                       ? 'Manca la prossima azione'
-                      : guidance.first.kind ==
-                              NextActionKind.excessiveWip
+                      : guidance.first.kind == NextActionKind.excessiveWip
                           ? 'Troppi task in corso'
                           : 'Una priorità non è pianificata',
                 ),
@@ -560,8 +559,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   guidance.first.kind == NextActionKind.missingNextAction
                       ? 'Il progetto contiene note, ma nessun task aperto. '
                           'Vuoi crearne uno?'
-                      : guidance.first.kind ==
-                              NextActionKind.excessiveWip
+                      : guidance.first.kind == NextActionKind.excessiveWip
                           ? 'Più di tre task risultano in lavorazione. '
                               'Valuta di chiuderne uno prima di iniziarne altri.'
                           : 'Esiste un task con priorità esplicita alta '
@@ -569,12 +567,11 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  if (guidance.first.kind ==
-                      NextActionKind.missingNextAction) {
+                  if (guidance.first.kind == NextActionKind.missingNextAction) {
                     widget.onCreateTask(project);
                   } else if (guidance.first.sourceId != null) {
-                    final matches = allItems.where((item) =>
-                        item.note.id == guidance.first.sourceId);
+                    final matches = allItems.where(
+                        (item) => item.note.id == guidance.first.sourceId);
                     if (matches.isNotEmpty) {
                       widget.onOpenItem(matches.first.note, !canEdit);
                     }
