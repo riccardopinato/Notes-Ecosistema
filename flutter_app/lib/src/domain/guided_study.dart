@@ -8,12 +8,14 @@ class GuidedStudyProposal {
     required this.prompt,
     required this.answer,
     required this.questionLine,
+    required this.sourceExcerpt,
   });
 
   final Note source;
   final String prompt;
   final String answer;
   final int questionLine;
+  final String sourceExcerpt;
   String get reasonCode => 'EXPLICIT_SOURCE_QA_PAIR';
 }
 
@@ -30,6 +32,7 @@ abstract final class GuidedStudyExtractor {
   static List<GuidedStudyProposal> extract(
     Note note, {
     int limit = 8,
+    Set<String> excludedPairs = const {},
   }) {
     if (limit < 0 || limit > 30) {
       throw const FormatException('INVALID_GUIDED_STUDY_LIMIT');
@@ -57,13 +60,16 @@ abstract final class GuidedStudyExtractor {
         continue;
       }
       final key = '$prompt\u0000$response';
-      if (!seen.add(key)) continue;
+      if (!seen.add(key) || excludedPairs.contains(key)) continue;
+      final excerpt = '${lines[i]}\n${lines[i + 1]}';
+      if (excerpt.length > StudyRules.maxSnapshot) continue;
       result.add(
         GuidedStudyProposal(
           source: note,
           prompt: prompt,
           answer: response,
           questionLine: i + 1,
+          sourceExcerpt: excerpt,
         ),
       );
       if (result.length >= limit) break;

@@ -63,10 +63,15 @@ class StudyController extends StateNotifier<StudyState> {
     required Note source,
     required String prompt,
     required String answer,
+    String? sourceExcerpt,
   }) async {
-    final snapshot = source.body.length <= StudyRules.maxSnapshot
-        ? source.body
-        : source.body.substring(0, StudyRules.maxSnapshot);
+    final snapshot = sourceExcerpt ??
+        (source.body.length <= StudyRules.maxSnapshot
+            ? source.body
+            : source.body.substring(0, StudyRules.maxSnapshot));
+    if (snapshot.length > StudyRules.maxSnapshot) {
+      throw const FormatException('STUDY_SOURCE_EXCERPT_TOO_LONG');
+    }
     await _store.create(
       sourceNoteId: source.id,
       prompt: prompt,

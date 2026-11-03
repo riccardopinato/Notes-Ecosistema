@@ -49,4 +49,35 @@ void main() {
     );
     expect(GuidedStudyExtractor.extract(input, limit: 0), isEmpty);
   });
+
+  test('later Q/A pairs remain available after earlier cards are saved', () {
+    final source = note(
+      List.generate(12, (index) => 'Q: Question $index?\nA: Answer $index')
+          .join('\n'),
+    );
+    final first = GuidedStudyExtractor.extract(source);
+    expect(first.length, 8);
+    final existing = first
+        .map(
+          (draft) => '${draft.prompt}\u0000${draft.answer}',
+        )
+        .toSet();
+    final later = GuidedStudyExtractor.extract(
+      source,
+      excludedPairs: existing,
+    );
+    expect(later.length, 4);
+    expect(later.first.prompt, 'Question 8?');
+    expect(later.last.prompt, 'Question 11?');
+  });
+
+  test('source excerpt retains exact Q/A even after 50k characters', () {
+    final source = note(
+      '${'x' * 51000}\nQ: Late question?\nA: Late answer',
+    );
+    final drafts = GuidedStudyExtractor.extract(source);
+    expect(drafts.length, 1);
+    expect(drafts.single.sourceExcerpt, 'Q: Late question?\nA: Late answer');
+    expect(drafts.single.sourceExcerpt, contains(drafts.single.answer));
+  });
 }
