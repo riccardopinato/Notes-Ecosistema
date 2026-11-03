@@ -14,6 +14,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../domain/adaptive_editor.dart';
+import '../domain/app_locale.dart';
 import '../domain/attachments.dart';
 import '../domain/backup.dart';
 import '../domain/blocks.dart';
@@ -22,6 +23,7 @@ import '../domain/derivatives.dart';
 import '../domain/editing.dart';
 import '../domain/knowledge.dart';
 import '../domain/note.dart';
+import '../domain/note_to_checklist.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
 import '../domain/reference_lifecycle.dart';
@@ -1331,6 +1333,96 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     setState(() => _error = null);
   }
 
+  Future<void> _createChecklistFromNote() async {
+    final source = widget.note;
+    final labels = AppStrings.of(context);
+    if (_readOnly || _saving) return;
+    if (source == null || _dirty || source.body != _body.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(labels.noteChecklistSaveFirst)),
+      );
+      return;
+    }
+    final items = NoteToChecklist.candidates(source);
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(labels.noteChecklistNoItems)),
+      );
+      return;
+    }
+
+    final checked = items.toSet();
+    final selected = await showDialog<List<String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, updateSelection) => AlertDialog(
+          title: Text(labels.noteChecklistTitle),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440, maxHeight: 420),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(labels.noteChecklistHelp),
+                  const SizedBox(height: 12),
+                  ...items.map(
+                    (item) => CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text(item),
+                      value: checked.contains(item),
+                      onChanged: (value) => updateSelection(() {
+                        if (value == true) {
+                          checked.add(item);
+                        } else {
+                          checked.remove(item);
+                        }
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(labels.noteChecklistCancel),
+            ),
+            FilledButton(
+              onPressed: checked.isEmpty
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(
+                        items.where(checked.contains).toList(),
+                      ),
+              child: Text(labels.noteChecklistCreate),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      final task = NoteToChecklist.buildTask(
+        source: source,
+        selected: selected,
+        taskId: const Uuid().v4(),
+        nowMilliseconds: DateTime.now().millisecondsSinceEpoch,
+      );
+      await ref.read(workspaceProvider.notifier).save(task);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(labels.noteChecklistCreated)),
+        );
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = userErrorText(error));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _chooseCollection() async {
     final selected = await showDialog<String?>(
       context: context,
@@ -1998,6 +2090,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             onPressed: _saving ? null : _addChecklistItem,
                             icon: const Icon(Icons.add_task),
                             label: const Text('Aggiungi attività'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.tonalIcon(
+                            onPressed: (_saving || _readOnly)
+                                ? null
+                                : _createChecklistFromNote,
+                            icon: const Icon(Icons.playlist_add_check),
+                            label: Text(
+                                AppStrings.of(context).noteChecklistAction),
                           ),
                           const SizedBox(width: 8),
                           TextButton(
