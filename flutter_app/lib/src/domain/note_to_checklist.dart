@@ -19,7 +19,8 @@ abstract final class NoteToChecklist {
         continue;
       }
       final title = command.title?.trim() ?? '';
-      if (title.isEmpty) continue;
+      // Completed markdown checkboxes must not become new pending tasks.
+      if (title.isEmpty || RegExp(r'^\[[xX]\]\s').hasMatch(title)) continue;
       if (seen.add(title.toLowerCase())) items.add(title);
       if (items.length >= maxItems) break;
     }
