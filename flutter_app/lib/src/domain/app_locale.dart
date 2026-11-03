@@ -126,7 +126,7 @@ class AppStrings {
         pt: 'Sistema',
       );
 
-String get noteChecklistAction => _t(
+  String get noteChecklistAction => _t(
         it: 'Da nota a checklist',
         en: 'Note to checklist',
         es: 'De nota a lista',
