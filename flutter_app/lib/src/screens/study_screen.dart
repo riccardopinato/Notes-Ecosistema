@@ -5,6 +5,7 @@ import '../domain/guided_study.dart';
 import '../domain/note.dart';
 import '../domain/study.dart';
 import '../state/study_controller.dart';
+import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/ui_resilience.dart';
 
@@ -155,14 +156,16 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 
   Future<void> _addGuidedItem() async {
     final current = ref.read(studyProvider);
-    final existing = current.items
-        .map((item) =>
-            '${item.sourceNoteId}\u0000${item.prompt}\u0000${item.answer}')
-        .toSet();
-    final suggestions = widget.notes
-        .expand(GuidedStudyExtractor.extract)
-        .where((draft) => !existing.contains(
-            '${draft.source.id}\u0000${draft.prompt}\u0000${draft.answer}'))
+    final suggestions = ref.read(workspaceProvider).notes
+        .expand(
+          (note) => GuidedStudyExtractor.extract(
+            note,
+            excludedPairs: current.items
+                .where((item) => item.sourceNoteId == note.id)
+                .map((item) => '${item.prompt}\u0000${item.answer}')
+                .toSet(),
+          ),
+        )
         .take(40)
         .toList(growable: false);
     if (suggestions.isEmpty) {
@@ -220,12 +223,14 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       ),
     );
     if (accepted != true || !mounted) return;
-    final source = widget.notes
+    final source = ref.read(workspaceProvider).notes
         .where((note) => note.id == selected.source.id)
         .toList(growable: false);
     if (source.length != 1 ||
         source.single.isDeleted ||
+        source.single.archived ||
         source.single.updatedAt != selected.source.updatedAt ||
+        source.single.body != selected.source.body ||
         ref.read(studyProvider).items.any(
               (item) =>
                   item.sourceNoteId == selected.source.id &&
@@ -240,6 +245,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
             source: source.single,
             prompt: selected.prompt,
             answer: selected.answer,
+            sourceExcerpt: selected.sourceExcerpt,
           );
       _message('Flashcard creata dalla fonte verificata.');
     } catch (error) {
