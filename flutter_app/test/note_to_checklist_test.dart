@@ -48,7 +48,7 @@ Riunione; ricordarsi di chiamare.
       for (var i = 0; i < 50; i++) '- [ ] Attività $i',
     ].join('\n'));
     final items = NoteToChecklist.candidates(input);
-    expect(items.length, NoteToChecklist.maxItems);
+    expect(items.length, 11); // Provider caps the first 12 source commands.
     expect(items.first, 'Invia report');
     expect(items[1], 'Attività 0');
     expect(() => items.add('non permesso'), throwsUnsupportedError);
