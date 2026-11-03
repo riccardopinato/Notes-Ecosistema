@@ -35,19 +35,23 @@ abstract final class NoteToChecklist {
     required String taskId,
     required int nowMilliseconds,
   }) {
-    if (taskId.trim().isEmpty || taskId.length > 128 ||
-        nowMilliseconds <= 0 || source.id.trim().isEmpty) {
+    if (taskId.trim().isEmpty ||
+        taskId.length > 128 ||
+        nowMilliseconds <= 0 ||
+        source.id.trim().isEmpty) {
       throw const FormatException('Identità attività non valida.');
     }
     final allowed = candidates(source).toSet();
-    if (selected.isEmpty || selected.length > maxItems ||
+    if (selected.isEmpty ||
+        selected.length > maxItems ||
         selected.any((item) => !allowed.contains(item)) ||
         selected.toSet().length != selected.length) {
       throw const FormatException('Selezione checklist non valida.');
     }
     final sourceTitle = source.title.trim();
-    final label = sourceTitle.isEmpty ? 'Checklist dalla nota' :
-        'Checklist · $sourceTitle';
+    final label = sourceTitle.isEmpty
+        ? 'Checklist dalla nota'
+        : 'Checklist · $sourceTitle';
     final title = label.length > 240 ? label.substring(0, 240) : label;
     final details = TaskDetails.empty().copyWith(
       linkedNoteId: source.id,
