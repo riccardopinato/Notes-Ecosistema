@@ -473,9 +473,11 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       showCompleted: _showCompleted,
     );
     final items = allItems.take(500).toList(growable: false);
-    final guidance = NextActionInsights.forProject(
-      ProjectWorkViews.project(notes: workspace.notes, links: links),
+    final guidanceItems = ProjectWorkViews.project(
+      notes: workspace.notes,
+      links: links,
     );
+    final guidance = NextActionInsights.forProject(guidanceItems);
 
     return Scaffold(
       appBar: AppBar(
@@ -565,12 +567,16 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                           : 'Esiste un task con priorità esplicita alta '
                               'senza data. Aprilo per decidere quando farlo.',
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
+                trailing: guidance.first.kind == NextActionKind.excessiveWip
+                    ? null
+                    : const Icon(Icons.chevron_right),
+                onTap: guidance.first.kind == NextActionKind.excessiveWip
+                    ? null
+                    : () {
                   if (guidance.first.kind == NextActionKind.missingNextAction) {
                     widget.onCreateTask(project);
                   } else if (guidance.first.sourceId != null) {
-                    final matches = allItems.where(
+                    final matches = guidanceItems.where(
                         (item) => item.note.id == guidance.first.sourceId);
                     if (matches.isNotEmpty) {
                       widget.onOpenItem(matches.first.note, !canEdit);
