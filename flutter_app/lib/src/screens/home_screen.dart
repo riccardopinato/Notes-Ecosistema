@@ -464,6 +464,7 @@ class _StudyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final foreground = colors.onTertiary;
     return Material(
       color: colors.tertiaryContainer,
       borderRadius: BorderRadius.circular(28),
@@ -474,24 +475,31 @@ class _StudyCard extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              const Icon(Icons.school_outlined, size: 28),
+              Icon(Icons.school_outlined, size: 28, color: foreground),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const EditorialEyebrow('STUDY'),
+                    EditorialEyebrow('STUDY', color: foreground),
                     Text(
                       'Ripassa dalle tue note.',
-                      style: Theme.of(context).textTheme.headlineSmall,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(color: foreground),
                     ),
-                    const Text(
+                    Text(
                       'LearningItem source-linked e coda giornaliera semplice.',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: foreground),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              Icon(Icons.chevron_right, color: foreground),
             ],
           ),
         ),
