@@ -17,8 +17,8 @@ abstract final class NextActionInsights {
   ) {
     if (items.isEmpty) return const [];
     final pending = items
-        .where((item) =>
-            item.kind == ProjectWorkItemKind.task && !item.completed)
+        .where(
+            (item) => item.kind == ProjectWorkItemKind.task && !item.completed)
         .toList(growable: false);
     if (pending.isEmpty) {
       return const [
@@ -41,9 +41,7 @@ abstract final class NextActionInsights {
       );
     }
     for (final item in pending) {
-      if (item.priority >= 2 &&
-          item.plannedDate == null &&
-          item.due == null) {
+      if (item.priority >= 2 && item.plannedDate == null && item.due == null) {
         suggestions.add(
           NextActionInsight(
             NextActionKind.unplannedPriority,
@@ -89,8 +87,7 @@ abstract final class SmartInboxReview {
         return change != 0 ? change : a.id.compareTo(b.id);
       });
     for (final note in ordered) {
-      if (RegExp(r'^\s*[-*] \[ \]', multiLine: true)
-          .hasMatch(note.body)) {
+      if (RegExp(r'^\s*[-*] \[ \]', multiLine: true).hasMatch(note.body)) {
         results.add(
           InboxReviewSuggestion(
             note,
