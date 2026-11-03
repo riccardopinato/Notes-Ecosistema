@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:notes_ecosistema/src/screens/home_screen.dart';
@@ -10,6 +11,7 @@ void main() {
   for (final theme in [NotesTheme.light(), NotesTheme.dark()]) {
     testWidgets('Study blue card uses onTertiary for all text and icons',
         (tester) async {
+      await initializeDateFormatting('it_IT');
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(
         MaterialApp(
