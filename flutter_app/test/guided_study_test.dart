@@ -57,9 +57,11 @@ void main() {
     );
     final first = GuidedStudyExtractor.extract(source);
     expect(first.length, 8);
-    final existing = first.map(
-      (draft) => '${draft.prompt}\u0000${draft.answer}',
-    ).toSet();
+    final existing = first
+        .map(
+          (draft) => '${draft.prompt}\u0000${draft.answer}',
+        )
+        .toSet();
     final later = GuidedStudyExtractor.extract(
       source,
       excludedPairs: existing,
@@ -75,9 +77,7 @@ void main() {
     );
     final drafts = GuidedStudyExtractor.extract(source);
     expect(drafts.length, 1);
-    expect(drafts.single.sourceExcerpt,
-        'Q: Late question?\nA: Late answer');
-    expect(drafts.single.sourceExcerpt,
-        contains(drafts.single.answer));
+    expect(drafts.single.sourceExcerpt, 'Q: Late question?\nA: Late answer');
+    expect(drafts.single.sourceExcerpt, contains(drafts.single.answer));
   });
 }
