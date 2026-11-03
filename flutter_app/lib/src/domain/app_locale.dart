@@ -126,6 +126,150 @@ class AppStrings {
         pt: 'Sistema',
       );
 
+String get plannerMatrixTitle => _t(
+        it: 'Matrice Eisenhower',
+        en: 'Eisenhower matrix',
+        es: 'Matriz Eisenhower',
+        fr: 'Matrice Eisenhower',
+        de: 'Eisenhower-Matrix',
+        pt: 'Matriz de Eisenhower',
+      );
+
+  String get plannerWeeklyTitle => _t(
+        it: 'Riepilogo settimana',
+        en: 'Weekly review',
+        es: 'Resumen semanal',
+        fr: 'Bilan hebdomadaire',
+        de: 'Wochenrückblick',
+        pt: 'Resumo semanal',
+      );
+
+  String get plannerMatrixHelp => _t(
+        it: 'Sola lettura: urgente = scadenza entro due giorni; importante = priorità esplicita alta. Le attività senza dati sufficienti restano da classificare.',
+        en: 'Read-only: urgent = due within two days; important = explicitly high priority. Tasks without enough data remain unclassified.',
+        es: 'Solo lectura: urgente = vence en dos días; importante = prioridad alta explícita. Las tareas sin datos siguen sin clasificar.',
+        fr: 'Lecture seule : urgent = échéance sous deux jours ; important = priorité élevée explicite. Sinon, la tâche reste à classer.',
+        de: 'Nur Anzeige: dringend = Frist in zwei Tagen; wichtig = ausdrücklich hohe Priorität. Unvollständige Aufgaben bleiben ungeordnet.',
+        pt: 'Somente leitura: urgente = prazo em dois dias; importante = prioridade alta explícita. Tarefas sem dados ficam sem classificação.',
+      );
+
+  String get plannerWeeklyHelp => _t(
+        it: 'Settimana lunedì–domenica. Il completamento è contato solo quando è registrata una data effettiva. Nessuna attività viene modificata automaticamente.',
+        en: 'Monday–Sunday. Completion is counted only with a recorded completion date. No task is changed automatically.',
+        es: 'Semana de lunes a domingo. Solo se cuenta una finalización con fecha registrada. No se modifican tareas automáticamente.',
+        fr: 'Semaine lundi–dimanche. Une tâche terminée n’est comptée que si sa date est enregistrée. Aucune modification automatique.',
+        de: 'Montag–Sonntag. Erledigungen zählen nur mit dokumentiertem Datum. Keine automatische Änderung von Aufgaben.',
+        pt: 'Semana de segunda a domingo. Conclusões só contam com data registrada. Nenhuma tarefa é alterada automaticamente.',
+      );
+
+  String get plannerUrgentImportant => _t(
+        it: 'Urgente e importante',
+        en: 'Urgent and important',
+        es: 'Urgente e importante',
+        fr: 'Urgent et important',
+        de: 'Dringend und wichtig',
+        pt: 'Urgente e importante',
+      );
+
+  String get plannerImportantNotUrgent => _t(
+        it: 'Importante, non urgente',
+        en: 'Important, not urgent',
+        es: 'Importante, no urgente',
+        fr: 'Important, non urgent',
+        de: 'Wichtig, nicht dringend',
+        pt: 'Importante, não urgente',
+      );
+
+  String get plannerUrgentNotImportant => _t(
+        it: 'Urgente, non importante',
+        en: 'Urgent, not important',
+        es: 'Urgente, no importante',
+        fr: 'Urgent, non important',
+        de: 'Dringend, nicht wichtig',
+        pt: 'Urgente, não importante',
+      );
+
+  String get plannerNeither => _t(
+        it: 'Non urgente, non importante',
+        en: 'Not urgent, not important',
+        es: 'No urgente ni importante',
+        fr: 'Ni urgent ni important',
+        de: 'Weder dringend noch wichtig',
+        pt: 'Nem urgente nem importante',
+      );
+
+  String get plannerUnclassified => _t(
+        it: 'Da classificare',
+        en: 'Needs review',
+        es: 'Sin clasificar',
+        fr: 'À classer',
+        de: 'Noch einordnen',
+        pt: 'Sem classificação',
+      );
+
+  String get plannerCompletedThisWeek => _t(
+        it: 'Completate questa settimana',
+        en: 'Completed this week',
+        es: 'Completadas esta semana',
+        fr: 'Terminées cette semaine',
+        de: 'Diese Woche erledigt',
+        pt: 'Concluídas nesta semana',
+      );
+
+  String get plannerDueThisWeek => _t(
+        it: 'In scadenza questa settimana',
+        en: 'Due this week',
+        es: 'Vencen esta semana',
+        fr: 'À échéance cette semaine',
+        de: 'Diese Woche fällig',
+        pt: 'Vencem nesta semana',
+      );
+
+  String get plannerOverdue => _t(
+        it: 'Scadute prima della settimana',
+        en: 'Overdue before this week',
+        es: 'Vencidas antes de esta semana',
+        fr: 'En retard avant cette semaine',
+        de: 'Schon vorher überfällig',
+        pt: 'Atrasadas antes desta semana',
+      );
+
+  String get plannerHighPriority => _t(
+        it: 'Priorità alte aperte',
+        en: 'Open high-priority tasks',
+        es: 'Pendientes de prioridad alta',
+        fr: 'Priorités élevées en cours',
+        de: 'Offene Aufgaben mit hoher Priorität',
+        pt: 'Tarefas abertas de alta prioridade',
+      );
+
+  String get plannerNoDue => _t(
+        it: 'Senza scadenza',
+        en: 'Without a due date',
+        es: 'Sin vencimiento',
+        fr: 'Sans échéance',
+        de: 'Ohne Fälligkeitsdatum',
+        pt: 'Sem prazo',
+      );
+
+  String get plannerGroupEmpty => _t(
+        it: 'Nessuna attività in questa categoria.',
+        en: 'No tasks in this category.',
+        es: 'No hay tareas en esta categoría.',
+        fr: 'Aucune tâche dans cette catégorie.',
+        de: 'Keine Aufgaben in dieser Kategorie.',
+        pt: 'Nenhuma tarefa nesta categoria.',
+      );
+
+  String plannerGroupTruncated(int count) => _t(
+        it: 'Mostrate 15 di $count attività.',
+        en: 'Showing 15 of $count tasks.',
+        es: 'Se muestran 15 de $count tareas.',
+        fr: '15 tâches affichées sur $count.',
+        de: '15 von $count Aufgaben angezeigt.',
+        pt: 'Mostrando 15 de $count tarefas.',
+      );
+
   String _t({
     required String it,
     required String en,
