@@ -82,9 +82,9 @@ void main() {
   });
   test('French and Portuguese labels retain verifiable source and line', () {
     final source = note(
-      'Question: Capitale du Canada?\\nRéponse: Ottawa\\n'
-      'Pergunta: Capital de Portugal?\\nResposta: Lisboa\\n'
-      'Question: Dernière question?\\nReponse: Confirmée',
+      'Question: Capitale du Canada?\nRéponse: Ottawa\n'
+      'Pergunta: Capital de Portugal?\nResposta: Lisboa\n'
+      'Question: Dernière question?\nReponse: Confirmée',
     );
     final drafts = GuidedStudyExtractor.extract(source);
     expect(drafts.length, 3);
@@ -96,7 +96,7 @@ void main() {
     ]);
     expect(
       drafts[1].sourceExcerpt,
-      'Pergunta: Capital de Portugal?\\nResposta: Lisboa',
+      'Pergunta: Capital de Portugal?\nResposta: Lisboa',
     );
     expect(drafts.every((draft) => draft.reasonCode == 'EXPLICIT_SOURCE_QA_PAIR'),
         isTrue);
