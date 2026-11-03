@@ -8,6 +8,7 @@ import '../domain/calendar_locale.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../domain/planner_insights.dart';
 import '../platform/reminder_bridge.dart';
 import '../widgets/editorial.dart';
 import '../widgets/ui_resilience.dart';
@@ -213,6 +214,109 @@ class _PlannerScreenState extends State<PlannerScreen> {
     });
   }
 
+Widget _insightGroup(
+    BuildContext sheetContext,
+    String title,
+    List<Note> notes,
+  ) =>
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$title (${notes.length})',
+                  style: Theme.of(context).textTheme.titleMedium),
+              if (notes.isEmpty)
+                const Text('Nessuna attività in questa categoria.'),
+              for (final note in notes.take(15))
+                ListTile(
+                  dense: true,
+                  title: Text(note.title),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    if (mounted) _editTask(note);
+                  },
+                ),
+              if (notes.length > 15)
+                Text('Mostrate 15 di ${notes.length} attività.'),
+            ],
+          ),
+        ),
+      );
+
+  Future<void> _showEisenhower() async {
+    final matrix = PlannerInsights.eisenhower(widget.notes, DateTime.now());
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * 0.82,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('Matrice Eisenhower',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const Text(
+                'Vista in sola lettura: urgente = scadenza entro due giorni; '
+                'importante = priorità esplicita alta. '
+                'Le attività incomplete di dati restano da classificare.',
+              ),
+              const SizedBox(height: 12),
+              _insightGroup(sheetContext, 'Urgente e importante',
+                  matrix[EisenhowerGroup.urgentImportant]!),
+              _insightGroup(sheetContext, 'Importante, non urgente',
+                  matrix[EisenhowerGroup.importantNotUrgent]!),
+              _insightGroup(sheetContext, 'Urgente, non importante',
+                  matrix[EisenhowerGroup.urgentNotImportant]!),
+              _insightGroup(sheetContext, 'Non urgente, non importante',
+                  matrix[EisenhowerGroup.notUrgentNotImportant]!),
+              _insightGroup(sheetContext, 'Da classificare',
+                  matrix[EisenhowerGroup.needsDetails]!),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showWeeklyReview() async {
+    final week = PlannerInsights.weeklyReview(widget.notes, DateTime.now());
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * 0.82,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('Riepilogo settimanale',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const Text(
+                'Settimana lunedì–domenica. Il completamento viene contato '
+                'solo quando è registrata una data effettiva; '
+                'nessuna attività viene modificata automaticamente.',
+              ),
+              const SizedBox(height: 12),
+              _insightGroup(sheetContext, 'Completate questa settimana',
+                  week.completedThisWeek),
+              _insightGroup(sheetContext, 'In scadenza questa settimana',
+                  week.dueThisWeek),
+              _insightGroup(sheetContext, 'Scadute prima della settimana',
+                  week.overdueBeforeWeek),
+              _insightGroup(sheetContext, 'Priorità alte aperte',
+                  week.highPriorityOpen),
+              _insightGroup(sheetContext, 'Senza scadenza',
+                  week.missingDueDate),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final index = _index;
@@ -235,6 +339,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     label: Text(_viewLabel(view)),
                   ))
               .toList(),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _showEisenhower,
+              icon: const Icon(Icons.grid_view_outlined),
+              label: const Text('Eisenhower'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _showWeeklyReview,
+              icon: const Icon(Icons.summarize_outlined),
+              label: const Text('Riepilogo settimana'),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         if (_view != PlannerView.kanban && _view != PlannerView.focus)
