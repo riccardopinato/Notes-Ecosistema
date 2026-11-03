@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/calendar_locale.dart';
+import '../domain/app_locale.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
@@ -228,7 +229,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               Text('$title (${notes.length})',
                   style: Theme.of(context).textTheme.titleMedium),
               if (notes.isEmpty)
-                const Text('Nessuna attività in questa categoria.'),
+                Text(AppStrings.of(context).plannerGroupEmpty),
               for (final note in notes.take(15))
                 ListTile(
                   dense: true,
@@ -239,13 +240,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   },
                 ),
               if (notes.length > 15)
-                Text('Mostrate 15 di ${notes.length} attività.'),
+                Text(AppStrings.of(context).plannerGroupTruncated(notes.length)),
             ],
           ),
         ),
       );
 
   Future<void> _showEisenhower() async {
+    final labels = AppStrings.of(context);
     final matrix = PlannerInsights.eisenhower(widget.notes, DateTime.now());
     await showModalBottomSheet<void>(
       context: context,
@@ -256,23 +258,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('Matrice Eisenhower',
+              Text(labels.plannerMatrixTitle,
                   style: Theme.of(context).textTheme.headlineSmall),
-              const Text(
-                'Vista in sola lettura: urgente = scadenza entro due giorni; '
-                'importante = priorità esplicita alta. '
-                'Le attività incomplete di dati restano da classificare.',
-              ),
+              Text(labels.plannerMatrixHelp),
               const SizedBox(height: 12),
-              _insightGroup(sheetContext, 'Urgente e importante',
+              _insightGroup(sheetContext, labels.plannerUrgentImportant,
                   matrix[EisenhowerGroup.urgentImportant]!),
-              _insightGroup(sheetContext, 'Importante, non urgente',
+              _insightGroup(sheetContext, labels.plannerImportantNotUrgent,
                   matrix[EisenhowerGroup.importantNotUrgent]!),
-              _insightGroup(sheetContext, 'Urgente, non importante',
+              _insightGroup(sheetContext, labels.plannerUrgentNotImportant,
                   matrix[EisenhowerGroup.urgentNotImportant]!),
-              _insightGroup(sheetContext, 'Non urgente, non importante',
+              _insightGroup(sheetContext, labels.plannerNeither,
                   matrix[EisenhowerGroup.notUrgentNotImportant]!),
-              _insightGroup(sheetContext, 'Da classificare',
+              _insightGroup(sheetContext, labels.plannerUnclassified,
                   matrix[EisenhowerGroup.needsDetails]!),
             ],
           ),
@@ -282,6 +280,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _showWeeklyReview() async {
+    final labels = AppStrings.of(context);
     final week = PlannerInsights.weeklyReview(widget.notes, DateTime.now());
     await showModalBottomSheet<void>(
       context: context,
@@ -292,24 +291,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('Riepilogo settimanale',
+              Text(labels.plannerWeeklyTitle,
                   style: Theme.of(context).textTheme.headlineSmall),
-              const Text(
-                'Settimana lunedì–domenica. Il completamento viene contato '
-                'solo quando è registrata una data effettiva; '
-                'nessuna attività viene modificata automaticamente.',
-              ),
+              Text(labels.plannerWeeklyHelp),
               const SizedBox(height: 12),
-              _insightGroup(sheetContext, 'Completate questa settimana',
+              _insightGroup(sheetContext, labels.plannerCompletedThisWeek,
                   week.completedThisWeek),
-              _insightGroup(sheetContext, 'In scadenza questa settimana',
+              _insightGroup(sheetContext, labels.plannerDueThisWeek,
                   week.dueThisWeek),
-              _insightGroup(sheetContext, 'Scadute prima della settimana',
+              _insightGroup(sheetContext, labels.plannerOverdue,
                   week.overdueBeforeWeek),
               _insightGroup(
-                  sheetContext, 'Priorità alte aperte', week.highPriorityOpen),
+                  sheetContext, labels.plannerHighPriority, week.highPriorityOpen),
               _insightGroup(
-                  sheetContext, 'Senza scadenza', week.missingDueDate),
+                  sheetContext, labels.plannerNoDue, week.missingDueDate),
             ],
           ),
         ),
@@ -348,12 +343,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
             OutlinedButton.icon(
               onPressed: _busy ? null : _showEisenhower,
               icon: const Icon(Icons.grid_view_outlined),
-              label: const Text('Eisenhower'),
+              label: Text(AppStrings.of(context).plannerMatrixTitle),
             ),
             OutlinedButton.icon(
               onPressed: _busy ? null : _showWeeklyReview,
               icon: const Icon(Icons.summarize_outlined),
-              label: const Text('Riepilogo settimana'),
+              label: Text(AppStrings.of(context).plannerWeeklyTitle),
             ),
           ],
         ),
