@@ -2097,7 +2097,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                                 ? null
                                 : _createChecklistFromNote,
                             icon: const Icon(Icons.playlist_add_check),
-                            label: Text(AppStrings.of(context).noteChecklistAction),
+                            label: Text(
+                                AppStrings.of(context).noteChecklistAction),
                           ),
                           const SizedBox(width: 8),
                           TextButton(
