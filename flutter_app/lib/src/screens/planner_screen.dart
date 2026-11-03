@@ -214,7 +214,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     });
   }
 
-Widget _insightGroup(
+  Widget _insightGroup(
     BuildContext sheetContext,
     String title,
     List<Note> notes,
@@ -306,10 +306,10 @@ Widget _insightGroup(
                   week.dueThisWeek),
               _insightGroup(sheetContext, 'Scadute prima della settimana',
                   week.overdueBeforeWeek),
-              _insightGroup(sheetContext, 'Priorità alte aperte',
-                  week.highPriorityOpen),
-              _insightGroup(sheetContext, 'Senza scadenza',
-                  week.missingDueDate),
+              _insightGroup(
+                  sheetContext, 'Priorità alte aperte', week.highPriorityOpen),
+              _insightGroup(
+                  sheetContext, 'Senza scadenza', week.missingDueDate),
             ],
           ),
         ),
