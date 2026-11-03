@@ -156,7 +156,8 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
   Future<void> _addGuidedItem() async {
     final current = ref.read(studyProvider);
     final existing = current.items
-        .map((item) => '${item.sourceNoteId}\u0000${item.prompt}\u0000${item.answer}')
+        .map((item) =>
+            '${item.sourceNoteId}\u0000${item.prompt}\u0000${item.answer}')
         .toSet();
     final suggestions = widget.notes
         .expand(GuidedStudyExtractor.extract)
@@ -226,11 +227,11 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
         source.single.isDeleted ||
         source.single.updatedAt != selected.source.updatedAt ||
         ref.read(studyProvider).items.any(
-          (item) =>
-              item.sourceNoteId == selected.source.id &&
-              item.prompt == selected.prompt &&
-              item.answer == selected.answer,
-        )) {
+              (item) =>
+                  item.sourceNoteId == selected.source.id &&
+                  item.prompt == selected.prompt &&
+                  item.answer == selected.answer,
+            )) {
       _message('La fonte è cambiata o la flashcard esiste già.');
       return;
     }
