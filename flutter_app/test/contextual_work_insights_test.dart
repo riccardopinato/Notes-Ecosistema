@@ -5,8 +5,7 @@ import 'package:notes_ecosistema/src/domain/planner.dart';
 import 'package:notes_ecosistema/src/domain/project_workspace.dart';
 
 void main() {
-  Note note(String id, String body, {List<String> tags = const []}) =>
-      Note(
+  Note note(String id, String body, {List<String> tags = const []}) => Note(
         id: id,
         title: 'Note $id',
         body: body,
@@ -20,9 +19,7 @@ void main() {
 
   ProjectWorkItem work(Note note) => ProjectWorkItem(
         note: note,
-        kind: note.isTask
-            ? ProjectWorkItemKind.task
-            : ProjectWorkItemKind.note,
+        kind: note.isTask ? ProjectWorkItemKind.task : ProjectWorkItemKind.note,
         position: 0,
         stage: note.isTask ? 'TODO' : 'REFERENCE',
         completed: false,
@@ -76,6 +73,7 @@ void main() {
       ]),
       isEmpty,
     );
-    expect(() => SmartInboxReview.suggest([], limit: -1), throwsFormatException);
+    expect(
+        () => SmartInboxReview.suggest([], limit: -1), throwsFormatException);
   });
 }
