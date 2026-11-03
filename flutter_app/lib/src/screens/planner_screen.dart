@@ -228,8 +228,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             children: [
               Text('$title (${notes.length})',
                   style: Theme.of(context).textTheme.titleMedium),
-              if (notes.isEmpty)
-                Text(AppStrings.of(context).plannerGroupEmpty),
+              if (notes.isEmpty) Text(AppStrings.of(context).plannerGroupEmpty),
               for (final note in notes.take(15))
                 ListTile(
                   dense: true,
@@ -240,7 +239,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   },
                 ),
               if (notes.length > 15)
-                Text(AppStrings.of(context).plannerGroupTruncated(notes.length)),
+                Text(
+                    AppStrings.of(context).plannerGroupTruncated(notes.length)),
             ],
           ),
         ),
@@ -297,12 +297,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
               const SizedBox(height: 12),
               _insightGroup(sheetContext, labels.plannerCompletedThisWeek,
                   week.completedThisWeek),
-              _insightGroup(sheetContext, labels.plannerDueThisWeek,
-                  week.dueThisWeek),
-              _insightGroup(sheetContext, labels.plannerOverdue,
-                  week.overdueBeforeWeek),
               _insightGroup(
-                  sheetContext, labels.plannerHighPriority, week.highPriorityOpen),
+                  sheetContext, labels.plannerDueThisWeek, week.dueThisWeek),
+              _insightGroup(
+                  sheetContext, labels.plannerOverdue, week.overdueBeforeWeek),
+              _insightGroup(sheetContext, labels.plannerHighPriority,
+                  week.highPriorityOpen),
               _insightGroup(
                   sheetContext, labels.plannerNoDue, week.missingDueDate),
             ],
