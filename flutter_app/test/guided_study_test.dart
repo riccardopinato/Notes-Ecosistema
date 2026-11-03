@@ -80,4 +80,26 @@ void main() {
     expect(drafts.single.sourceExcerpt, 'Q: Late question?\nA: Late answer');
     expect(drafts.single.sourceExcerpt, contains(drafts.single.answer));
   });
+  test('French and Portuguese labels retain verifiable source and line', () {
+    final source = note(
+      'Question: Capitale du Canada?\\nRéponse: Ottawa\\n'
+      'Pergunta: Capital de Portugal?\\nResposta: Lisboa\\n'
+      'Question: Dernière question?\\nReponse: Confirmée',
+    );
+    final drafts = GuidedStudyExtractor.extract(source);
+    expect(drafts.length, 3);
+    expect(drafts.map((draft) => draft.questionLine), [1, 3, 5]);
+    expect(drafts.map((draft) => draft.answer), [
+      'Ottawa',
+      'Lisboa',
+      'Confirmée',
+    ]);
+    expect(
+      drafts[1].sourceExcerpt,
+      'Pergunta: Capital de Portugal?\\nResposta: Lisboa',
+    );
+    expect(drafts.every((draft) => draft.reasonCode == 'EXPLICIT_SOURCE_QA_PAIR'),
+        isTrue);
+  });
+
 }
