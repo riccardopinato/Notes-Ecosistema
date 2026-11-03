@@ -1339,14 +1339,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (_readOnly || _saving) return;
     if (source == null || _dirty || source.body != _body.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(labels.noteChecklistSaveFirst)), 
+        SnackBar(content: Text(labels.noteChecklistSaveFirst)),
       );
       return;
     }
     final items = NoteToChecklist.candidates(source);
     if (items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(labels.noteChecklistNoItems)), 
+        SnackBar(content: Text(labels.noteChecklistNoItems)),
       );
       return;
     }
@@ -1413,7 +1413,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       await ref.read(workspaceProvider.notifier).save(task);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(labels.noteChecklistCreated)), 
+          SnackBar(content: Text(labels.noteChecklistCreated)),
         );
       }
     } catch (error) {
