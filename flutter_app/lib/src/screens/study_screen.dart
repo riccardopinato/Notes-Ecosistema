@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/guided_study.dart';
 import '../domain/note.dart';
 import '../domain/study.dart';
 import '../state/study_controller.dart';
@@ -39,6 +40,11 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       appBar: AppBar(
         title: const Text('Study'),
         actions: [
+          IconButton(
+            tooltip: 'Proponi domande dalle note',
+            onPressed: state.loading ? null : _addGuidedItem,
+            icon: const Icon(Icons.auto_stories_outlined),
+          ),
           IconButton(
             tooltip: 'Aggiungi elemento',
             onPressed: state.loading ? null : _addItem,
@@ -145,6 +151,99 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _addGuidedItem() async {
+    final current = ref.read(studyProvider);
+    final existing = current.items
+        .map((item) => '${item.sourceNoteId}\u0000${item.prompt}\u0000${item.answer}')
+        .toSet();
+    final suggestions = widget.notes
+        .expand(GuidedStudyExtractor.extract)
+        .where((draft) => !existing.contains(
+            '${draft.source.id}\u0000${draft.prompt}\u0000${draft.answer}'))
+        .take(40)
+        .toList(growable: false);
+    if (suggestions.isEmpty) {
+      _message('Nessuna nuova coppia Domanda/Risposta esplicita.');
+      return;
+    }
+    final selected = await showNotesBottomSheet<GuidedStudyProposal>(
+      context: context,
+      expand: true,
+      builder: (context) => ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        children: [
+          const EditorialAppTitle('Proposte verificabili'),
+          const SizedBox(height: 12),
+          const Text(
+            'Solo coppie Q:/A: già scritte nelle note. '
+            'Nessuna risposta viene inventata.',
+          ),
+          ...suggestions.map(
+            (draft) => ListTile(
+              title: Text(draft.prompt),
+              subtitle: Text(
+                '${draft.answer} · ${draft.source.title} '
+                '(riga ${draft.questionLine})',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () => Navigator.pop(context, draft),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(selected.prompt),
+        content: Text(
+          '${selected.answer}\n\n'
+          'Fonte: ${selected.source.title}, riga '
+          '${selected.questionLine}. '
+          'Il testo verrà salvato come snapshot storico.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Crea flashcard'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
+    final source = widget.notes
+        .where((note) => note.id == selected.source.id)
+        .toList(growable: false);
+    if (source.length != 1 ||
+        source.single.isDeleted ||
+        source.single.updatedAt != selected.source.updatedAt ||
+        ref.read(studyProvider).items.any(
+          (item) =>
+              item.sourceNoteId == selected.source.id &&
+              item.prompt == selected.prompt &&
+              item.answer == selected.answer,
+        )) {
+      _message('La fonte è cambiata o la flashcard esiste già.');
+      return;
+    }
+    try {
+      await ref.read(studyProvider.notifier).createFromNote(
+            source: source.single,
+            prompt: selected.prompt,
+            answer: selected.answer,
+          );
+      _message('Flashcard creata dalla fonte verificata.');
+    } catch (error) {
+      _message(userErrorText(error));
+    }
   }
 
   Future<void> _addItem() async {
