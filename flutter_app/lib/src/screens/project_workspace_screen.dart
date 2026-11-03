@@ -575,7 +575,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                     : () {
                         if (guidance.first.kind ==
                             NextActionKind.missingNextAction) {
-                          widget.onCreateTask(project);
+                          _createNextAction(project);
                         } else if (guidance.first.sourceId != null) {
                           final matches = guidanceItems.where((item) =>
                               item.note.id == guidance.first.sourceId);
@@ -706,6 +706,15 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
           updatedAt: space.contentAddedAt[ids[index]] ?? space.updatedAt,
         ),
     ];
+  }
+
+  Future<void> _createNextAction(ProjectWorkspace project) async {
+    try {
+      await widget.onCreateTask(project);
+      if (mounted) await _reloadLinks();
+    } on Object catch (error) {
+      if (mounted) _message(error);
+    }
   }
 
   Future<void> _addMenu(ProjectWorkspace project, SharedSpace? space) async {
