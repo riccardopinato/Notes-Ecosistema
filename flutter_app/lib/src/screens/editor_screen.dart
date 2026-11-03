@@ -14,6 +14,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/legacy_notes_database.dart';
 import '../domain/adaptive_editor.dart';
+import '../domain/app_locale.dart';
 import '../domain/attachments.dart';
 import '../domain/backup.dart';
 import '../domain/blocks.dart';
@@ -1334,21 +1335,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Future<void> _createChecklistFromNote() async {
     final source = widget.note;
+    final labels = AppStrings.of(context);
     if (_readOnly || _saving) return;
     if (source == null || _dirty || source.body != _body.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Salva prima la nota per creare la checklist.'),
-        ),
+        SnackBar(content: Text(labels.noteChecklistSaveFirst)), 
       );
       return;
     }
     final items = NoteToChecklist.candidates(source);
     if (items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nessuna riga elenco da trasformare in checklist.'),
-        ),
+        SnackBar(content: Text(labels.noteChecklistNoItems)), 
       );
       return;
     }
@@ -1358,18 +1356,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, updateSelection) => AlertDialog(
-          title: const Text('Crea checklist dalla nota'),
+          title: Text(labels.noteChecklistTitle),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440, maxHeight: 420),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Controlla le voci. Verrà creata una sola attività '
-                    'nel Planner con le sotto-attività selezionate. '
-                    'La nota originale rimarrà invariata.',
-                  ),
+                  Text(labels.noteChecklistHelp),
                   const SizedBox(height: 12),
                   ...items.map(
                     (item) => CheckboxListTile(
@@ -1393,7 +1387,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Annulla'),
+              child: Text(labels.noteChecklistCancel),
             ),
             FilledButton(
               onPressed: checked.isEmpty
@@ -1401,7 +1395,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   : () => Navigator.of(dialogContext).pop(
                         items.where(checked.contains).toList(),
                       ),
-              child: const Text('Crea attività'),
+              child: Text(labels.noteChecklistCreate),
             ),
           ],
         ),
@@ -1419,9 +1413,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       await ref.read(workspaceProvider.notifier).save(task);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Checklist creata nel Planner. Nota invariata.'),
-          ),
+          SnackBar(content: Text(labels.noteChecklistCreated)), 
         );
       }
     } catch (error) {
@@ -2105,7 +2097,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                                 ? null
                                 : _createChecklistFromNote,
                             icon: const Icon(Icons.playlist_add_check),
-                            label: const Text('Da nota a checklist'),
+                            label: Text(AppStrings.of(context).noteChecklistAction),
                           ),
                           const SizedBox(width: 8),
                           TextButton(
