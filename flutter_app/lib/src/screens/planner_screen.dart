@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/calendar_locale.dart';
+import '../domain/app_locale.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
+import '../domain/planner_insights.dart';
 import '../platform/reminder_bridge.dart';
 import '../widgets/editorial.dart';
 import '../widgets/ui_resilience.dart';
@@ -213,6 +215,103 @@ class _PlannerScreenState extends State<PlannerScreen> {
     });
   }
 
+  Widget _insightGroup(
+    BuildContext sheetContext,
+    String title,
+    List<Note> notes,
+  ) =>
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$title (${notes.length})',
+                  style: Theme.of(context).textTheme.titleMedium),
+              if (notes.isEmpty) Text(AppStrings.of(context).plannerGroupEmpty),
+              for (final note in notes.take(15))
+                ListTile(
+                  dense: true,
+                  title: Text(note.title),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    if (mounted) _editTask(note);
+                  },
+                ),
+              if (notes.length > 15)
+                Text(
+                    AppStrings.of(context).plannerGroupTruncated(notes.length)),
+            ],
+          ),
+        ),
+      );
+
+  Future<void> _showEisenhower() async {
+    final labels = AppStrings.of(context);
+    final matrix = PlannerInsights.eisenhower(widget.notes, DateTime.now());
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * 0.82,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(labels.plannerMatrixTitle,
+                  style: Theme.of(context).textTheme.headlineSmall),
+              Text(labels.plannerMatrixHelp),
+              const SizedBox(height: 12),
+              _insightGroup(sheetContext, labels.plannerUrgentImportant,
+                  matrix[EisenhowerGroup.urgentImportant]!),
+              _insightGroup(sheetContext, labels.plannerImportantNotUrgent,
+                  matrix[EisenhowerGroup.importantNotUrgent]!),
+              _insightGroup(sheetContext, labels.plannerUrgentNotImportant,
+                  matrix[EisenhowerGroup.urgentNotImportant]!),
+              _insightGroup(sheetContext, labels.plannerNeither,
+                  matrix[EisenhowerGroup.notUrgentNotImportant]!),
+              _insightGroup(sheetContext, labels.plannerUnclassified,
+                  matrix[EisenhowerGroup.needsDetails]!),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showWeeklyReview() async {
+    final labels = AppStrings.of(context);
+    final week = PlannerInsights.weeklyReview(widget.notes, DateTime.now());
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * 0.82,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(labels.plannerWeeklyTitle,
+                  style: Theme.of(context).textTheme.headlineSmall),
+              Text(labels.plannerWeeklyHelp),
+              const SizedBox(height: 12),
+              _insightGroup(sheetContext, labels.plannerCompletedThisWeek,
+                  week.completedThisWeek),
+              _insightGroup(
+                  sheetContext, labels.plannerDueThisWeek, week.dueThisWeek),
+              _insightGroup(
+                  sheetContext, labels.plannerOverdue, week.overdueBeforeWeek),
+              _insightGroup(sheetContext, labels.plannerHighPriority,
+                  week.highPriorityOpen),
+              _insightGroup(
+                  sheetContext, labels.plannerNoDue, week.missingDueDate),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final index = _index;
@@ -235,6 +334,23 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     label: Text(_viewLabel(view)),
                   ))
               .toList(),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _showEisenhower,
+              icon: const Icon(Icons.grid_view_outlined),
+              label: Text(AppStrings.of(context).plannerMatrixTitle),
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _showWeeklyReview,
+              icon: const Icon(Icons.summarize_outlined),
+              label: Text(AppStrings.of(context).plannerWeeklyTitle),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         if (_view != PlannerView.kanban && _view != PlannerView.focus)
