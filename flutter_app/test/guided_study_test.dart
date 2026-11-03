@@ -98,7 +98,8 @@ void main() {
       drafts[1].sourceExcerpt,
       'Pergunta: Capital de Portugal?\nResposta: Lisboa',
     );
-    expect(drafts.every((draft) => draft.reasonCode == 'EXPLICIT_SOURCE_QA_PAIR'),
+    expect(
+        drafts.every((draft) => draft.reasonCode == 'EXPLICIT_SOURCE_QA_PAIR'),
         isTrue);
   });
 
