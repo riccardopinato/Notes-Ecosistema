@@ -73,6 +73,7 @@ abstract final class SmartInboxReview {
     if (limit < 0 || limit > 20) {
       throw const FormatException('INVALID_REVIEW_LIMIT');
     }
+    if (limit == 0) return const [];
     final results = <InboxReviewSuggestion>[];
     final ordered = notes
         .where((note) =>
