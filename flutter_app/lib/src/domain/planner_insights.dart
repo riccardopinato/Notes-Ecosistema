@@ -48,9 +48,8 @@ abstract final class PlannerInsights {
         continue;
       }
       // Zero is unassigned, not proof that a task is unimportant.
-      final important = task.priority >= 2
-          ? true
-          : (task.priority == 1 ? false : null);
+      final important =
+          task.priority >= 2 ? true : (task.priority == 1 ? false : null);
       final due = parseDate(task.due);
       if (due == null || important == null) {
         result[EisenhowerGroup.needsDetails]!.add(note);
