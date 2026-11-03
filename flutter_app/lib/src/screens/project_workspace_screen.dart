@@ -573,16 +573,17 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                 onTap: guidance.first.kind == NextActionKind.excessiveWip
                     ? null
                     : () {
-                  if (guidance.first.kind == NextActionKind.missingNextAction) {
-                    widget.onCreateTask(project);
-                  } else if (guidance.first.sourceId != null) {
-                    final matches = guidanceItems.where(
-                        (item) => item.note.id == guidance.first.sourceId);
-                    if (matches.isNotEmpty) {
-                      widget.onOpenItem(matches.first.note, !canEdit);
-                    }
-                  }
-                },
+                        if (guidance.first.kind ==
+                            NextActionKind.missingNextAction) {
+                          widget.onCreateTask(project);
+                        } else if (guidance.first.sourceId != null) {
+                          final matches = guidanceItems.where((item) =>
+                              item.note.id == guidance.first.sourceId);
+                          if (matches.isNotEmpty) {
+                            widget.onOpenItem(matches.first.note, !canEdit);
+                          }
+                        }
+                      },
               ),
             ),
             const SizedBox(height: 12),
