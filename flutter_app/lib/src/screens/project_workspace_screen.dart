@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../domain/contextual_work_insights.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/project_workspace.dart';
@@ -472,6 +473,11 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       showCompleted: _showCompleted,
     );
     final items = allItems.take(500).toList(growable: false);
+    final guidanceItems = ProjectWorkViews.project(
+      notes: workspace.notes,
+      links: links,
+    );
+    final guidance = NextActionInsights.forProject(guidanceItems);
 
     return Scaffold(
       appBar: AppBar(
@@ -538,6 +544,49 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
               detail: 'Questo progetto resta intatto, ma i contenuti team '
                   'torneranno visibili quando lo Shared Space sarà disponibile.',
             ),
+          ],
+          if (canEdit && guidance.isNotEmpty) ...[
+            Card(
+              child: ListTile(
+                key: const ValueKey('next-action-insight'),
+                leading: const Icon(Icons.lightbulb_outline),
+                title: Text(
+                  guidance.first.kind == NextActionKind.missingNextAction
+                      ? 'Manca la prossima azione'
+                      : guidance.first.kind == NextActionKind.excessiveWip
+                          ? 'Troppi task in corso'
+                          : 'Una priorità non è pianificata',
+                ),
+                subtitle: Text(
+                  guidance.first.kind == NextActionKind.missingNextAction
+                      ? 'Il progetto contiene note, ma nessun task aperto. '
+                          'Vuoi crearne uno?'
+                      : guidance.first.kind == NextActionKind.excessiveWip
+                          ? 'Più di tre task risultano in lavorazione. '
+                              'Valuta di chiuderne uno prima di iniziarne altri.'
+                          : 'Esiste un task con priorità esplicita alta '
+                              'senza data. Aprilo per decidere quando farlo.',
+                ),
+                trailing: guidance.first.kind == NextActionKind.excessiveWip
+                    ? null
+                    : const Icon(Icons.chevron_right),
+                onTap: guidance.first.kind == NextActionKind.excessiveWip
+                    ? null
+                    : () {
+                        if (guidance.first.kind ==
+                            NextActionKind.missingNextAction) {
+                          _createNextAction(project);
+                        } else if (guidance.first.sourceId != null) {
+                          final matches = guidanceItems.where((item) =>
+                              item.note.id == guidance.first.sourceId);
+                          if (matches.isNotEmpty) {
+                            widget.onOpenItem(matches.first.note, !canEdit);
+                          }
+                        }
+                      },
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
           const SizedBox(height: 16),
           Wrap(
@@ -657,6 +706,15 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
           updatedAt: space.contentAddedAt[ids[index]] ?? space.updatedAt,
         ),
     ];
+  }
+
+  Future<void> _createNextAction(ProjectWorkspace project) async {
+    try {
+      await widget.onCreateTask(project);
+      if (mounted) await _reloadLinks();
+    } on Object catch (error) {
+      if (mounted) _message(error);
+    }
   }
 
   Future<void> _addMenu(ProjectWorkspace project, SharedSpace? space) async {

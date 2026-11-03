@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/app_locale.dart';
+import '../domain/contextual_work_insights.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/workday.dart';
@@ -109,6 +110,13 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: widget.onProjects,
         ),
         const SizedBox(height: 16),
+        if (SmartInboxReview.suggest(widget.notes).isNotEmpty) ...[
+          _SmartInboxCard(
+            suggestion: SmartInboxReview.suggest(widget.notes).first,
+            onOpenNote: widget.onOpenNote,
+          ),
+          const SizedBox(height: 16),
+        ],
         _StudyCard(onTap: widget.onStudy),
         const SizedBox(height: 16),
         _KnowledgeGraphCard(onTap: widget.onGraph),
@@ -451,6 +459,54 @@ class _ProjectCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SmartInboxCard extends StatelessWidget {
+  const _SmartInboxCard({
+    required this.suggestion,
+    required this.onOpenNote,
+  });
+
+  final InboxReviewSuggestion suggestion;
+  final ValueChanged<Note> onOpenNote;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = AppLocale.effectiveCode(Localizations.localeOf(context));
+    final title = switch (code) {
+      'it' => 'Da organizzare',
+      'es' => 'Para organizar',
+      'fr' => 'À organiser',
+      'de' => 'Zum Organisieren',
+      'pt' => 'Para organizar',
+      _ => 'Needs organizing',
+    };
+    final detail = switch ((code, suggestion.kind)) {
+      ('it', InboxReviewKind.checklist) =>
+        'Questa nota contiene una checklist esplicita. Rivedila prima '
+            'di trasformarla in attività.',
+      ('it', _) =>
+        'Questa nota contiene hashtag. Rivedili prima di aggiungere tag.',
+      ('es', _) => 'Revisa la nota antes de aplicar cualquier cambio.',
+      ('fr', _) => 'Vérifiez la note avant toute modification.',
+      ('de', _) => 'Prüfe die Notiz, bevor du Änderungen vornimmst.',
+      ('pt', _) => 'Revise a nota antes de aplicar mudanças.',
+      _ => 'Review this note before applying any changes.',
+    };
+    return Card(
+      child: ListTile(
+        key: const ValueKey('smart-inbox-review'),
+        leading: const Icon(Icons.tips_and_updates_outlined),
+        title: Text(title),
+        subtitle: Text(
+          '${suggestion.note.title.isEmpty ? title : suggestion.note.title}'
+          ' · $detail',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => onOpenNote(suggestion.note),
       ),
     );
   }
