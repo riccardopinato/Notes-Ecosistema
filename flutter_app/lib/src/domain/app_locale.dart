@@ -54,78 +54,6 @@ class AppStrings {
   factory AppStrings.of(BuildContext context) =>
       AppStrings(AppLocale.effectiveCode(Localizations.localeOf(context)));
 
-  String get automations => _t(
-        it: 'Automazioni',
-        en: 'Automations',
-        es: 'Automatizaciones',
-        fr: 'Automatisations',
-        de: 'Automationen',
-        pt: 'Automações',
-      );
-
-  String get automationsSubtitle => _t(
-        it: 'Regole locali evento → azione, senza AI.',
-        en: 'Local event → action rules, without AI.',
-        es: 'Reglas locales evento → acción, sin IA.',
-        fr: 'Règles locales événement → action, sans IA.',
-        de: 'Lokale Ereignis→Aktion-Regeln, ohne KI.',
-        pt: 'Regras locais evento → ação, sem IA.',
-      );
-
-  String get newRule => _t(
-        it: 'Nuova regola',
-        en: 'New rule',
-        es: 'Nueva regla',
-        fr: 'Nouvelle règle',
-        de: 'Neue Regel',
-        pt: 'Nova regra',
-      );
-
-  String get recentRuns => _t(
-        it: 'Esecuzioni recenti',
-        en: 'Recent runs',
-        es: 'Ejecuciones recientes',
-        fr: 'Exécutions récentes',
-        de: 'Letzte Ausführungen',
-        pt: 'Execuções recentes',
-      );
-
-  String get noRules => _t(
-        it: 'Nessuna automazione. Crea una regola semplice e reversibile.',
-        en: 'No automations. Create a simple, reversible rule.',
-        es: 'Sin automatizaciones. Crea una regla simple y reversible.',
-        fr: 'Aucune automatisation. Créez une règle simple et réversible.',
-        de: 'Keine Automationen. Erstelle eine einfache, reversible Regel.',
-        pt: 'Sem automações. Crie uma regra simples e reversível.',
-      );
-
-  String get language => _t(
-        it: 'Lingua app',
-        en: 'App language',
-        es: 'Idioma de la app',
-        fr: 'Langue de l’app',
-        de: 'App-Sprache',
-        pt: 'Idioma do app',
-      );
-
-  String get profile => _t(
-        it: 'Profilo',
-        en: 'Profile',
-        es: 'Perfil',
-        fr: 'Profil',
-        de: 'Profil',
-        pt: 'Perfil',
-      );
-
-  String get systemLanguage => _t(
-        it: 'Sistema',
-        en: 'System',
-        es: 'Sistema',
-        fr: 'Système',
-        de: 'System',
-        pt: 'Sistema',
-      );
-
   String get plannerMatrixTitle => _t(
         it: 'Matrice Eisenhower',
         en: 'Eisenhower matrix',
@@ -268,6 +196,78 @@ class AppStrings {
         fr: '15 tâches affichées sur $count.',
         de: '15 von $count Aufgaben angezeigt.',
         pt: 'Mostrando 15 de $count tarefas.',
+      );
+
+  String get automations => _t(
+        it: 'Automazioni',
+        en: 'Automations',
+        es: 'Automatizaciones',
+        fr: 'Automatisations',
+        de: 'Automationen',
+        pt: 'Automações',
+      );
+
+  String get automationsSubtitle => _t(
+        it: 'Regole locali evento → azione, senza AI.',
+        en: 'Local event → action rules, without AI.',
+        es: 'Reglas locales evento → acción, sin IA.',
+        fr: 'Règles locales événement → action, sans IA.',
+        de: 'Lokale Ereignis→Aktion-Regeln, ohne KI.',
+        pt: 'Regras locais evento → ação, sem IA.',
+      );
+
+  String get newRule => _t(
+        it: 'Nuova regola',
+        en: 'New rule',
+        es: 'Nueva regla',
+        fr: 'Nouvelle règle',
+        de: 'Neue Regel',
+        pt: 'Nova regra',
+      );
+
+  String get recentRuns => _t(
+        it: 'Esecuzioni recenti',
+        en: 'Recent runs',
+        es: 'Ejecuciones recientes',
+        fr: 'Exécutions récentes',
+        de: 'Letzte Ausführungen',
+        pt: 'Execuções recentes',
+      );
+
+  String get noRules => _t(
+        it: 'Nessuna automazione. Crea una regola semplice e reversibile.',
+        en: 'No automations. Create a simple, reversible rule.',
+        es: 'Sin automatizaciones. Crea una regla simple y reversible.',
+        fr: 'Aucune automatisation. Créez une règle simple et réversible.',
+        de: 'Keine Automationen. Erstelle eine einfache, reversible Regel.',
+        pt: 'Sem automações. Crie uma regra simples e reversível.',
+      );
+
+  String get language => _t(
+        it: 'Lingua app',
+        en: 'App language',
+        es: 'Idioma de la app',
+        fr: 'Langue de l’app',
+        de: 'App-Sprache',
+        pt: 'Idioma do app',
+      );
+
+  String get profile => _t(
+        it: 'Profilo',
+        en: 'Profile',
+        es: 'Perfil',
+        fr: 'Profil',
+        de: 'Profil',
+        pt: 'Perfil',
+      );
+
+  String get systemLanguage => _t(
+        it: 'Sistema',
+        en: 'System',
+        es: 'Sistema',
+        fr: 'Système',
+        de: 'System',
+        pt: 'Sistema',
       );
 
   String _t({
