@@ -3,8 +3,12 @@ import 'package:notes_ecosistema/src/domain/note.dart';
 import 'package:notes_ecosistema/src/domain/planner.dart';
 import 'package:notes_ecosistema/src/domain/planner_insights.dart';
 
-Note task(String id, {String? due, int priority = 0, int? completedAt,
-    bool archived = false, int? deletedAt}) {
+Note task(String id,
+    {String? due,
+    int priority = 0,
+    int? completedAt,
+    bool archived = false,
+    int? deletedAt}) {
   final details = TaskDetails.empty().copyWith(
     due: due,
     priority: priority,
@@ -27,7 +31,8 @@ Note task(String id, {String? due, int priority = 0, int? completedAt,
 
 void main() {
   final today = DateTime(2026, 11, 3);
-  test('Eisenhower uses explicit priority and due dates, never opaque scores', () {
+  test('Eisenhower uses explicit priority and due dates, never opaque scores',
+      () {
     final notes = [
       task('do', due: '2026-11-04', priority: 3),
       task('plan', due: '2026-11-20', priority: 2),
@@ -48,10 +53,12 @@ void main() {
   test('Weekly Review uses Monday week and actual completion timestamps', () {
     final monday = DateTime(2026, 11, 2);
     final notes = [
-      task('completed', completedAt: monday.add(
-          const Duration(hours: 9)).millisecondsSinceEpoch),
-      task('before', completedAt: monday.subtract(
-          const Duration(days: 1)).millisecondsSinceEpoch),
+      task('completed',
+          completedAt:
+              monday.add(const Duration(hours: 9)).millisecondsSinceEpoch),
+      task('before',
+          completedAt:
+              monday.subtract(const Duration(days: 1)).millisecondsSinceEpoch),
       task('due', due: '2026-11-04', priority: 3),
       task('overdue', due: '2026-10-31'),
       task('no deadline'),
@@ -66,9 +73,12 @@ void main() {
     expect(review.highPriorityOpen.map((e) => e.id), ['due']);
   });
 
-  test('completed, deleted and archived tasks never appear in active matrix', () {
+  test('completed, deleted and archived tasks never appear in active matrix',
+      () {
     final notes = [
-      task('completed', due: '2026-11-04', priority: 3,
+      task('completed',
+          due: '2026-11-04',
+          priority: 3,
           completedAt: today.millisecondsSinceEpoch),
       task('deleted', due: '2026-11-04', priority: 3, deletedAt: 1234),
       task('archived', due: '2026-11-04', priority: 3, archived: true),
@@ -84,8 +94,11 @@ void main() {
     final result = PlannerInsights.weeklyReview([open], today);
     expect(result.completedThisWeek, isEmpty);
     expect(result.missingDueDate.single.id, 'missing');
-    expect(PlannerInsights.eisenhower([open], today)
-        [EisenhowerGroup.needsDetails]!.single.id, 'missing');
+    expect(
+        PlannerInsights.eisenhower([open], today)[EisenhowerGroup.needsDetails]!
+            .single
+            .id,
+        'missing');
   });
 
   test('invalid urgency bounds are rejected and outputs immutable', () {
