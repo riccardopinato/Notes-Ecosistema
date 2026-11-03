@@ -126,7 +126,7 @@ class AppStrings {
         pt: 'Sistema',
       );
 
-String get plannerMatrixTitle => _t(
+  String get plannerMatrixTitle => _t(
         it: 'Matrice Eisenhower',
         en: 'Eisenhower matrix',
         es: 'Matriz Eisenhower',
