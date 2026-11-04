@@ -83,7 +83,8 @@ void main() {
       archived: true,
     );
     final active = note('active', 'Research');
-    final result = NextActionInsights.forProject([work(archived), work(active)]);
+    final result =
+        NextActionInsights.forProject([work(archived), work(active)]);
     expect(result.single.kind, NextActionKind.missingNextAction);
     expect(NextActionInsights.forProject([work(archived)]), isEmpty);
   });
@@ -98,7 +99,8 @@ void main() {
       'EXPLICIT_HASHTAGS_NOT_APPLIED',
     );
     expect(
-      SmartInboxReview.suggest([note('long', 'Idea #aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')]),
+      SmartInboxReview.suggest(
+          [note('long', 'Idea #aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')]),
       isEmpty,
     );
   });
