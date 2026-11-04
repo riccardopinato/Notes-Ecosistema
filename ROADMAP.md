@@ -1,5 +1,37 @@
 # Notes Ecosistema — Roadmap
 
+## 2026-11-04 — Action-first audit follow-up (four-source crosswalk)
+
+**Scope approved for incremental implementation**: complete local, deterministic, explainable workflows using canonical Note/Task/Project and existing permission-aware writers. **No new cloud/AI dependency, second planner, automatic task mutations or unreviewed OSS code.** External research cites AI Valley, Hugging Face, GitHub JSON Canvas and GitLab as product/standards references, **not** installed providers. Audit context: 4 November 2026.
+
+### P1 — Smart Inbox: full source → preview → action (issue #46)
+
+- Existing: Smart Inbox #39/#43; three suggestions with persistent local dismiss, snooze and category mute from merged PR #44.
+- In progress: [PR #54](https://github.com/riccardopinato/Notes-Ecosistema/pull/54), read-only source/reason/candidate preview with revalidation before opening canonical editor. CI and review are required; not a finished writer flow.
+- Remaining gate: explicit selection of supported action, mutation preview, authoritative permissions and revision check at **save**, canonical task/tag/project writer, undo where supported, source trace, replay/account-switch tests in IT/EN/ES/FR/DE/PT. No background writes. Avoid reintroducing hidden/archived sources.
+
+### P1 — Workload/Next Action/Dependencies (issue #51)
+
+- Existing: local Next Action reasoning, lifecycle filter (#43), budget/WIP controls (#45), read-only explicit blocker/cycle diagnostics (#53).
+- Remaining gate: UI to select only visible task prerequisites, clear READY/DOING/BLOCKED/DONE signals, canonical relational edits with confirmation, scheduling dates vs deadlines and duration entered by user; 500/5000 synthetic load tests and device measurements separately. Do not infer precise time from missing estimates.
+
+### P2 — Study/Provenance (issue #47)
+
+- Existing: explicit IT/EN/ES/FR/DE/PT Q/A and Markdown title/list source excerpts [#52](https://github.com/riccardopinato/Notes-Ecosistema/pull/52).
+- Remaining: verified PDF/OCR source snapshot, provenance and invalidation, bounded questions only where directly supported by source. No hallucinated answer, silent content overwrite or unsupported citations.
+
+### P2 — Duplicate Review and JSON Canvas (issues #48 and #49)
+
+- Duplicate Review: **not implemented end-to-end**. Compare source IDs, text and attachments with visible diff and keep/merge preview; never auto-delete or auto-merge; preserve backup/references.
+- JSON Canvas v1: **new import/export scope**, validate [open v1 specification](https://github.com/obsidianmd/jsoncanvas/blob/main/spec/1.0.md); report non-roundtrippable ink/strokes/media, preserve originals, reversible preview. Canvas engine already exists; do not reimplement or copy unrelated OSS.
+
+### P3 — Daily Note Hub (issue #50); deferred advanced ML
+
+- Daily Note Hub is **candidate**, opt-in derived aggregation of existing notes and planner only. No duplicate daily database.
+- Hugging Face multilingual embeddings are **deferred** pending revision/license, quantization and Android RAM/latency tests; no ~471 MB unquantized model in base app. No cross-app handoff until explicitly approved.
+
+**Delivery gates**: exact-head Flutter analyze/tests, Web build, source/ACL/stale-write regressions, signed mobile artifact and physical validation tracked separately. A merged PR is not device PASS, Store release, independent E5 reuse or full capability completion.
+
 ## 0.56.3 — Native Needle Runtime Activation
 
 **Implementato in 0.56.3+74; certificazione real-device separata.**
