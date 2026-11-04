@@ -485,7 +485,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
     final guidance = NextActionInsights.forProject(guidanceItems)
         .where((insight) => insight.kind != NextActionKind.excessiveWip)
         .toList(growable: false);
-    final dependencies = ProjectDependencyReview.inspect(guidanceItems);
+    final dependencies =
+        ProjectDependencyReview.inspect(guidanceItems, limit: 100);
     final workload = ProjectWorkloadGuard.evaluate(
       guidanceItems,
       civilDay: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -625,7 +626,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                     if (dependencies.isNotEmpty)
                       Text(
                         'Dipendenze esplicite da verificare: '
-                        '${dependencies.length}. Nessuna modifica automatica.',
+                        '${dependencies.length}${dependencies.length == 100 ? '+' : ''}. '
+                        'Nessuna modifica automatica.',
                       ),
                     Wrap(
                       spacing: 12,
