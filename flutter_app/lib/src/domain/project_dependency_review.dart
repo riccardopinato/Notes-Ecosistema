@@ -17,15 +17,17 @@ abstract final class ProjectDependencyReview {
       throw const FormatException('INVALID_DEPENDENCY_LIMIT');
     }
     if (limit == 0) return const [];
-    final active = items
+    final visible = items
         .where((item) =>
             item.kind == ProjectWorkItemKind.task &&
             !item.note.archived &&
-            !item.note.isDeleted &&
-            !item.completed)
+            !item.note.isDeleted)
+        .toList(growable: false);
+    final active = visible
+        .where((item) => !item.completed)
         .toList(growable: false);
     final grouped = <String, List<ProjectWorkItem>>{};
-    for (final item in active) {
+    for (final item in visible) {
       grouped.putIfAbsent(item.note.id, () => []).add(item);
     }
     final links = <String, Set<String>>{};
@@ -45,6 +47,8 @@ abstract final class ProjectDependencyReview {
           unresolved[item.note.id] = true;
           continue;
         }
+        // A completed canonical target is no longer an active blocker.
+        if (grouped[target]!.single.completed) continue;
         dependencies.add(target);
       }
       links[item.note.id] = dependencies;
