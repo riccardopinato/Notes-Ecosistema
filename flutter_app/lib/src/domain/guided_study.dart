@@ -21,11 +21,11 @@ class GuidedStudyProposal {
 
 abstract final class GuidedStudyExtractor {
   static final RegExp _question = RegExp(
-    r'^\s*(?:Q|Question|Domanda|Pregunta|Frage):\s*(.+?)\s*$',
+    r'^\s*(?:Q|Question|Domanda|Pregunta|Frage|Pergunta):\s*(.+?)\s*$',
     caseSensitive: false,
   );
   static final RegExp _answer = RegExp(
-    r'^\s*(?:A|Answer|Risposta|Respuesta|Antwort):\s*(.+?)\s*$',
+    r'^\s*(?:A|Answer|Risposta|Respuesta|Antwort|R[eé]ponse|Resposta):\s*(.+?)\s*$',
     caseSensitive: false,
   );
 
