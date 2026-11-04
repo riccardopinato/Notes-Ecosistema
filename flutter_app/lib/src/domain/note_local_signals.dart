@@ -72,8 +72,9 @@ abstract final class NoteLocalSignals {
     int limit = 10,
   }) {
     final needle = query.trim().toLowerCase();
-    if (!_singleTerm.hasMatch(needle) || needle.runes.length > 64 || limit < 1)
+    if (!_singleTerm.hasMatch(needle) || needle.runes.length > 64 || limit < 1) {
       return const [];
+    }
     final docs = UnifiedRetrieval.noteDocuments(notes);
     if (docs.length > 5000) return const [];
     final byId = <String, RetrievalDocument>{
@@ -118,13 +119,13 @@ abstract final class NoteLocalSignals {
     int limit = 5,
   }) {
     if (limit < 1 || limit > 10) return const [];
-    final text = title + '\n' + body;
+    final text = '$title\n$body';
     if (text.trim().isEmpty || text.length > 20000) return const [];
     final corpus = <String>[];
     for (final note in authorizedNotes) {
       if (note.isDeleted || note.archived || note.isVisual) continue;
       if (corpus.length >= 5000) return const [];
-      final candidate = note.title + '\n' + note.body;
+      final candidate = '${note.title}\n${note.body}';
       if (candidate.length <= 20000) corpus.add(candidate);
     }
     if (corpus.isEmpty) return const [];
