@@ -480,7 +480,10 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       notes: workspace.notes,
       links: links,
     );
-    final guidance = NextActionInsights.forProject(guidanceItems);
+    // WIP warnings follow the selected limit in the workload card.
+    final guidance = NextActionInsights.forProject(guidanceItems)
+        .where((insight) => insight.kind != NextActionKind.excessiveWip)
+        .toList(growable: false);
     final workload = ProjectWorkloadGuard.evaluate(
       guidanceItems,
       civilDay: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -612,7 +615,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                     Text(
                       'Oggi: ${workload.scheduledMinutes} minuti pianificati. '
                       'Durata non verificabile: ${workload.unknownDurationTasks} task. '
-                      'Bloccati (tag esplicito): ${workload.blockedTasks}.',
+                      'Bloccati (tag esplicito): ${workload.blockedTasks}. '
+                      'WIP: ${workload.inProgressTasks}/$_wipLimit.',
                     ),
                     Text('Motivo: ${workload.reasonCode}'),
                     Wrap(
