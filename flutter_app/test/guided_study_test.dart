@@ -128,5 +128,4 @@ void main() {
     ));
     expect(drafts, isEmpty);
   });
-
 }
