@@ -32,6 +32,14 @@ void main() {
     expect(result.candidates, ['caffè', 'déjà_vu']);
   });
 
+  test('existing tags do not hide unchecked checklist tasks', () {
+    final source = note('- [ ] Shopping', tags: ['shopping']);
+    final result = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(
+        source, InboxReviewKind.checklist, 'EXPLICIT_UNCHECKED_LIST'));
+    expect(result, isNotNull);
+    expect(result!.candidates, ['Shopping']);
+  });
+
   test('source change, hidden record and duplicate identity fail closed', () {
     final source = note('- [ ] Alpha');
     final result = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(
