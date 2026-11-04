@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../domain/contextual_work_insights.dart';
 import '../domain/project_workload_guard.dart';
+import '../domain/project_dependency_review.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/project_workspace.dart';
@@ -484,6 +485,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
     final guidance = NextActionInsights.forProject(guidanceItems)
         .where((insight) => insight.kind != NextActionKind.excessiveWip)
         .toList(growable: false);
+    final dependencies =
+        ProjectDependencyReview.inspect(guidanceItems, limit: 100);
     final workload = ProjectWorkloadGuard.evaluate(
       guidanceItems,
       civilDay: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -604,7 +607,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
               (workload.scheduledTasks > 0 ||
                   workload.unknownDurationTasks > 0 ||
                   workload.blockedTasks > 0 ||
-                  workload.inProgressTasks > 0)) ...[
+                  workload.inProgressTasks > 0 ||
+                  dependencies.isNotEmpty)) ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -619,6 +623,12 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                       'WIP: ${workload.inProgressTasks}/$_wipLimit.',
                     ),
                     Text('Motivo: ${workload.reasonCode}'),
+                    if (dependencies.isNotEmpty)
+                      Text(
+                        'Dipendenze esplicite da verificare: '
+                        '${dependencies.length}${dependencies.length == 100 ? '+' : ''}. '
+                        'Nessuna modifica automatica.',
+                      ),
                     Wrap(
                       spacing: 12,
                       children: [
