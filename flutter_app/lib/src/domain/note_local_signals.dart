@@ -9,6 +9,16 @@ abstract final class NoteLocalSignals {
       RegExp(r'^[\p{L}\p{M}\p{N}]{4,64}$', unicode: true);
   static final _tagTerm =
       RegExp(r'^[\p{L}\p{M}][\p{L}\p{M}\p{N}]{1,31}$', unicode: true);
+  /// Sendable snapshot for background TF-IDF calculation.
+  /// UI supplies only the latest authorized and bounded corpus.
+  static List<String> proposalsFromInput(NoteTagProposalInput input) =>
+      tagProposals(
+        title: input.title,
+        body: input.body,
+        authorizedNotes: input.authorizedNotes,
+        existingTags: input.existingTags,
+      );
+
   static const _stopwords = <String>{
     'the',
     'and',
@@ -77,7 +87,11 @@ abstract final class NoteLocalSignals {
         limit < 1) {
       return const [];
     }
-    final docs = UnifiedRetrieval.noteDocuments(notes);
+    // Exclude canonical lexical hits before applying the fuzzy hit limit.
+    // Otherwise exact matches can crowd typo-only candidates out of the cap.
+    final docs = UnifiedRetrieval.noteDocuments(notes)
+        .where((doc) => !excludedNoteIds.contains(doc.noteId))
+        .toList(growable: false);
     if (docs.length > 5000) return const [];
     final byId = <String, RetrievalDocument>{
       for (final doc in docs) doc.id: doc,
@@ -99,8 +113,7 @@ abstract final class NoteLocalSignals {
       );
       return List.unmodifiable([
         for (final hit in hits)
-          if (!excludedNoteIds.contains(hit.candidate.id.substring(5)))
-            RetrievalHit(
+          RetrievalHit(
               document: byId[hit.candidate.id]!,
               score: 10 / (1 + hit.distance),
               excerpt: UnifiedRetrieval.excerpt(
@@ -150,4 +163,19 @@ abstract final class NoteLocalSignals {
       return const [];
     }
   }
+}
+
+/// Immutable, isolate-transferable input containing only local plain notes.
+class NoteTagProposalInput {
+  const NoteTagProposalInput({
+    required this.title,
+    required this.body,
+    required this.authorizedNotes,
+    required this.existingTags,
+  });
+
+  final String title;
+  final String body;
+  final List<Note> authorizedNotes;
+  final List<String> existingTags;
 }
