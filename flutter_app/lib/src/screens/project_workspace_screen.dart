@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../domain/contextual_work_insights.dart';
+import '../domain/project_workload_guard.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/project_workspace.dart';
@@ -420,6 +421,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
   bool _loadingLinks = true;
   String _query = '';
   bool _showCompleted = true;
+  int _dailyBudgetMinutes = 240;
+  int _wipLimit = 3;
 
   @override
   void initState() {
@@ -478,6 +481,12 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       links: links,
     );
     final guidance = NextActionInsights.forProject(guidanceItems);
+    final workload = ProjectWorkloadGuard.evaluate(
+      guidanceItems,
+      civilDay: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      capacityMinutes: _dailyBudgetMinutes,
+      wipLimit: _wipLimit,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -584,6 +593,64 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                           }
                         }
                       },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (canEdit &&
+              (workload.scheduledTasks > 0 ||
+                  workload.unknownDurationTasks > 0 ||
+                  workload.blockedTasks > 0 ||
+                  workload.inProgressTasks > 0)) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Carico di lavoro · solo lettura'),
+                    Text(
+                      'Oggi: ' + workload.scheduledMinutes.toString() +
+                      ' minuti pianificati. Durata non verificabile: ' +
+                      workload.unknownDurationTasks.toString() +
+                      ' task. Bloccati (tag esplicito): ' +
+                      workload.blockedTasks.toString() + '.',
+                    ),
+                    Text('Motivo: ' + workload.reasonCode),
+                    Wrap(
+                      spacing: 12,
+                      children: [
+                        DropdownButton<int>(
+                          value: _dailyBudgetMinutes,
+                          items: const [
+                            DropdownMenuItem(value: 120, child: Text('Budget 2h')),
+                            DropdownMenuItem(value: 240, child: Text('Budget 4h')),
+                            DropdownMenuItem(value: 360, child: Text('Budget 6h')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _dailyBudgetMinutes = value);
+                            }
+                          },
+                        ),
+                        DropdownButton<int>(
+                          value: _wipLimit,
+                          items: const [
+                            DropdownMenuItem(value: 2, child: Text('WIP 2')),
+                            DropdownMenuItem(value: 3, child: Text('WIP 3')),
+                            DropdownMenuItem(value: 5, child: Text('WIP 5')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setState(() => _wipLimit = value);
+                          },
+                        ),
+                      ],
+                    ),
+                    const Text(
+                      'Soglie valide per questa vista; nessun task viene spostato.',
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 12),
