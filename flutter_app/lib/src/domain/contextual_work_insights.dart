@@ -73,6 +73,7 @@ abstract final class SmartInboxReview {
   static List<InboxReviewSuggestion> suggest(
     Iterable<Note> notes, {
     int limit = 3,
+    bool Function(InboxReviewSuggestion suggestion)? include,
   }) {
     if (limit < 0 || limit > 20) {
       throw const FormatException('INVALID_REVIEW_LIMIT');
@@ -92,27 +93,27 @@ abstract final class SmartInboxReview {
         return change != 0 ? change : a.id.compareTo(b.id);
       });
     for (final note in ordered) {
+      InboxReviewSuggestion? suggestion;
       if (RegExp(r'^\s*[-*] \[ \]', multiLine: true).hasMatch(note.body)) {
-        results.add(
-          InboxReviewSuggestion(
-            note,
-            InboxReviewKind.checklist,
-            'EXPLICIT_UNCHECKED_LIST',
-          ),
+        suggestion = InboxReviewSuggestion(
+          note,
+          InboxReviewKind.checklist,
+          'EXPLICIT_UNCHECKED_LIST',
         );
       } else if (note.tags.isEmpty &&
           RegExp(r'(^|\s)#[\p{L}\p{N}_]{2,32}(?![\p{L}\p{N}_])',
                   multiLine: true, unicode: true)
               .hasMatch(note.body)) {
-        results.add(
-          InboxReviewSuggestion(
-            note,
-            InboxReviewKind.explicitTags,
-            'EXPLICIT_HASHTAGS_NOT_APPLIED',
-          ),
+        suggestion = InboxReviewSuggestion(
+          note,
+          InboxReviewKind.explicitTags,
+          'EXPLICIT_HASHTAGS_NOT_APPLIED',
         );
       }
-      if (results.length >= limit) break;
+      if (suggestion != null && (include == null || include(suggestion))) {
+        results.add(suggestion);
+        if (results.length >= limit) break;
+      }
     }
     return List.unmodifiable(results);
   }

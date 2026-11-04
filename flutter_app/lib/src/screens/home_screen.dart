@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,11 +54,96 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final Future<FocusClock?> _focus;
+  bool _reviewsReady = false;
+  final Set<String> _dismissed = {};
+  final Set<String> _mutedCategories = {};
+  final Map<String, int> _snoozed = {};
+
+  // Persist only hashed source identity, revision and reason. Never note text.
+  String _reviewKey(InboxReviewSuggestion suggestion) => sha256
+      .convert(utf8.encode(
+        '${suggestion.note.id}|${suggestion.note.updatedAt}|${suggestion.reasonCode}',
+      ))
+      .toString();
+
+  Future<void> _loadReviewPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (!mounted) return;
+      setState(() {
+        _dismissed.addAll(
+          prefs.getStringList('notes_review_dismissed_v1') ?? const [],
+        );
+        _mutedCategories.addAll(
+          prefs.getStringList('notes_review_muted_v1') ?? const [],
+        );
+        for (final entry in prefs.getStringList('notes_review_snoozed_v1') ??
+            const <String>[]) {
+          final parts = entry.split(':');
+          if (parts.length != 2) continue;
+          final until = int.tryParse(parts[1]);
+          if (until != null && until > now) _snoozed[parts[0]] = until;
+        }
+        _reviewsReady = true;
+      });
+    } catch (_) {
+      // Fail closed: do not resurface muted private suggestions after a
+      // preference loading error.
+    }
+  }
+
+  Future<void> _handleReview(
+      InboxReviewSuggestion suggestion, String action) async {
+    if (!mounted) return;
+    final key = _reviewKey(suggestion);
+    setState(() {
+      if (action == 'dismiss') {
+        _dismissed.remove(key);
+        _dismissed.add(key);
+        while (_dismissed.length > 200) {
+          _dismissed.remove(_dismissed.first);
+        }
+      } else if (action == 'snooze') {
+        _snoozed.remove(key);
+        _snoozed[key] =
+            DateTime.now().add(const Duration(days: 1)).millisecondsSinceEpoch;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        _snoozed.removeWhere((_, until) => until <= now);
+        while (_snoozed.length > 200) {
+          _snoozed.remove(_snoozed.keys.first);
+        }
+      } else if (action == 'mute') {
+        _mutedCategories.add(suggestion.kind.name);
+      }
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('notes_review_dismissed_v1',
+          _dismissed.take(200).toList(growable: false));
+      await prefs.setStringList(
+          'notes_review_muted_v1', _mutedCategories.toList(growable: false));
+      await prefs.setStringList(
+        'notes_review_snoozed_v1',
+        _snoozed.entries
+            .take(200)
+            .map((entry) => '${entry.key}:${entry.value}')
+            .toList(growable: false),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Impossibile salvare la preferenza locale.')),
+      );
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _focus = _activeFocus();
+    _loadReviewPreferences();
   }
 
   @override
@@ -67,6 +155,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final pending = widget.notes
         .where((n) => !n.isDeleted && n.isTask && !n.taskCompleted)
         .length;
+    final reviewSuggestions = _reviewsReady
+        ? SmartInboxReview.suggest(
+            widget.notes,
+            limit: 3,
+            include: (suggestion) {
+              final key = _reviewKey(suggestion);
+              return !_dismissed.contains(key) &&
+                  !_mutedCategories.contains(suggestion.kind.name) &&
+                  (_snoozed[key] ?? 0) <= now.millisecondsSinceEpoch;
+            },
+          )
+        : const <InboxReviewSuggestion>[];
     final briefing = Workday.build(
       notes: widget.notes,
       now: now,
@@ -110,12 +210,16 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: widget.onProjects,
         ),
         const SizedBox(height: 16),
-        if (SmartInboxReview.suggest(widget.notes).isNotEmpty) ...[
-          _SmartInboxCard(
-            suggestion: SmartInboxReview.suggest(widget.notes).first,
-            onOpenNote: widget.onOpenNote,
-          ),
-          const SizedBox(height: 16),
+        if (reviewSuggestions.isNotEmpty) ...[
+          ...reviewSuggestions.map((suggestion) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _SmartInboxCard(
+                  suggestion: suggestion,
+                  onOpenNote: widget.onOpenNote,
+                  onAction: (action) => _handleReview(suggestion, action),
+                ),
+              )),
+          const SizedBox(height: 8),
         ],
         _StudyCard(onTap: widget.onStudy),
         const SizedBox(height: 16),
@@ -468,10 +572,12 @@ class _SmartInboxCard extends StatelessWidget {
   const _SmartInboxCard({
     required this.suggestion,
     required this.onOpenNote,
+    required this.onAction,
   });
 
   final InboxReviewSuggestion suggestion;
   final ValueChanged<Note> onOpenNote;
+  final ValueChanged<String> onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -496,17 +602,50 @@ class _SmartInboxCard extends StatelessWidget {
       ('pt', _) => 'Revise a nota antes de aplicar mudanças.',
       _ => 'Review this note before applying any changes.',
     };
+    final actions = switch (code) {
+      'it' => const ['Ignora', 'Domani', 'Non suggerire più'],
+      'es' => const ['Ignorar', 'Mañana', 'No sugerir más'],
+      'fr' => const ['Ignorer', 'Demain', 'Ne plus suggérer'],
+      'de' => const ['Ignorieren', 'Morgen', 'Nicht mehr vorschlagen'],
+      'pt' => const ['Ignorar', 'Amanhã', 'Não sugerir mais'],
+      _ => const ['Dismiss', 'Tomorrow', 'Stop suggesting'],
+    };
     return Card(
-      child: ListTile(
-        key: const ValueKey('smart-inbox-review'),
-        leading: const Icon(Icons.tips_and_updates_outlined),
-        title: Text(title),
-        subtitle: Text(
-          '${suggestion.note.title.isEmpty ? title : suggestion.note.title}'
-          ' · $detail',
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => onOpenNote(suggestion.note),
+      child: Column(
+        children: [
+          ListTile(
+            key: const ValueKey('smart-inbox-review'),
+            leading: const Icon(Icons.tips_and_updates_outlined),
+            title: Text(title),
+            subtitle: Text(
+              '${suggestion.note.title.isEmpty ? title : suggestion.note.title}'
+              ' · $detail',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => onOpenNote(suggestion.note),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 4,
+              children: [
+                TextButton(
+                  onPressed: () => onAction('dismiss'),
+                  child: Text(actions[0]),
+                ),
+                TextButton(
+                  onPressed: () => onAction('snooze'),
+                  child: Text(actions[1]),
+                ),
+                TextButton(
+                  onPressed: () => onAction('mute'),
+                  child: Text(actions[2]),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
