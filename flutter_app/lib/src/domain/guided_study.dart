@@ -1,7 +1,8 @@
 import 'note.dart';
 import 'study.dart';
 
-/// Only explicit source-authored Q/A pairs. Never synthesize an answer.
+/// Only adjacent, explicitly labeled source-authored Q/A pairs, including
+/// Markdown list and heading wrappers. Never synthesize an answer.
 class GuidedStudyProposal {
   const GuidedStudyProposal({
     required this.source,
@@ -21,11 +22,11 @@ class GuidedStudyProposal {
 
 abstract final class GuidedStudyExtractor {
   static final RegExp _question = RegExp(
-    r'^\s*(?:Q|Question|Domanda|Pregunta|Frage|Pergunta):\s*(.+?)\s*$',
+    r'^\s*(?:#{1,6}\s+|[-*]\s+)?(?:\*\*)?(?:Q|Question|Domanda|Pregunta|Frage|Pergunta):(?:\*\*)?\s*(.+?)\s*$',
     caseSensitive: false,
   );
   static final RegExp _answer = RegExp(
-    r'^\s*(?:A|Answer|Risposta|Respuesta|Antwort|R[eé]ponse|Resposta):\s*(.+?)\s*$',
+    r'^\s*(?:#{1,6}\s+|[-*]\s+)?(?:\*\*)?(?:A|Answer|Risposta|Respuesta|Antwort|R[eé]ponse|Resposta):(?:\*\*)?\s*(.+?)\s*$',
     caseSensitive: false,
   );
 
