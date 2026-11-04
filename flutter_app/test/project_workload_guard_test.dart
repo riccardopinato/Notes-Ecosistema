@@ -71,8 +71,13 @@ void main() {
     expect(result.scheduledMinutes, 0);
     expect(result.unknownDurationTasks, 1);
     expect(result.reasonCode, 'SCHEDULED_DURATION_UNKNOWN');
-    expect(() => ProjectWorkloadGuard.evaluate(
-      [], civilDay: 'invalid', capacityMinutes: 240, wipLimit: 3,
-    ), throwsFormatException);
+    expect(
+        () => ProjectWorkloadGuard.evaluate(
+              [],
+              civilDay: 'invalid',
+              capacityMinutes: 240,
+              wipLimit: 3,
+            ),
+        throwsFormatException);
   });
 }
