@@ -150,8 +150,11 @@ abstract final class NoteDuplicateReview {
       if (match != null) return null;
       match = note;
     }
-    if (match == null || match.isDeleted || match.archived ||
-        match.isTask || match.isVisual ||
+    if (match == null ||
+        match.isDeleted ||
+        match.archived ||
+        match.isTask ||
+        match.isVisual ||
         match.updatedAt != original.updatedAt ||
         match.title != original.title ||
         match.body != original.body ||
