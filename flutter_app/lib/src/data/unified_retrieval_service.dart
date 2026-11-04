@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../domain/note.dart';
+import '../domain/note_local_signals.dart';
 import '../domain/semantic_embeddings.dart';
 import '../domain/unified_retrieval.dart';
 import 'derivative_store.dart';
@@ -179,9 +180,22 @@ class UnifiedRetrievalService {
       documents,
       limit: (limit * 3).clamp(40, 300).toInt(),
     );
+    // Only a bounded typo fallback over the authorized active note projection.
+    // Existing exact/prefix results always retain their precedence.
+    final supplementary = lexical.length >= limit
+        ? const <RetrievalHit>[]
+        : NoteLocalSignals.fuzzyFallback(
+            query: query,
+            notes: notes,
+            excludedNoteIds: {
+              for (final hit in lexical) hit.document.noteId,
+            },
+            limit: (limit - lexical.length).clamp(1, 10).toInt(),
+          );
+    final lexicalWithTypos = <RetrievalHit>[...lexical, ...supplementary];
     final store = semanticStore;
     if (!semanticEnabled || store == null) {
-      return lexical.take(limit).toList(growable: false);
+      return lexicalWithTypos.take(limit).toList(growable: false);
     }
 
     try {
@@ -192,7 +206,7 @@ class UnifiedRetrievalService {
         limit: (limit * 4).clamp(60, 400).toInt(),
       );
       return _fuse(
-        lexical: lexical,
+        lexical: lexicalWithTypos,
         semantic: semantic,
         documents: documents,
         limit: limit,
@@ -200,7 +214,7 @@ class UnifiedRetrievalService {
     } catch (_) {
       // Semantic retrieval is a derived optional layer. It must never make
       // canonical literal/FTS-style retrieval unavailable.
-      return lexical.take(limit).toList(growable: false);
+      return lexicalWithTypos.take(limit).toList(growable: false);
     }
   }
 

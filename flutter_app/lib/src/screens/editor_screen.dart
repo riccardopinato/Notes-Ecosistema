@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,7 @@ import '../domain/derivatives.dart';
 import '../domain/editing.dart';
 import '../domain/knowledge.dart';
 import '../domain/note.dart';
+import '../domain/note_local_signals.dart';
 import '../domain/note_to_checklist.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
@@ -1497,6 +1499,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     var tags = Diary.userTags(_tags);
     final date = _diaryDate;
     final controller = TextEditingController();
+    // Proposals are read-only; applying a chip only edits the draft tag list.
+    // The canonical note writer still runs only after explicit Save.
+    // Open the editor immediately; optional ranking is asynchronous.
+    // Snapshot only a bounded visible corpus to keep isolate transfer small.
+    final proposalFuture = compute(
+      NoteLocalSignals.proposalsFromInput,
+      NoteTagProposalInput(
+        title: _title.text,
+        body: _body.text,
+        authorizedNotes: widget.allNotes
+            .where(
+                (note) => !note.isDeleted && !note.archived && !note.isVisual)
+            .take(300)
+            .map((note) => note.copyWith(
+                  body: note.body.length > 2000
+                      ? note.body.substring(0, 2000)
+                      : note.body,
+                ))
+            .toList(growable: false),
+        existingTags: List<String>.from(_tags),
+      ),
+    );
     String? error;
 
     final updated = await showDialog<List<String>>(
@@ -1526,6 +1550,59 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         icon: const Icon(Icons.close),
                       ),
                     ),
+                  ),
+                  FutureBuilder<List<String>>(
+                    future: proposalFuture,
+                    builder: (context, snapshot) {
+                      final proposals = snapshot.data ?? const <String>[];
+                      if (proposals.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 12),
+                          Text(
+                            switch (AppLocale.effectiveCode(
+                                Localizations.localeOf(context))) {
+                              'it' => 'Tag suggeriti (solo sul dispositivo)',
+                              'es' =>
+                                'Etiquetas sugeridas (solo en el dispositivo)',
+                              'fr' => 'Tags suggérés (sur cet appareil)',
+                              'de' => 'Vorgeschlagene Tags (nur lokal)',
+                              'pt' => 'Etiquetas sugeridas (apenas local)',
+                              _ => 'Suggested tags (on this device only)',
+                            },
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              for (final term in proposals)
+                                if (!tags.contains(term))
+                                  ActionChip(
+                                    label: Text('#$term'),
+                                    onPressed: () {
+                                      try {
+                                        final next = NoteTags.add(tags, term);
+                                        NoteTags.normalize(
+                                            Diary.datedTags(next, date));
+                                        setLocal(() {
+                                          tags = Diary.userTags(
+                                              Diary.datedTags(next, date));
+                                          error = null;
+                                        });
+                                      } catch (e) {
+                                        setLocal(() => error = e.toString());
+                                      }
+                                    },
+                                  ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      );
+                    },
                   ),
                   TextField(
                     controller: controller,
