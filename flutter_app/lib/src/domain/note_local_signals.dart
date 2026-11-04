@@ -72,7 +72,9 @@ abstract final class NoteLocalSignals {
     int limit = 10,
   }) {
     final needle = query.trim().toLowerCase();
-    if (!_singleTerm.hasMatch(needle) || needle.runes.length > 64 || limit < 1) {
+    if (!_singleTerm.hasMatch(needle) ||
+        needle.runes.length > 64 ||
+        limit < 1) {
       return const [];
     }
     final docs = UnifiedRetrieval.noteDocuments(notes);
