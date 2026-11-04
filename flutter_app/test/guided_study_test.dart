@@ -102,4 +102,31 @@ void main() {
         drafts.every((draft) => draft.reasonCode == 'EXPLICIT_SOURCE_QA_PAIR'),
         isTrue);
   });
+  test('Markdown list and heading labels preserve exact source excerpts', () {
+    final source = note(
+      '- **Q:** Why does ice float?\n- **A:** Lower density\n'
+      '### Domanda: Quanto fa 3+3?\n### Risposta: 6\n'
+      '* Pergunta: Qual é a capital?\n* Resposta: Lisboa',
+    );
+    final drafts = GuidedStudyExtractor.extract(source);
+    expect(drafts.length, 3);
+    expect(drafts.map((draft) => draft.questionLine), [1, 3, 5]);
+    expect(drafts.first.prompt, 'Why does ice float?');
+    expect(drafts.first.answer, 'Lower density');
+    expect(drafts[1].answer, '6');
+    expect(drafts[2].answer, 'Lisboa');
+    expect(drafts.first.sourceExcerpt,
+        '- **Q:** Why does ice float?\n- **A:** Lower density');
+  });
+
+  test('unlabeled Markdown prose is not interpreted as study answers', () {
+    final drafts = GuidedStudyExtractor.extract(note(
+      '### The human heart\n- Circulates blood\n'
+      'Q: Question without adjacent answer\n'
+      '- A random bullet\n'
+      '### Q: Another question\nA descriptive paragraph',
+    ));
+    expect(drafts, isEmpty);
+  });
+
 }
