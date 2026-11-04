@@ -26,11 +26,9 @@ void main() {
   });
 
   test('Unicode hashtags skip already-applied tags', () {
-    final source = note('Nota #caffè #déjà_vu #esistente',
-        tags: ['esistente']);
-    final result = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(
-        source, InboxReviewKind.explicitTags,
-        'EXPLICIT_HASHTAGS_NOT_APPLIED'))!;
+    final source = note('Nota #caffè #déjà_vu #esistente', tags: ['esistente']);
+    final result = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(source,
+        InboxReviewKind.explicitTags, 'EXPLICIT_HASHTAGS_NOT_APPLIED'))!;
     expect(result.candidates, ['caffè', 'déjà_vu']);
   });
 
@@ -49,7 +47,8 @@ void main() {
   test('unlabeled text does not produce candidates', () {
     expect(
         SmartInboxSourcePreview.inspect(InboxReviewSuggestion(
-            note('An ordinary paragraph'), InboxReviewKind.checklist,
+            note('An ordinary paragraph'),
+            InboxReviewKind.checklist,
             'EXPLICIT_UNCHECKED_LIST')),
         isNull);
   });
