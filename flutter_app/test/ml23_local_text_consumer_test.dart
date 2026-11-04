@@ -24,7 +24,8 @@ void main() {
         tags: tags,
       );
 
-  test('misspelled single token finds active note via source-backed fallback', () {
+  test('misspelled single token finds active note via source-backed fallback',
+      () {
     final hits = NoteLocalSignals.fuzzyFallback(
       query: 'taccuiono',
       notes: [
@@ -56,8 +57,8 @@ void main() {
   });
 
   test('TF-IDF returns preview terms, never modifies source tags', () {
-    final source = note(
-        'source', 'Fotografia paesaggio', 'Paesaggio montagna paesaggio');
+    final source =
+        note('source', 'Fotografia paesaggio', 'Paesaggio montagna paesaggio');
     final proposals = NoteLocalSignals.tagProposals(
       title: source.title,
       body: source.body,
@@ -104,12 +105,10 @@ void main() {
     );
     expect(proposals.length, lessThanOrEqualTo(5));
     expect(
-      NoteLocalSignals.fuzzyFallback(
-          query: 'documentazone',
-          notes: [
-            ...corpus,
-            note('overflow', 'Documentazione', ''),
-          ]),
+      NoteLocalSignals.fuzzyFallback(query: 'documentazone', notes: [
+        ...corpus,
+        note('overflow', 'Documentazione', ''),
+      ]),
       isEmpty,
     );
   });
