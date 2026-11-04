@@ -3,8 +3,8 @@ import 'note.dart';
 
 /// Deterministic, read-only review of source-authored candidates.
 class SmartInboxSourcePreview {
-  const SmartInboxSourcePreview(this.source, this.reasonCode, this.candidates,
-      this.sourceExcerpt);
+  const SmartInboxSourcePreview(
+      this.source, this.reasonCode, this.candidates, this.sourceExcerpt);
   final Note source;
   final String reasonCode;
   final List<String> candidates;
