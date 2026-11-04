@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/app_locale.dart';
 import '../domain/library.dart';
+import '../domain/note_duplicate_review.dart';
 import '../widgets/ui_resilience.dart';
 import '../domain/note.dart';
 import '../widgets/editorial.dart';
@@ -744,6 +747,163 @@ class _NotesScreenState extends State<NotesScreen> {
     }
   }
 
+  Future<void> _reviewDuplicates() async {
+    if (_busy) return;
+    final active = _visible
+        .where((n) => !n.isDeleted && !n.archived && !n.isTask && !n.isVisual)
+        .toList(growable: false);
+    if (active.length > 300) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Revisione limitata a 300 note: usa prima i filtri o una raccolta.'),
+      ));
+      return;
+    }
+    setState(() => _busy = true);
+    List<NoteDuplicatePair> pairs;
+    try {
+      pairs = await compute(NoteDuplicateReview.review, active);
+    } catch (e) {
+      if (mounted) setState(() => _error = userErrorText(e));
+      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (!mounted) return;
+
+    final lang = AppLocale.effectiveCode(Localizations.localeOf(context));
+    final labels = switch (lang) {
+      'it' => [
+          'Rivedi note simili',
+          'Chiudi',
+          'Apri',
+          'Nessuna coppia trovata nel campione autorizzato.',
+          'Similarità lessicale',
+          'Nessuna unione o eliminazione automatica.'
+        ],
+      'es' => [
+          'Revisar notas similares',
+          'Cerrar',
+          'Abrir',
+          'No se encontraron pares en la muestra autorizada.',
+          'Similitud léxica',
+          'Sin fusión ni eliminación automática.'
+        ],
+      'fr' => [
+          'Notes similaires',
+          'Fermer',
+          'Ouvrir',
+          'Aucune paire dans les notes autorisées.',
+          'Similarité lexicale',
+          'Aucune fusion ni suppression automatique.'
+        ],
+      'de' => [
+          'Ähnliche Notizen prüfen',
+          'Schließen',
+          'Öffnen',
+          'Keine Paare unter den berechtigten Notizen.',
+          'Lexikalische Ähnlichkeit',
+          'Kein automatisches Zusammenführen oder Löschen.'
+        ],
+      'pt' => [
+          'Revisar notas semelhantes',
+          'Fechar',
+          'Abrir',
+          'Nenhum par encontrado nas notas autorizadas.',
+          'Similaridade lexical',
+          'Sem mesclagem ou exclusão automática.'
+        ],
+      _ => [
+          'Review similar notes',
+          'Close',
+          'Open',
+          'No pairs found in authorized notes.',
+          'Lexical similarity',
+          'No automatic merge or deletion.'
+        ],
+    };
+
+    final staleMessage = switch (lang) {
+      'it' => 'Le note sono cambiate. Riapri la revisione.',
+      'es' => 'Las notas han cambiado. Vuelve a revisar.',
+      'fr' => 'Les notes ont changé. Relancez la révision.',
+      'de' => 'Notizen geändert. Prüfung erneut öffnen.',
+      'pt' => 'As notas mudaram. Reabra a revisão.',
+      _ => 'Notes changed. Reopen duplicate review.',
+    };
+
+    String excerpt(Note note) {
+      final value = note.body.replaceAll(RegExp(r'\s+'), ' ').trim();
+      return value.length > 160 ? '${value.substring(0, 160)}…' : value;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(labels[0]),
+        content: SizedBox(
+          width: 560,
+          height: 440,
+          child: pairs.isEmpty
+              ? Text(labels[3])
+              : ListView.builder(
+                  itemCount: pairs.length,
+                  itemBuilder: (context, i) {
+                    final pair = pairs[i];
+                    Widget sourceTile(Note source) => ListTile(
+                          title: Text(
+                              source.title.isEmpty ? source.id : source.title,
+                              maxLines: 2),
+                          subtitle: Text(excerpt(source), maxLines: 3),
+                          trailing: TextButton(
+                            onPressed: () {
+                              if (!mounted) return;
+                              final current = NoteDuplicateReview.revalidate(
+                                  source, widget.notes);
+                              if (current == null) {
+                                Navigator.pop(dialogContext);
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(content: Text(staleMessage)),
+                                );
+                                return;
+                              }
+                              Navigator.pop(dialogContext);
+                              widget.onOpen(current);
+                            },
+                            child: Text(labels[2]),
+                          ),
+                        );
+                    return Card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              '${labels[4]}: ${(pair.jaccard * 100).round()}%',
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                          ),
+                          sourceTile(pair.first),
+                          const Divider(height: 1),
+                          sourceTile(pair.second),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          Text(labels[5], style: Theme.of(dialogContext).textTheme.labelSmall),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(labels[1]),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visible = _visible;
@@ -815,6 +975,19 @@ class _NotesScreenState extends State<NotesScreen> {
                     ? 'Ricerche salvate'
                     : 'Ricerche · ${_saved.length}',
               ),
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _reviewDuplicates,
+              icon: const Icon(Icons.content_copy_outlined),
+              label: Text(switch (
+                  AppLocale.effectiveCode(Localizations.localeOf(context))) {
+                'it' => 'Note simili',
+                'es' => 'Notas similares',
+                'fr' => 'Notes similaires',
+                'de' => 'Ähnliche Notizen',
+                'pt' => 'Notas semelhantes',
+                _ => 'Similar notes',
+              }),
             ),
             OutlinedButton.icon(
               onPressed: _busy ? null : _collections,
