@@ -96,9 +96,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _previewSmartInbox(InboxReviewSuggestion suggestion) async {
     final preview = SmartInboxSourcePreview.inspect(suggestion);
-    if (preview == null || preview.current(widget.notes) == null || !mounted) {
+    if (!mounted) return;
+    if (preview == null) {
+      // Unsupported empty/oversize candidates still open the canonical editor,
+      // provided their original source remains uniquely visible and unchanged.
+      final matches = widget.notes.where((note) =>
+          note.id == suggestion.note.id &&
+          !note.isDeleted &&
+          !note.archived &&
+          !note.isTask &&
+          !note.isVisual &&
+          note.updatedAt == suggestion.note.updatedAt &&
+          note.body == suggestion.note.body &&
+          note.title == suggestion.note.title &&
+          note.tags.length == suggestion.note.tags.length &&
+          List.generate(note.tags.length, (i) => i).every(
+              (i) => note.tags[i] == suggestion.note.tags[i])).toList();
+      if (matches.length == 1) widget.onOpenNote(matches.single);
       return;
     }
+    if (preview.current(widget.notes) == null) return;
     final code = AppLocale.effectiveCode(Localizations.localeOf(context));
     final labels = switch (code) {
       'it' => [
