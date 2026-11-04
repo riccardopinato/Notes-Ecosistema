@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/note.dart';
 import 'package:notes_ecosistema/src/domain/note_local_signals.dart';
@@ -54,6 +55,40 @@ void main() {
       ),
       isEmpty,
     );
+  });
+
+  test('excluded lexical hits do not consume fuzzy shortlist slots', () {
+    final exact = [
+      for (var i = 0; i < 40; i++)
+        note('exact$i', 'Riunione lavoro', 'Riunione importante'),
+    ];
+    final eligible = note('typo', 'Riunone', 'Appuntamento');
+    final results = NoteLocalSignals.fuzzyFallback(
+      query: 'riunione',
+      notes: [...exact, eligible],
+      excludedNoteIds: {for (final item in exact) item.id},
+      limit: 1,
+    );
+    expect(results.single.document.noteId, 'typo');
+  });
+
+  test('background TF-IDF request is isolate-transferable and read-only',
+      () async {
+    final source = note('a', 'Fotografia montagna', 'Montagna montagna');
+    final proposals = await compute(
+      NoteLocalSignals.proposalsFromInput,
+      NoteTagProposalInput(
+        title: source.title,
+        body: source.body,
+        authorizedNotes: [
+          source,
+          note('b', 'Paesaggio', 'Ritratto fotografia'),
+        ],
+        existingTags: const [],
+      ),
+    );
+    expect(proposals, contains('montagna'));
+    expect(source.tags, isEmpty);
   });
 
   test('TF-IDF returns preview terms, never modifies source tags', () {
