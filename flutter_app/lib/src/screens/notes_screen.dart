@@ -749,7 +749,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _reviewDuplicates() async {
     if (_busy) return;
-    final active = widget.notes
+    final active = _visible
         .where((n) => !n.isDeleted && !n.archived && !n.isTask && !n.isVisual)
         .toList(growable: false);
     if (active.length > 300) {
