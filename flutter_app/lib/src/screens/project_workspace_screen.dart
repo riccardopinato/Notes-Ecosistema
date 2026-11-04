@@ -610,11 +610,13 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   children: [
                     const Text('Carico di lavoro · solo lettura'),
                     Text(
-                      'Oggi: ' + workload.scheduledMinutes.toString() +
-                      ' minuti pianificati. Durata non verificabile: ' +
-                      workload.unknownDurationTasks.toString() +
-                      ' task. Bloccati (tag esplicito): ' +
-                      workload.blockedTasks.toString() + '.',
+                      'Oggi: ' +
+                          workload.scheduledMinutes.toString() +
+                          ' minuti pianificati. Durata non verificabile: ' +
+                          workload.unknownDurationTasks.toString() +
+                          ' task. Bloccati (tag esplicito): ' +
+                          workload.blockedTasks.toString() +
+                          '.',
                     ),
                     Text('Motivo: ' + workload.reasonCode),
                     Wrap(
@@ -623,9 +625,12 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                         DropdownButton<int>(
                           value: _dailyBudgetMinutes,
                           items: const [
-                            DropdownMenuItem(value: 120, child: Text('Budget 2h')),
-                            DropdownMenuItem(value: 240, child: Text('Budget 4h')),
-                            DropdownMenuItem(value: 360, child: Text('Budget 6h')),
+                            DropdownMenuItem(
+                                value: 120, child: Text('Budget 2h')),
+                            DropdownMenuItem(
+                                value: 240, child: Text('Budget 4h')),
+                            DropdownMenuItem(
+                                value: 360, child: Text('Budget 6h')),
                           ],
                           onChanged: (value) {
                             if (value != null) {
@@ -641,7 +646,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                             DropdownMenuItem(value: 5, child: Text('WIP 5')),
                           ],
                           onChanged: (value) {
-                            if (value != null) setState(() => _wipLimit = value);
+                            if (value != null)
+                              setState(() => _wipLimit = value);
                           },
                         ),
                       ],
