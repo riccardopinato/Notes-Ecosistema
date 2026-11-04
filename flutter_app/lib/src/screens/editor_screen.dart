@@ -1544,7 +1544,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         switch (AppLocale.effectiveCode(
                             Localizations.localeOf(context))) {
                           'it' => 'Tag suggeriti (solo sul dispositivo)',
-                          'es' => 'Etiquetas sugeridas (solo en el dispositivo)',
+                          'es' =>
+                            'Etiquetas sugeridas (solo en el dispositivo)',
                           'fr' => 'Tags suggérés (sur cet appareil)',
                           'de' => 'Vorgeschlagene Tags (nur lokal)',
                           'pt' => 'Etiquetas sugeridas (apenas local)',
