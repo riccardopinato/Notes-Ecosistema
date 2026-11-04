@@ -68,7 +68,7 @@ class _NotesWebPreviewState extends State<NotesWebPreview> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Notes Ecosistema 0.55.1 · Web',
+      title: 'Notes Ecosistema 0.56.3 · Web',
       theme: NotesTheme.light(),
       darkTheme: NotesTheme.dark(),
       themeMode: _dark ? ThemeMode.dark : ThemeMode.light,
@@ -791,7 +791,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('Notes Ecosistema 0.55.1'),
+              title: Text('Notes Ecosistema 0.56.3'),
               subtitle: Text(
                 'Web Preview fedele · stato demo locale alla sessione browser.',
               ),
@@ -986,7 +986,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               appBar: AppBar(
                 title: EditorialAppTitle(
                   section == 'Home' ? 'Il tuo spazio' : section,
-                  eyebrow: 'NOTES · WEB PREVIEW 0.55.1',
+                  eyebrow: 'NOTES · WEB PREVIEW 0.56.3',
                 ),
                 actions: [
                   IconButton(

@@ -15,8 +15,12 @@ abstract final class NextActionInsights {
   static List<NextActionInsight> forProject(
     List<ProjectWorkItem> items,
   ) {
-    if (items.isEmpty) return const [];
-    final pending = items
+    // Filter lifecycle before diagnosing missing work or WIP.
+    final active = items
+        .where((item) => !item.note.isDeleted && !item.note.archived)
+        .toList(growable: false);
+    if (active.isEmpty) return const [];
+    final pending = active
         .where(
             (item) => item.kind == ProjectWorkItemKind.task && !item.completed)
         .toList(growable: false);
@@ -68,7 +72,7 @@ class InboxReviewSuggestion {
 abstract final class SmartInboxReview {
   static List<InboxReviewSuggestion> suggest(
     Iterable<Note> notes, {
-    int limit = 2,
+    int limit = 3,
   }) {
     if (limit < 0 || limit > 20) {
       throw const FormatException('INVALID_REVIEW_LIMIT');
@@ -97,7 +101,8 @@ abstract final class SmartInboxReview {
           ),
         );
       } else if (note.tags.isEmpty &&
-          RegExp(r'(^|\s)#[A-Za-z0-9_]{2,32}', multiLine: true)
+          RegExp(r'(^|\s)#[\p{L}\p{N}_]{2,32}(?![\p{L}\p{N}_])',
+                  multiLine: true, unicode: true)
               .hasMatch(note.body)) {
         results.add(
           InboxReviewSuggestion(

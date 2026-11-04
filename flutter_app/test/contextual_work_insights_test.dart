@@ -76,4 +76,30 @@ void main() {
     expect(
         () => SmartInboxReview.suggest([], limit: -1), throwsFormatException);
   });
+
+  test('archived task does not suppress source-backed missing-action', () {
+    final archived = note('archived', 'Task').copyWith(
+      taskJson: TaskDetails.empty().encode(),
+      archived: true,
+    );
+    final active = note('active', 'Research');
+    final result = NextActionInsights.forProject([work(archived), work(active)]);
+    expect(result.single.kind, NextActionKind.missingNextAction);
+    expect(NextActionInsights.forProject([work(archived)]), isEmpty);
+  });
+
+  test('Unicode hashtags match without truncating long tokens', () {
+    expect(
+      SmartInboxReview.suggest([note('unicode', 'Idea #caffè')]).single.kind,
+      InboxReviewKind.explicitTags,
+    );
+    expect(
+      SmartInboxReview.suggest([note('han', 'Memo #東京企画')]).single.reasonCode,
+      'EXPLICIT_HASHTAGS_NOT_APPLIED',
+    );
+    expect(
+      SmartInboxReview.suggest([note('long', 'Idea #aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')]),
+      isEmpty,
+    );
+  });
 }
