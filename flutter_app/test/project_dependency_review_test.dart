@@ -57,6 +57,14 @@ void main() {
     expect(b.single.reasonCode, 'DEPENDENCY_TARGET_UNAVAILABLE');
   });
 
+  test('completed explicit target no longer blocks the source', () {
+    final output = ProjectDependencyReview.inspect([
+      task('waiting', tags: ['blocked-by:done']),
+      task('done', completed: true),
+    ]);
+    expect(output, isEmpty);
+  });
+
   test('cycles are detected, no data is mutated', () {
     final a = task('a', tags: ['blocked-by:b']);
     final b = task('b', tags: ['blocked-by:a']);
