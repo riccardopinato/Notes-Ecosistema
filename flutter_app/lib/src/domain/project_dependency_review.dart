@@ -23,9 +23,8 @@ abstract final class ProjectDependencyReview {
             !item.note.archived &&
             !item.note.isDeleted)
         .toList(growable: false);
-    final active = visible
-        .where((item) => !item.completed)
-        .toList(growable: false);
+    final active =
+        visible.where((item) => !item.completed).toList(growable: false);
     final grouped = <String, List<ProjectWorkItem>>{};
     for (final item in visible) {
       grouped.putIfAbsent(item.note.id, () => []).add(item);
@@ -70,9 +69,10 @@ abstract final class ProjectDependencyReview {
     final issues = <ProjectDependencyIssue>[];
     for (final source in ids) {
       if (unresolved[source] == true) {
-        issues.add(ProjectDependencyIssue(source, 'DEPENDENCY_TARGET_UNAVAILABLE'));
-      } else if ((links[source] ?? const {}).any((target) =>
-          reachable(target, source))) {
+        issues.add(
+            ProjectDependencyIssue(source, 'DEPENDENCY_TARGET_UNAVAILABLE'));
+      } else if ((links[source] ?? const {})
+          .any((target) => reachable(target, source))) {
         issues.add(ProjectDependencyIssue(source, 'DEPENDENCY_CYCLE'));
       } else if ((links[source] ?? const {}).isNotEmpty) {
         issues.add(ProjectDependencyIssue(source, 'EXPLICIT_OPEN_BLOCKER'));
