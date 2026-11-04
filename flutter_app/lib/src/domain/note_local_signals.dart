@@ -10,12 +10,53 @@ abstract final class NoteLocalSignals {
   static final _tagTerm =
       RegExp(r'^[\p{L}\p{M}][\p{L}\p{M}\p{N}]{1,31}$', unicode: true);
   static const _stopwords = <String>{
-    'the', 'and', 'for', 'with', 'from', 'this', 'that', 'are',
-    'una', 'uno', 'che', 'con', 'per', 'del', 'della', 'delle',
-    'non', 'sono', 'nel', 'nella', 'anche', 'come', 'gli', 'dei',
-    'les', 'des', 'une', 'pour', 'dans', 'avec', 'est',
-    'der', 'die', 'das', 'und', 'mit', 'ein', 'eine', 'ist',
-    'los', 'las', 'para', 'por', 'dos', 'uma', 'não', 'com',
+    'the',
+    'and',
+    'for',
+    'with',
+    'from',
+    'this',
+    'that',
+    'are',
+    'una',
+    'uno',
+    'che',
+    'con',
+    'per',
+    'del',
+    'della',
+    'delle',
+    'non',
+    'sono',
+    'nel',
+    'nella',
+    'anche',
+    'come',
+    'gli',
+    'dei',
+    'les',
+    'des',
+    'une',
+    'pour',
+    'dans',
+    'avec',
+    'est',
+    'der',
+    'die',
+    'das',
+    'und',
+    'mit',
+    'ein',
+    'eine',
+    'ist',
+    'los',
+    'las',
+    'para',
+    'por',
+    'dos',
+    'uma',
+    'não',
+    'com',
   };
 
   static String _boundedText(RetrievalDocument doc) {
@@ -31,8 +72,8 @@ abstract final class NoteLocalSignals {
     int limit = 10,
   }) {
     final needle = query.trim().toLowerCase();
-    if (!_singleTerm.hasMatch(needle) ||
-        needle.runes.length > 64 || limit < 1) return const [];
+    if (!_singleTerm.hasMatch(needle) || needle.runes.length > 64 || limit < 1)
+      return const [];
     final docs = UnifiedRetrieval.noteDocuments(notes);
     if (docs.length > 5000) return const [];
     final byId = <String, RetrievalDocument>{
