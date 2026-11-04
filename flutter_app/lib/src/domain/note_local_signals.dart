@@ -9,6 +9,7 @@ abstract final class NoteLocalSignals {
       RegExp(r'^[\p{L}\p{M}\p{N}]{4,64}$', unicode: true);
   static final _tagTerm =
       RegExp(r'^[\p{L}\p{M}][\p{L}\p{M}\p{N}]{1,31}$', unicode: true);
+
   /// Sendable snapshot for background TF-IDF calculation.
   /// UI supplies only the latest authorized and bounded corpus.
   static List<String> proposalsFromInput(NoteTagProposalInput input) =>
@@ -114,11 +115,11 @@ abstract final class NoteLocalSignals {
       return List.unmodifiable([
         for (final hit in hits)
           RetrievalHit(
-              document: byId[hit.candidate.id]!,
-              score: 10 / (1 + hit.distance),
-              excerpt: UnifiedRetrieval.excerpt(
-                  byId[hit.candidate.id]!.text, needle),
-            ),
+            document: byId[hit.candidate.id]!,
+            score: 10 / (1 + hit.distance),
+            excerpt:
+                UnifiedRetrieval.excerpt(byId[hit.candidate.id]!.text, needle),
+          ),
       ].take(limit));
     } on OnDeviceMathError {
       return const [];
