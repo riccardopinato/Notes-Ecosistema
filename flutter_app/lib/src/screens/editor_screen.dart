@@ -23,6 +23,7 @@ import '../domain/derivatives.dart';
 import '../domain/editing.dart';
 import '../domain/knowledge.dart';
 import '../domain/note.dart';
+import '../domain/note_local_signals.dart';
 import '../domain/note_to_checklist.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
@@ -1497,6 +1498,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     var tags = Diary.userTags(_tags);
     final date = _diaryDate;
     final controller = TextEditingController();
+    // Proposals are read-only; applying a chip only edits the draft tag list.
+    // The canonical note writer still runs only after explicit Save.
+    final proposals = NoteLocalSignals.tagProposals(
+      title: _title.text,
+      body: _body.text,
+      authorizedNotes: widget.allNotes,
+      existingTags: _tags,
+    );
     String? error;
 
     final updated = await showDialog<List<String>>(
@@ -1527,6 +1536,51 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       ),
                     ),
                   ),
+                  if (proposals.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        switch (AppLocale.effectiveCode(
+                            Localizations.localeOf(context))) {
+                          'it' => 'Tag suggeriti (solo sul dispositivo)',
+                          'es' => 'Etiquetas sugeridas (solo en el dispositivo)',
+                          'fr' => 'Tags suggérés (sur cet appareil)',
+                          'de' => 'Vorgeschlagene Tags (nur lokal)',
+                          'pt' => 'Etiquetas sugeridas (apenas local)',
+                          _ => 'Suggested tags (on this device only)',
+                        },
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final term in proposals)
+                          if (!tags.contains(term))
+                            ActionChip(
+                              label: Text('#$term'),
+                              onPressed: () {
+                                try {
+                                  final next = NoteTags.add(tags, term);
+                                  NoteTags.normalize(
+                                      Diary.datedTags(next, date));
+                                  setLocal(() {
+                                    tags = Diary.userTags(
+                                        Diary.datedTags(next, date));
+                                    error = null;
+                                  });
+                                } catch (e) {
+                                  setLocal(() => error = e.toString());
+                                }
+                              },
+                            ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextField(
                     controller: controller,
                     decoration: const InputDecoration(
