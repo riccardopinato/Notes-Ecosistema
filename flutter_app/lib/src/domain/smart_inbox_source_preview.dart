@@ -39,7 +39,9 @@ class SmartInboxSourcePreview {
         final key = candidate.toLowerCase();
         if ((suggestion.kind == InboxReviewKind.explicitTags &&
                 existing.contains(key)) ||
-            !seen.add(key)) continue;
+            !seen.add(key)) {
+          continue;
+        }
         candidates.add(candidate);
         if (excerpt.isEmpty) excerpt = line.trim();
         if (candidates.length >= 8) break;
@@ -47,7 +49,7 @@ class SmartInboxSourcePreview {
       if (candidates.length >= 8) break;
     }
     if (candidates.isEmpty) return null;
-    if (excerpt.length > 180) excerpt = excerpt.substring(0, 180) + '…';
+    if (excerpt.length > 180) excerpt = '${excerpt.substring(0, 180)}…';
     return SmartInboxSourcePreview(
         source, suggestion.reasonCode, List.unmodifiable(candidates), excerpt);
   }
