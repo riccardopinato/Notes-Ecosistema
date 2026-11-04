@@ -37,7 +37,9 @@ class SmartInboxSourcePreview {
         final candidate = value?.trim() ?? '';
         if (candidate.isEmpty || candidate.length > 200) continue;
         final key = candidate.toLowerCase();
-        if (existing.contains(key) || !seen.add(key)) continue;
+        if ((suggestion.kind == InboxReviewKind.explicitTags &&
+                existing.contains(key)) ||
+            !seen.add(key)) continue;
         candidates.add(candidate);
         if (excerpt.isEmpty) excerpt = line.trim();
         if (candidates.length >= 8) break;
