@@ -39,7 +39,8 @@ final class LocalFuzzyHit {
 /// refuses items marked hidden/deleted; it cannot infer an account's ACL.
 abstract final class LocalFuzzyReference {
   static final RegExp _words = RegExp(
-    r'[\p{L}\p{M}\p{N}]+', unicode: true,
+    r'[\p{L}\p{M}\p{N}]+',
+    unicode: true,
   );
 
   static int distance(String a, String b, {int cutoff = 3}) {
@@ -78,8 +79,12 @@ abstract final class LocalFuzzyReference {
     int maxDistance = 2,
     int limit = 10,
   }) {
-    if (limit < 1 || limit > 100 || maxCandidates < 1 ||
-        maxCandidates > 5000 || maxDistance < 0 || maxDistance > 20) {
+    if (limit < 1 ||
+        limit > 100 ||
+        maxCandidates < 1 ||
+        maxCandidates > 5000 ||
+        maxDistance < 0 ||
+        maxDistance > 20) {
       throw const OnDeviceMathError('INVALID_SEARCH_LIMIT');
     }
     final normalizedQuery = query.toLowerCase().trim();
@@ -93,8 +98,10 @@ abstract final class LocalFuzzyReference {
       if (++count > maxCandidates) {
         throw const OnDeviceMathError('TOO_MANY_CANDIDATES');
       }
-      if (item.id.trim().isEmpty || item.revision < 0 ||
-          item.text.length > 2000 || !seen.add(item.id)) {
+      if (item.id.trim().isEmpty ||
+          item.revision < 0 ||
+          item.text.length > 2000 ||
+          !seen.add(item.id)) {
         throw const OnDeviceMathError('INVALID_OR_DUPLICATE_SOURCE');
       }
       if (!item.visible || item.deleted) continue;
@@ -126,18 +133,23 @@ final class LocalKeywordScore {
 /// The source must be a bounded set of authorized, current documents.
 abstract final class LocalTfidfReference {
   static final RegExp _terms = RegExp(
-    r'[\p{L}\p{M}\p{N}]+', unicode: true,
+    r'[\p{L}\p{M}\p{N}]+',
+    unicode: true,
   );
 
-  static List<String> tokenize(String text, {Set<String> stopwords = const {}}) {
+  static List<String> tokenize(String text,
+      {Set<String> stopwords = const {}}) {
     if (text.length > 20000) {
       throw const OnDeviceMathError('OVERSIZE_DOCUMENT');
     }
     return List.unmodifiable(
-      _terms.allMatches(text.toLowerCase())
+      _terms
+          .allMatches(text.toLowerCase())
           .map((match) => match.group(0)!)
-          .where((word) => word.runes.length >= 2 &&
-              word.runes.length <= 32 && !stopwords.contains(word))
+          .where((word) =>
+              word.runes.length >= 2 &&
+              word.runes.length <= 32 &&
+              !stopwords.contains(word))
           .take(2000),
     );
   }
@@ -174,7 +186,8 @@ abstract final class LocalTfidfReference {
     }
     final scores = frequency.entries.map((entry) {
       final tf = entry.value / tokens.length;
-      final idf = math.log((1 + corpus.length) / (1 + (df[entry.key] ?? 0))) + 1;
+      final idf =
+          math.log((1 + corpus.length) / (1 + (df[entry.key] ?? 0))) + 1;
       return LocalKeywordScore(entry.key, tf * idf);
     }).toList();
     scores.sort((a, b) {
@@ -184,4 +197,3 @@ abstract final class LocalTfidfReference {
     return List.unmodifiable(scores.take(limit));
   }
 }
-
