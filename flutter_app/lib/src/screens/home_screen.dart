@@ -9,6 +9,7 @@ import '../domain/app_locale.dart';
 import '../domain/contextual_work_insights.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
+import '../domain/smart_inbox_source_preview.dart';
 import '../domain/workday.dart';
 import '../widgets/editorial.dart';
 
@@ -91,6 +92,121 @@ class _HomeScreenState extends State<HomeScreen> {
       // Fail closed: do not resurface muted private suggestions after a
       // preference loading error.
     }
+  }
+
+  Future<void> _previewSmartInbox(InboxReviewSuggestion suggestion) async {
+    final preview = SmartInboxSourcePreview.inspect(suggestion);
+    if (!mounted) return;
+    if (preview == null) {
+      // Unsupported empty/oversize candidates still open the canonical editor,
+      // provided their original source remains uniquely visible and unchanged.
+      final matches = widget.notes
+          .where((note) =>
+              note.id == suggestion.note.id &&
+              !note.isDeleted &&
+              !note.archived &&
+              !note.isTask &&
+              !note.isVisual &&
+              note.updatedAt == suggestion.note.updatedAt &&
+              note.body == suggestion.note.body &&
+              note.title == suggestion.note.title &&
+              note.tags.length == suggestion.note.tags.length &&
+              List.generate(note.tags.length, (i) => i)
+                  .every((i) => note.tags[i] == suggestion.note.tags[i]))
+          .toList();
+      if (matches.length == 1) widget.onOpenNote(matches.single);
+      return;
+    }
+    if (preview.current(widget.notes) == null) return;
+    final code = AppLocale.effectiveCode(Localizations.localeOf(context));
+    final labels = switch (code) {
+      'it' => [
+          'Anteprima suggerimento',
+          'Annulla',
+          'Apri nell’editor',
+          'Nessuna modifica automatica. Controlla e salva nell’editor.'
+        ],
+      'es' => [
+          'Vista previa',
+          'Cancelar',
+          'Abrir en el editor',
+          'Sin cambios automáticos. Revisa y guarda en el editor.'
+        ],
+      'fr' => [
+          'Aperçu',
+          'Annuler',
+          'Ouvrir dans l’éditeur',
+          'Aucune modification automatique. Vérifiez dans l’éditeur.'
+        ],
+      'de' => [
+          'Vorschau',
+          'Abbrechen',
+          'Im Editor öffnen',
+          'Keine automatische Änderung. Im Editor prüfen und speichern.'
+        ],
+      'pt' => [
+          'Prévia',
+          'Cancelar',
+          'Abrir no editor',
+          'Sem alterações automáticas. Revise e salve no editor.'
+        ],
+      _ => [
+          'Suggestion preview',
+          'Cancel',
+          'Open in editor',
+          'No automatic edits. Review and save in the editor.'
+        ],
+    };
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(labels[0]),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(preview.source.title),
+                const SizedBox(height: 8),
+                Text(preview.reasonCode,
+                    style: Theme.of(dialogContext).textTheme.labelSmall),
+                const SizedBox(height: 8),
+                Text(preview.sourceExcerpt),
+                const SizedBox(height: 12),
+                ...preview.candidates.map((value) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text('• $value'),
+                    )),
+                const SizedBox(height: 12),
+                Text(labels[3]),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(labels[1])),
+          FilledButton(
+            key: const ValueKey('smart-inbox-preview-open-editor'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(labels[2]),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    final current = preview.current(widget.notes);
+    if (current == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Fonte non più disponibile o modificata.')),
+      );
+      return;
+    }
+    widget.onOpenNote(current);
   }
 
   Future<void> _handleReview(
@@ -215,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _SmartInboxCard(
                   suggestion: suggestion,
-                  onOpenNote: widget.onOpenNote,
+                  onOpenNote: (_) => _previewSmartInbox(suggestion),
                   onAction: (action) => _handleReview(suggestion, action),
                 ),
               )),

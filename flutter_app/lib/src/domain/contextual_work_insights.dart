@@ -101,7 +101,7 @@ abstract final class SmartInboxReview {
           'EXPLICIT_UNCHECKED_LIST',
         );
       } else if (note.tags.isEmpty &&
-          RegExp(r'(^|\s)#[\p{L}\p{N}_]{2,32}(?![\p{L}\p{N}_])',
+          RegExp(r'(^|\s)#[\p{L}\p{M}\p{N}_]{2,32}(?![\p{L}\p{M}\p{N}_])',
                   multiLine: true, unicode: true)
               .hasMatch(note.body)) {
         suggestion = InboxReviewSuggestion(
