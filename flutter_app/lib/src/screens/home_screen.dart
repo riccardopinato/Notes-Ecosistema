@@ -101,18 +101,42 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final code = AppLocale.effectiveCode(Localizations.localeOf(context));
     final labels = switch (code) {
-      'it' => ['Anteprima suggerimento', 'Annulla', 'Apri nell’editor',
-          'Nessuna modifica automatica. Controlla e salva nell’editor.'],
-      'es' => ['Vista previa', 'Cancelar', 'Abrir en el editor',
-          'Sin cambios automáticos. Revisa y guarda en el editor.'],
-      'fr' => ['Aperçu', 'Annuler', 'Ouvrir dans l’éditeur',
-          'Aucune modification automatique. Vérifiez dans l’éditeur.'],
-      'de' => ['Vorschau', 'Abbrechen', 'Im Editor öffnen',
-          'Keine automatische Änderung. Im Editor prüfen und speichern.'],
-      'pt' => ['Prévia', 'Cancelar', 'Abrir no editor',
-          'Sem alterações automáticas. Revise e salve no editor.'],
-      _ => ['Suggestion preview', 'Cancel', 'Open in editor',
-          'No automatic edits. Review and save in the editor.'],
+      'it' => [
+          'Anteprima suggerimento',
+          'Annulla',
+          'Apri nell’editor',
+          'Nessuna modifica automatica. Controlla e salva nell’editor.'
+        ],
+      'es' => [
+          'Vista previa',
+          'Cancelar',
+          'Abrir en el editor',
+          'Sin cambios automáticos. Revisa y guarda en el editor.'
+        ],
+      'fr' => [
+          'Aperçu',
+          'Annuler',
+          'Ouvrir dans l’éditeur',
+          'Aucune modification automatique. Vérifiez dans l’éditeur.'
+        ],
+      'de' => [
+          'Vorschau',
+          'Abbrechen',
+          'Im Editor öffnen',
+          'Keine automatische Änderung. Im Editor prüfen und speichern.'
+        ],
+      'pt' => [
+          'Prévia',
+          'Cancelar',
+          'Abrir no editor',
+          'Sem alterações automáticas. Revise e salve no editor.'
+        ],
+      _ => [
+          'Suggestion preview',
+          'Cancel',
+          'Open in editor',
+          'No automatic edits. Review and save in the editor.'
+        ],
     };
     final confirmed = await showDialog<bool>(
       context: context,
@@ -143,7 +167,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: Text(labels[1])),
           FilledButton(
             key: const ValueKey('smart-inbox-preview-open-editor'),
@@ -157,7 +182,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final current = preview.current(widget.notes);
     if (current == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fonte non più disponibile o modificata.')),
+        const SnackBar(
+            content: Text('Fonte non più disponibile o modificata.')),
       );
       return;
     }
