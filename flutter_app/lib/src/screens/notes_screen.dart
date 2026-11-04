@@ -754,7 +754,8 @@ class _NotesScreenState extends State<NotesScreen> {
         .toList(growable: false);
     if (active.length > 300) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Revisione limitata a 300 note: usa prima i filtri o una raccolta.'),
+        content: Text(
+            'Revisione limitata a 300 note: usa prima i filtri o una raccolta.'),
       ));
       return;
     }
@@ -772,12 +773,54 @@ class _NotesScreenState extends State<NotesScreen> {
 
     final lang = AppLocale.effectiveCode(Localizations.localeOf(context));
     final labels = switch (lang) {
-      'it' => ['Rivedi note simili', 'Chiudi', 'Apri', 'Nessuna coppia trovata nel campione autorizzato.', 'Similarità lessicale', 'Nessuna unione o eliminazione automatica.'],
-      'es' => ['Revisar notas similares', 'Cerrar', 'Abrir', 'No se encontraron pares en la muestra autorizada.', 'Similitud léxica', 'Sin fusión ni eliminación automática.'],
-      'fr' => ['Notes similaires', 'Fermer', 'Ouvrir', 'Aucune paire dans les notes autorisées.', 'Similarité lexicale', 'Aucune fusion ni suppression automatique.'],
-      'de' => ['Ähnliche Notizen prüfen', 'Schließen', 'Öffnen', 'Keine Paare unter den berechtigten Notizen.', 'Lexikalische Ähnlichkeit', 'Kein automatisches Zusammenführen oder Löschen.'],
-      'pt' => ['Revisar notas semelhantes', 'Fechar', 'Abrir', 'Nenhum par encontrado nas notas autorizadas.', 'Similaridade lexical', 'Sem mesclagem ou exclusão automática.'],
-      _ => ['Review similar notes', 'Close', 'Open', 'No pairs found in authorized notes.', 'Lexical similarity', 'No automatic merge or deletion.'],
+      'it' => [
+          'Rivedi note simili',
+          'Chiudi',
+          'Apri',
+          'Nessuna coppia trovata nel campione autorizzato.',
+          'Similarità lessicale',
+          'Nessuna unione o eliminazione automatica.'
+        ],
+      'es' => [
+          'Revisar notas similares',
+          'Cerrar',
+          'Abrir',
+          'No se encontraron pares en la muestra autorizada.',
+          'Similitud léxica',
+          'Sin fusión ni eliminación automática.'
+        ],
+      'fr' => [
+          'Notes similaires',
+          'Fermer',
+          'Ouvrir',
+          'Aucune paire dans les notes autorisées.',
+          'Similarité lexicale',
+          'Aucune fusion ni suppression automatique.'
+        ],
+      'de' => [
+          'Ähnliche Notizen prüfen',
+          'Schließen',
+          'Öffnen',
+          'Keine Paare unter den berechtigten Notizen.',
+          'Lexikalische Ähnlichkeit',
+          'Kein automatisches Zusammenführen oder Löschen.'
+        ],
+      'pt' => [
+          'Revisar notas semelhantes',
+          'Fechar',
+          'Abrir',
+          'Nenhum par encontrado nas notas autorizadas.',
+          'Similaridade lexical',
+          'Sem mesclagem ou exclusão automática.'
+        ],
+      _ => [
+          'Review similar notes',
+          'Close',
+          'Open',
+          'No pairs found in authorized notes.',
+          'Lexical similarity',
+          'No automatic merge or deletion.'
+        ],
     };
 
     final staleMessage = switch (lang) {
@@ -808,8 +851,9 @@ class _NotesScreenState extends State<NotesScreen> {
                   itemBuilder: (context, i) {
                     final pair = pairs[i];
                     Widget sourceTile(Note source) => ListTile(
-                          title: Text(source.title.isEmpty
-                              ? source.id : source.title, maxLines: 2),
+                          title: Text(
+                              source.title.isEmpty ? source.id : source.title,
+                              maxLines: 2),
                           subtitle: Text(excerpt(source), maxLines: 3),
                           trailing: TextButton(
                             onPressed: () {
@@ -935,7 +979,8 @@ class _NotesScreenState extends State<NotesScreen> {
             OutlinedButton.icon(
               onPressed: _busy ? null : _reviewDuplicates,
               icon: const Icon(Icons.content_copy_outlined),
-              label: Text(switch (AppLocale.effectiveCode(Localizations.localeOf(context))) {
+              label: Text(switch (
+                  AppLocale.effectiveCode(Localizations.localeOf(context))) {
                 'it' => 'Note simili',
                 'es' => 'Notas similares',
                 'fr' => 'Notes similaires',
