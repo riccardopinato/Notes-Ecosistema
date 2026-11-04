@@ -1509,7 +1509,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         title: _title.text,
         body: _body.text,
         authorizedNotes: widget.allNotes
-            .where((note) => !note.isDeleted && !note.archived && !note.isVisual)
+            .where(
+                (note) => !note.isDeleted && !note.archived && !note.isVisual)
             .take(300)
             .map((note) => note.copyWith(
                   body: note.body.length > 2000
