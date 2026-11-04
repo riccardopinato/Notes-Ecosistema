@@ -610,15 +610,11 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   children: [
                     const Text('Carico di lavoro · solo lettura'),
                     Text(
-                      'Oggi: ' +
-                          workload.scheduledMinutes.toString() +
-                          ' minuti pianificati. Durata non verificabile: ' +
-                          workload.unknownDurationTasks.toString() +
-                          ' task. Bloccati (tag esplicito): ' +
-                          workload.blockedTasks.toString() +
-                          '.',
+                      'Oggi: ${workload.scheduledMinutes} minuti pianificati. '
+                      'Durata non verificabile: ${workload.unknownDurationTasks} task. '
+                      'Bloccati (tag esplicito): ${workload.blockedTasks}.',
                     ),
-                    Text('Motivo: ' + workload.reasonCode),
+                    Text('Motivo: ${workload.reasonCode}'),
                     Wrap(
                       spacing: 12,
                       children: [
@@ -646,8 +642,9 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                             DropdownMenuItem(value: 5, child: Text('WIP 5')),
                           ],
                           onChanged: (value) {
-                            if (value != null)
+                            if (value != null) {
                               setState(() => _wipLimit = value);
+                            }
                           },
                         ),
                       ],
