@@ -780,8 +780,17 @@ class _NotesScreenState extends State<NotesScreen> {
       _ => ['Review similar notes', 'Close', 'Open', 'No pairs found in authorized notes.', 'Lexical similarity', 'No automatic merge or deletion.'],
     };
 
+    final staleMessage = switch (lang) {
+      'it' => 'Le note sono cambiate. Riapri la revisione.',
+      'es' => 'Las notas han cambiado. Vuelve a revisar.',
+      'fr' => 'Les notes ont changé. Relancez la révision.',
+      'de' => 'Notizen geändert. Prüfung erneut öffnen.',
+      'pt' => 'As notas mudaram. Reabra a revisão.',
+      _ => 'Notes changed. Reopen duplicate review.',
+    };
+
     String excerpt(Note note) {
-      final value = note.body.replaceAll(RegExp(r'\\s+'), ' ').trim();
+      final value = note.body.replaceAll(RegExp(r'\s+'), ' ').trim();
       return value.length > 160 ? '${value.substring(0, 160)}…' : value;
     }
 
@@ -810,9 +819,7 @@ class _NotesScreenState extends State<NotesScreen> {
                               if (current == null) {
                                 Navigator.pop(dialogContext);
                                 ScaffoldMessenger.of(this.context).showSnackBar(
-                                  const SnackBar(content: Text(
-                                    'Le note sono cambiate. Riapri la revisione.',
-                                  )),
+                                  SnackBar(content: Text(staleMessage)),
                                 );
                                 return;
                               }
@@ -928,7 +935,14 @@ class _NotesScreenState extends State<NotesScreen> {
             OutlinedButton.icon(
               onPressed: _busy ? null : _reviewDuplicates,
               icon: const Icon(Icons.content_copy_outlined),
-              label: const Text('Note simili'),
+              label: Text(switch (AppLocale.effectiveCode(Localizations.localeOf(context))) {
+                'it' => 'Note simili',
+                'es' => 'Notas similares',
+                'fr' => 'Notes similaires',
+                'de' => 'Ähnliche Notizen',
+                'pt' => 'Notas semelhantes',
+                _ => 'Similar notes',
+              }),
             ),
             OutlinedButton.icon(
               onPressed: _busy ? null : _collections,
