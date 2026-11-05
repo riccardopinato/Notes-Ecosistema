@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,10 +13,18 @@ import 'privacy_copy_screen.dart';
 import '../domain/document_delta.dart';
 import 'document_delta_screen.dart';
 import '../platform/attachment_bridge.dart';
+import '../platform/pdf_toolbox_bridge.dart';
 import '../state/document_controller.dart';
 import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/ui_resilience.dart';
+
+// The native PDF editor is dark-launched until real-document Android QA is signed off.
+// A QA-only debug APK may enable it with --dart-define=NOTES_ENABLE_PDF_TOOLBOX=true.
+const bool _pdfToolboxQaEnabled = bool.fromEnvironment(
+  'NOTES_ENABLE_PDF_TOOLBOX',
+  defaultValue: false,
+);
 
 class PdfWorkspaceScreen extends ConsumerStatefulWidget {
   const PdfWorkspaceScreen({
@@ -118,6 +130,17 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('Apri PDF originale'),
             ),
+            if (_pdfToolboxQaEnabled &&
+                !kIsWeb &&
+                defaultTargetPlatform == TargetPlatform.android) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                key: const ValueKey('pdf-toolbox-open'),
+                onPressed: _loading ? null : _runPdfToolbox,
+                icon: const Icon(Icons.build_outlined),
+                label: const Text('PDF Toolbox · crea una copia'),
+              ),
+            ],
             const SizedBox(height: 20),
             if (_loading)
               const Center(child: CircularProgressIndicator())
@@ -257,6 +280,183 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _runPdfToolbox() async {
+    var operation = PdfToolboxOperation.extractRange;
+    var firstText = '1';
+    var lastText = '1';
+    var orderText = '';
+    var degrees = 90;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, updateDialog) => AlertDialog(
+          title: const Text('PDF Toolbox · copia non distruttiva'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Il PDF originale resterà immutato. '
+                      'Massimo 16 MiB per sorgente e 200 pagine. '
+                      'PDF protetti o danneggiati non sono supportati.'),
+                  DropdownButton<PdfToolboxOperation>(
+                    value: operation,
+                    isExpanded: true,
+                    items: const [
+                      DropdownMenuItem(
+                        value: PdfToolboxOperation.extractRange,
+                        child: Text('Estrai un intervallo di pagine'),
+                      ),
+                      DropdownMenuItem(
+                        value: PdfToolboxOperation.merge,
+                        child: Text('Unisci con un altro PDF'),
+                      ),
+                      DropdownMenuItem(
+                        value: PdfToolboxOperation.rotate,
+                        child: Text('Ruota tutte le pagine'),
+                      ),
+                      DropdownMenuItem(
+                        value: PdfToolboxOperation.reorder,
+                        child: Text('Riordina tutte le pagine'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        updateDialog(() => operation = value);
+                      }
+                    },
+                  ),
+                  if (operation == PdfToolboxOperation.extractRange) ...[
+                    TextFormField(
+                      key: const ValueKey('pdf-extract-first'),
+                      initialValue: firstText,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          labelText: 'Prima pagina, da 1'),
+                      onChanged: (text) => firstText = text,
+                    ),
+                    TextFormField(
+                      key: const ValueKey('pdf-extract-last'),
+                      initialValue: lastText,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          labelText: 'Ultima pagina, inclusa'),
+                      onChanged: (text) => lastText = text,
+                    ),
+                  ],
+                  if (operation == PdfToolboxOperation.rotate)
+                    DropdownButton<int>(
+                      value: degrees,
+                      items: const [
+                        DropdownMenuItem(value: 90, child: Text('90°')),
+                        DropdownMenuItem(value: 180, child: Text('180°')),
+                        DropdownMenuItem(value: 270, child: Text('270°')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) updateDialog(() => degrees = value);
+                      },
+                    ),
+                  if (operation == PdfToolboxOperation.reorder)
+                    TextFormField(
+                      key: const ValueKey('pdf-reorder-all'),
+                      initialValue: orderText,
+                      decoration: const InputDecoration(
+                          labelText: 'Ordine completo: 3,1,2'),
+                      onChanged: (text) => orderText = text,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Elabora copia'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (approved != true || !mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final request = PdfToolboxRequest(
+        operation: operation,
+        firstPage: int.tryParse(firstText),
+        lastPage: int.tryParse(lastText),
+        degrees: degrees,
+        order: orderText.trim().isEmpty
+            ? const []
+            : orderText
+                .split(',')
+                .map((part) => int.tryParse(part.trim()) ?? -1)
+                .toList(growable: false),
+      )..validate();
+      final store = await AttachmentStore.open();
+      final source = await store.file(widget.attachment.key).readAsBytes();
+      Attachments.verify(widget.attachment.key, source);
+      Uint8List? secondary;
+      if (request.operation == PdfToolboxOperation.merge) {
+        final picked = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: const ['pdf'],
+          withData: false,
+        );
+        if (picked == null || picked.files.isEmpty) return;
+        final selected = picked.files.single;
+        if (selected.size > PdfToolboxBridge.maxInputBytes ||
+            selected.path == null) {
+          throw const FormatException('PDF troppo grande o non disponibile.');
+        }
+        final file = File(selected.path!);
+        final length = await file.length();
+        if (length > PdfToolboxBridge.maxInputBytes) {
+          throw const FormatException('PDF oltre il limite di 16 MiB.');
+        }
+        secondary = await file.readAsBytes();
+        if (!PdfToolboxBridge.validPdfBytes(secondary)) {
+          throw const FormatException('PDF secondario non valido.');
+        }
+      }
+      final output = await PdfToolboxBridge.transform(
+        request: request,
+        source: source,
+        secondary: secondary,
+      );
+      if (!mounted) return;
+      final destination = await FilePicker.platform.saveFile(
+        dialogTitle: 'Esporta copia PDF',
+        fileName: 'notes-toolbox-copia.pdf',
+        type: FileType.custom,
+        allowedExtensions: const ['pdf'],
+        bytes: output,
+      );
+      if (destination != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Copia PDF esportata. Originale preservato.'),
+          ),
+        );
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(userErrorText(error)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _openOriginal() async {

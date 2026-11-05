@@ -50,7 +50,7 @@ jobs:
           s = s.replace('applicationId = "it.notes.ecosystem.notes_ecosistema"', 'applicationId = "it.notes.ecosystem.lymlyc"')
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 26')
           if 'androidx.work:work-runtime:2.11.2' not in s:
-              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")\n    implementation("com.google.android.play:ai-delivery:0.1.1-alpha01")\n    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")\n}\n'
+              s += '\n\ndependencies {\n    implementation("androidx.work:work-runtime:2.11.2")\n    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")\n    implementation("com.google.android.play:ai-delivery:0.1.1-alpha01")\n    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")\n    implementation("com.tom-roush:pdfbox-android:2.0.27.0")\n}\n'
           else:
               marker = 'implementation("androidx.work:work-runtime:2.11.2")'
               additions = []
@@ -60,12 +60,19 @@ jobs:
                   additions.append('implementation("com.google.android.play:ai-delivery:0.1.1-alpha01")')
               if 'kotlinx-coroutines-android:1.11.0' not in s:
                   additions.append('implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")')
+              if 'pdfbox-android:2.0.27.0' not in s:
+                  additions.append('implementation("com.tom-roush:pdfbox-android:2.0.27.0")')
               if additions:
                   s = s.replace(marker, marker + '\n    ' + '\n    '.join(additions))
           if 'proguard-rules.pro' not in s:
               s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           if 'src/main/cpp/CMakeLists.txt' not in s:
               s += '\n\nandroid {\n    externalNativeBuild {\n        cmake {\n            path = file("src/main/cpp/CMakeLists.txt")\n        }\n    }\n}\n'
+          # The PDFBox-Android POM still pins Bouncy Castle 1.72 (2023).
+          # Prefer the latest same-artifact-line security maintenance release
+          # in every Gradle configuration. CI must validate the upgrade.
+          if 'PDF_TOOLBOX_BOUNCY_CASTLE_PIN' not in s:
+              s += "\n \n// PDF_TOOLBOX_BOUNCY_CASTLE_PIN: align PDFBox transitive crypto modules.\nconfigurations.configureEach {\n    resolutionStrategy.eachDependency {\n        if (requested.group == \"org.bouncycastle\" &&\n            requested.name.endsWith(\"-jdk15to18\")) {\n            useVersion(\"1.86\")\n            because(\"security maintenance for the PDFBox transitive 1.72 line\")\n        }\n    }\n}\n"
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
@@ -170,6 +177,7 @@ jobs:
           manifest.write_text(ms)
           PY
           cp android_overrides/MainActivity.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/MainActivity.kt
+          cp android_overrides/PdfToolkitBridge.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/PdfToolkitBridge.kt
           cp android_overrides/LocalLlmBridgeGeminiNano.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalLlmBridge.kt
           cp android_overrides/LocalAiPackBridge.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/LocalAiPackBridge.kt
           cp android_overrides/NeedleRuntimeBridge.kt android/app/src/main/kotlin/it/notes/ecosystem/notes_ecosistema/NeedleRuntimeBridge.kt
@@ -200,6 +208,27 @@ jobs:
       - name: Dependencies
         run: flutter pub get
 
+      - name: Verify PDFBox crypto runtime dependency versions
+        shell: bash
+        run: |
+          mkdir -p build
+          (cd android && ./gradlew :app:dependencies --configuration releaseRuntimeClasspath --no-daemon) > build/pdfbox-gradle-runtime.txt
+          for module in bcprov-jdk15to18 bcpkix-jdk15to18 bcutil-jdk15to18; do
+            if ! grep -Eq "org\\.bouncycastle:${module}:1\\.72 -> 1\\.86|org\\.bouncycastle:${module}:1\\.86" build/pdfbox-gradle-runtime.txt; then
+              echo "::error::Runtime dependency ${module} is not pinned to version 1.86"
+              exit 1
+            fi
+          done
+          echo "PDFBox runtime Bouncy Castle dependency versions verified."
+
+      - name: Upload PDF Toolbox dependency evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-PDF-Toolbox-Gradle-deps
+          path: flutter_app/build/pdfbox-gradle-runtime.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Format check
         run: |
           dart format lib test
@@ -223,6 +252,44 @@ jobs:
         with:
           name: Notes-Ecosistema-Flutter-debug
           path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      # The normal debug/release and Play builds keep PDF Toolbox hidden.
+      # An explicit QA APK is generated separately for physical-device testing.
+      - name: Build opt-in PDF Toolbox QA APK
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        run: |
+          # Isolate QA data and signature from any installed production Notes app.
+          cp android/app/build.gradle.kts android/app/build.gradle.kts.before_pdf_qa
+          cp android/app/src/main/AndroidManifest.xml android/app/src/main/AndroidManifest.xml.before_pdf_qa
+          trap 'mv android/app/build.gradle.kts.before_pdf_qa android/app/build.gradle.kts; mv android/app/src/main/AndroidManifest.xml.before_pdf_qa android/app/src/main/AndroidManifest.xml' EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path("android/app/build.gradle.kts")
+          before = 'applicationId = "it.notes.ecosystem.lymlyc"'
+          after = 'applicationId = "it.notes.ecosystem.lymlyc.toolboxqa"'
+          content = gradle.read_text()
+          assert content.count(before) == 1, "Cannot isolate QA applicationId"
+          gradle.write_text(content.replace(before, after))
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          old_label = 'android:label="notes_ecosistema"'
+          assert source.count(old_label) == 1, "Cannot isolate QA app label"
+          manifest.write_text(source.replace(old_label, 'android:label="Notes PDF QA"'))
+          PY
+          flutter build apk --debug --no-pub --dart-define=NOTES_ENABLE_PDF_TOOLBOX=true
+          cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
+
+      - name: Upload opt-in PDF Toolbox QA APK and test protocol
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-PDF-Toolbox-QA-debug
+          path: |
+            flutter_app/build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
+            flutter_app/PDF_TOOLBOX_DEVICE_QA.md
           if-no-files-found: error
           retention-days: 14
 
