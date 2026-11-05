@@ -72,7 +72,9 @@ abstract final class PrivacyCopy {
     var lastEnd = 0;
     for (final candidate in candidates) {
       if (candidate.start < lastEnd) continue;
-      if (distinct.length >= maxHits) break;
+      if (distinct.length >= maxHits) {
+        throw const FormatException('PRIVACY_TOO_MANY_FINDINGS');
+      }
       distinct.add(candidate);
       lastEnd = candidate.end;
     }
