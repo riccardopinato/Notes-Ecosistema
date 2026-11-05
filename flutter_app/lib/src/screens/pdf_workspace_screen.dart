@@ -138,7 +138,7 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                              item.kind == DerivativeKind.ocrCorrected))
                         .map((item) => DocumentDeltaSource(
                               id: item.id,
-                              title: '${item.kind.name} · ${item.engine}',
+                              title: '${DateTime.fromMillisecondsSinceEpoch(item.createdAt, isUtc: true).toIso8601String()} · ${item.kind.name} · ${item.id}',
                               text: item.content,
                               revision: item.sourceFingerprint,
                               provenance: 'OCR ${item.engine} · ${item.createdAt} '
