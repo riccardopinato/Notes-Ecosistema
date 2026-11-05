@@ -68,6 +68,22 @@ jobs:
               s += '\n\nandroid {\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n}\n'
           if 'src/main/cpp/CMakeLists.txt' not in s:
               s += '\n\nandroid {\n    externalNativeBuild {\n        cmake {\n            path = file("src/main/cpp/CMakeLists.txt")\n        }\n    }\n}\n'
+          # The PDFBox-Android POM still pins Bouncy Castle 1.72 (2023).
+          # Prefer the latest same-artifact-line security maintenance release
+          # in every Gradle configuration. CI must validate the upgrade.
+          if 'PDF_TOOLBOX_BOUNCY_CASTLE_PIN' not in s:
+              s += '''\n
+// PDF_TOOLBOX_BOUNCY_CASTLE_PIN: align all pdfbox transitive crypto modules.
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.bouncycastle" &&
+            requested.name.endsWith("-jdk15to18")) {
+            useVersion("1.86")
+            because("security maintenance for the PDFBox transitive 1.72 line")
+        }
+    }
+}
+'''
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
