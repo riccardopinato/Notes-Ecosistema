@@ -44,7 +44,9 @@ class SmartInboxSourcePreview {
         final candidate = value?.trim() ?? '';
         if (candidate.isEmpty || candidate.length > 200) continue;
         if (suggestion.kind == InboxReviewKind.checklist &&
-            !acceptedChecklists.contains(candidate)) continue;
+            !acceptedChecklists.contains(candidate)) {
+          continue;
+        }
         final key = candidate.toLowerCase();
         if ((suggestion.kind == InboxReviewKind.explicitTags &&
                 existing.contains(key)) ||
