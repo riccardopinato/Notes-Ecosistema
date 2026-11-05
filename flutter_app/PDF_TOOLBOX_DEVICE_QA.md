@@ -7,7 +7,7 @@ State: **NOT RUN**. This is a reproducible protocol, not a test receipt.
 1. **Merge/code gate**: exact-head Flutter tests, analyzer, Android debug/release APK and Play AAB builds, APK size regression guard, reviewed code, license inventory. The PDF Toolbox must be disabled in ordinary app builds until gate 2 passes.
 2. **Feature exposure / Play release gate**: real device PDF operations with documented fixtures, original-file SHA comparison, visual and resource checks, memory and failure handling, third-party notices and vulnerability review. This gate cannot be certified from CI compilation.
 
-Normal builds hide the toolbox. Only QA APKs compiled with `--dart-define=NOTES_ENABLE_PDF_TOOLBOX=true` expose it. This does **not** enable PDF sanitization or password protection.
+Normal builds hide the toolbox. Only QA APKs compiled with `--dart-define=NOTES_ENABLE_PDF_TOOLBOX=true` expose it. **GitHub CI also changes QA applicationId to `it.notes.ecosystem.lymlyc.toolboxqa` and label to `Notes PDF QA`**, to prevent accidental overwrite of the production Notes installation and its local data. Never install a testing APK over the production package. This does **not** enable PDF sanitization or password protection.
 
 ## QA procedure (physical Android 10+ handset)
 
