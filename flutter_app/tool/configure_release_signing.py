@@ -19,14 +19,10 @@ ANDROID_MARKER = "android {\n"
 # Read passwords only during Gradle configuration via the process environment.
 SIGNING_CONFIG = """    signingConfigs {
         create("notesProduction") {
-            storeFile = file(System.getenv("NOTES_SIGNING_KEYSTORE_FILE")
-                ?: error("Release keystore path missing"))
-            storePassword = System.getenv("NOTES_SIGNING_STORE_PASSWORD")
-                ?: error("Release store password missing")
-            keyAlias = System.getenv("NOTES_SIGNING_KEY_ALIAS")
-                ?: error("Release key alias missing")
-            keyPassword = System.getenv("NOTES_SIGNING_KEY_PASSWORD")
-                ?: error("Release key password missing")
+            storeFile = file(System.getenv("NOTES_SIGNING_KEYSTORE_FILE") ?: error("Release keystore path missing"))
+            storePassword = System.getenv("NOTES_SIGNING_STORE_PASSWORD") ?: error("Release store password missing")
+            keyAlias = System.getenv("NOTES_SIGNING_KEY_ALIAS") ?: error("Release key alias missing")
+            keyPassword = System.getenv("NOTES_SIGNING_KEY_PASSWORD") ?: error("Release key password missing")
         }
     }
 """
