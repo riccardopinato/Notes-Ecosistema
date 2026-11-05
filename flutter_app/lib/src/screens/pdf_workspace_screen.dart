@@ -126,8 +126,9 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                       .where((item) =>
                           item.sourceAssetKey == widget.attachment.key &&
                           (item.kind == DerivativeKind.ocrText ||
-                           item.kind == DerivativeKind.ocrCorrected))
-                      .length >= 2) ...[
+                              item.kind == DerivativeKind.ocrCorrected))
+                      .length >=
+                  2) ...[
                 OutlinedButton.icon(
                   key: const ValueKey('pdf-ocr-delta'),
                   onPressed: () {
@@ -135,13 +136,15 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                         .where((item) =>
                             item.sourceAssetKey == widget.attachment.key &&
                             (item.kind == DerivativeKind.ocrText ||
-                             item.kind == DerivativeKind.ocrCorrected))
+                                item.kind == DerivativeKind.ocrCorrected))
                         .map((item) => DocumentDeltaSource(
                               id: item.id,
-                              title: '${DateTime.fromMillisecondsSinceEpoch(item.createdAt, isUtc: true).toIso8601String()} · ${item.kind.name} · ${item.id}',
+                              title:
+                                  '${DateTime.fromMillisecondsSinceEpoch(item.createdAt, isUtc: true).toIso8601String()} · ${item.kind.name} · ${item.id}',
                               text: item.content,
                               revision: item.sourceFingerprint,
-                              provenance: 'OCR ${item.engine} · ${item.createdAt} '
+                              provenance:
+                                  'OCR ${item.engine} · ${item.createdAt} '
                                   '· sorgente ${item.sourceFingerprint}',
                             ))
                         .toList(growable: false);

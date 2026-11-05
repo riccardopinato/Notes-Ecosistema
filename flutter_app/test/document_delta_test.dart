@@ -2,13 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/document_delta.dart';
 
 void main() {
-  DocumentDeltaSource source(String id, String content) =>
-      DocumentDeltaSource(id: id, title: id, text: content,
-          revision: '1', provenance: 'Local test');
+  DocumentDeltaSource source(String id, String content) => DocumentDeltaSource(
+      id: id,
+      title: id,
+      text: content,
+      revision: '1',
+      provenance: 'Local test');
 
   test('exact line differences are labelled without semantic guesses', () {
     final report = DocumentDelta.compare(
-      source('old', 'a\nb\nc'), source('new', 'a\nnew\nc'),
+      source('old', 'a\nb\nc'),
+      source('new', 'a\nnew\nc'),
     );
     expect(report.added, 1);
     expect(report.removed, 1);
@@ -23,7 +27,8 @@ void main() {
 
   test('identical contents yield zero changes and same fingerprint', () {
     final report = DocumentDelta.compare(
-      source('a', 'same'), source('b', 'same'),
+      source('a', 'same'),
+      source('b', 'same'),
     );
     expect(report.added, 0);
     expect(report.removed, 0);
@@ -31,19 +36,27 @@ void main() {
   });
 
   test('same revision identity is refused; records are not overwritten', () {
-    expect(() => DocumentDelta.compare(
-      source('same', 'before'), source('same', 'after'),
-    ), throwsFormatException);
+    expect(
+        () => DocumentDelta.compare(
+              source('same', 'before'),
+              source('same', 'after'),
+            ),
+        throwsFormatException);
   });
 
   test('bounded input blocks oversized document comparisons', () {
-    expect(() => DocumentDelta.compare(
-      source('a', 'x' * 50001), source('b', 'ok'),
-    ), throwsFormatException);
-    expect(() => DocumentDelta.compare(
-      source('a', List.filled(241, 'row').join('\n')),
-      source('b', 'row'),
-    ), throwsFormatException);
+    expect(
+        () => DocumentDelta.compare(
+              source('a', 'x' * 50001),
+              source('b', 'ok'),
+            ),
+        throwsFormatException);
+    expect(
+        () => DocumentDelta.compare(
+              source('a', List.filled(241, 'row').join('\n')),
+              source('b', 'row'),
+            ),
+        throwsFormatException);
     final report = DocumentDelta.compare(
       source('a', List.filled(240, 'row').join('\n')),
       source('b', List.filled(240, 'row').join('\n')),

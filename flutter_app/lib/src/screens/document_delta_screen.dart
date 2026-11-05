@@ -45,8 +45,9 @@ class _DocumentDeltaScreenState extends State<DocumentDeltaScreen> {
               decoration: const InputDecoration(labelText: 'Versione iniziale'),
               items: [
                 for (final item in choices)
-                  DropdownMenuItem(value: item.id, child: Text(item.title,
-                      overflow: TextOverflow.ellipsis)),
+                  DropdownMenuItem(
+                      value: item.id,
+                      child: Text(item.title, overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (id) => setState(() {
                 _beforeId = id;
@@ -56,11 +57,13 @@ class _DocumentDeltaScreenState extends State<DocumentDeltaScreen> {
             DropdownButtonFormField<String>(
               value: b?.id,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Versione successiva'),
+              decoration:
+                  const InputDecoration(labelText: 'Versione successiva'),
               items: [
                 for (final item in choices)
-                  DropdownMenuItem(value: item.id, child: Text(item.title,
-                      overflow: TextOverflow.ellipsis)),
+                  DropdownMenuItem(
+                      value: item.id,
+                      child: Text(item.title, overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (id) => setState(() {
                 _afterId = id;
@@ -90,8 +93,8 @@ class _DocumentDeltaScreenState extends State<DocumentDeltaScreen> {
           ],
           if (_error != null) ...[
             const SizedBox(height: 10),
-            Text(_error!, style: TextStyle(
-                color: Theme.of(context).colorScheme.error)),
+            Text(_error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
           if (report != null && a != null && b != null) ...[
             const SizedBox(height: 20),
@@ -104,8 +107,7 @@ class _DocumentDeltaScreenState extends State<DocumentDeltaScreen> {
             const Divider(),
             for (final row in report.rows)
               Container(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 5, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
                 color: switch (row.kind) {
                   DocumentDeltaKind.added =>
                     Theme.of(context).colorScheme.primaryContainer,

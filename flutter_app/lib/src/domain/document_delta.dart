@@ -60,15 +60,15 @@ abstract final class DocumentDelta {
       throw const FormatException('DOCUMENT_DELTA_TOO_MANY_LINES');
     }
     final dp = List.generate(
-      left.length + 1, (_) => List<int>.filled(right.length + 1, 0),
+      left.length + 1,
+      (_) => List<int>.filled(right.length + 1, 0),
       growable: false,
     );
     for (var a = left.length - 1; a >= 0; a--) {
       for (var b = right.length - 1; b >= 0; b--) {
         dp[a][b] = left[a] == right[b]
             ? 1 + dp[a + 1][b + 1]
-            : (dp[a + 1][b] >= dp[a][b + 1]
-                ? dp[a + 1][b] : dp[a][b + 1]);
+            : (dp[a + 1][b] >= dp[a][b + 1] ? dp[a + 1][b] : dp[a][b + 1]);
       }
     }
     var a = 0;
@@ -77,8 +77,7 @@ abstract final class DocumentDelta {
     var removed = 0;
     final rows = <DocumentDeltaRow>[];
     while (a < left.length || b < right.length) {
-      if (a < left.length && b < right.length &&
-          left[a] == right[b]) {
+      if (a < left.length && b < right.length && left[a] == right[b]) {
         rows.add(DocumentDeltaRow(DocumentDeltaKind.unchanged, left[a]));
         a++;
         b++;
