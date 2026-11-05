@@ -7,7 +7,8 @@ void main() {
     final matches = PrivacyCopy.scan(text);
     expect(matches.map((x) => x.kind),
         [PrivacyMatchKind.email, PrivacyMatchKind.iban]);
-    expect(PrivacyCopy.redact(text, [0]), contains('IT60X0542811101000000123456'));
+    expect(
+        PrivacyCopy.redact(text, [0]), contains('IT60X0542811101000000123456'));
     final redacted = PrivacyCopy.redact(text, [0, 1]);
     expect(redacted, isNot(contains('abc@example.com')));
     expect(redacted, isNot(contains('IT60X0542811101000000123456')));

@@ -128,7 +128,7 @@ class _PrivacyCopyScreenState extends State<PrivacyCopyScreen> {
                 onChanged: _saving
                     ? null
                     : (checked) => setState(() {
-                        if (checked == true) {
+                          if (checked == true) {
                             _selected.add(i);
                           } else {
                             _selected.remove(i);
