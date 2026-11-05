@@ -92,7 +92,7 @@ class _PrivacyCopyScreenState extends State<PrivacyCopyScreen> {
               'originali non vengono modificati né oscurati.'),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: source?.id,
+            initialValue: source?.id,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Sorgente'),
             items: [
@@ -108,8 +108,8 @@ class _PrivacyCopyScreenState extends State<PrivacyCopyScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: TextStyle(
-                color: Theme.of(context).colorScheme.error)),
+            Text(_error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
           if (source != null && _error == null) ...[
             const SizedBox(height: 12),
@@ -121,8 +121,7 @@ class _PrivacyCopyScreenState extends State<PrivacyCopyScreen> {
                 title: Text(switch (_matches[i].kind) {
                   PrivacyMatchKind.email => 'Email',
                   PrivacyMatchKind.iban => 'IBAN italiano',
-                  PrivacyMatchKind.possibleMobile =>
-                    'Possibile numero mobile',
+                  PrivacyMatchKind.possibleMobile => 'Possibile numero mobile',
                 }),
                 subtitle: Text(_matches[i].value),
                 value: _selected.contains(i),
@@ -130,11 +129,11 @@ class _PrivacyCopyScreenState extends State<PrivacyCopyScreen> {
                     ? null
                     : (checked) => setState(() {
                         if (checked == true) {
-                          _selected.add(i);
-                        } else {
-                          _selected.remove(i);
-                        }
-                      }),
+                            _selected.add(i);
+                          } else {
+                            _selected.remove(i);
+                          }
+                        }),
               ),
             const SizedBox(height: 16),
             if (preview != null) ...[
@@ -149,8 +148,8 @@ class _PrivacyCopyScreenState extends State<PrivacyCopyScreen> {
               const SizedBox(height: 12),
             ],
             FilledButton.icon(
-              onPressed: _saving || _selected.isEmpty
-                  ? null : () => _saveCopy(source),
+              onPressed:
+                  _saving || _selected.isEmpty ? null : () => _saveCopy(source),
               icon: const Icon(Icons.save_alt),
               label: const Text('Esporta copia .txt'),
             ),
