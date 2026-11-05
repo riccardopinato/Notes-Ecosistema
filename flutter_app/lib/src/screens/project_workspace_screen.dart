@@ -846,10 +846,14 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       final beforeShared = ref.read(sharedSpacesProvider);
       final owner = beforeShared.identity?.id;
       final active = ref.read(projectWorkspaceProvider).byId(project.id);
-      if (owner == null || beforeShared.loading || active == null ||
-          !active.isActive || active.sharedSpaceId != project.sharedSpaceId ||
+      if (owner == null ||
+          beforeShared.loading ||
+          active == null ||
+          !active.isActive ||
+          active.sharedSpaceId != project.sharedSpaceId ||
           (active.sharedSpaceId != null &&
-              !(beforeShared.byId(active.sharedSpaceId!)?.canEdit(owner) ?? false))) {
+              !(beforeShared.byId(active.sharedSpaceId!)?.canEdit(owner) ??
+                  false))) {
         throw const FormatException('Permessi di progetto non disponibili.');
       }
       final beforeLinks = active.sharedSpaceId == null
@@ -859,11 +863,13 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
         notes: ref.read(workspaceProvider).notes,
         links: beforeLinks,
       );
-      final sources = beforeItems.where((item) =>
-          item.kind == ProjectWorkItemKind.task &&
-          !item.completed &&
-          !item.note.isDeleted &&
-          !item.note.archived).toList(growable: false);
+      final sources = beforeItems
+          .where((item) =>
+              item.kind == ProjectWorkItemKind.task &&
+              !item.completed &&
+              !item.note.isDeleted &&
+              !item.note.archived)
+          .toList(growable: false);
       if (!mounted || sources.isEmpty) return;
       var search = '';
       final sourceId = await showDialog<String>(
@@ -886,11 +892,15 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   Expanded(
                     child: ListView(
                       children: [
-                        for (final item in sources.where((item) =>
-                            item.title.toLowerCase().contains(search.toLowerCase())).take(50))
+                        for (final item in sources
+                            .where((item) => item.title
+                                .toLowerCase()
+                                .contains(search.toLowerCase()))
+                            .take(50))
                           ListTile(
                             title: Text(item.title),
-                            onTap: () => Navigator.pop(dialogContext, item.note.id),
+                            onTap: () =>
+                                Navigator.pop(dialogContext, item.note.id),
                           ),
                       ],
                     ),
@@ -908,15 +918,17 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
         ),
       );
       if (sourceId == null || !mounted) return;
-      final initial = sources.where((item) => item.note.id == sourceId).toList();
+      final initial =
+          sources.where((item) => item.note.id == sourceId).toList();
       if (initial.length != 1) {
         throw const FormatException('Task non disponibile nel progetto.');
       }
       final sourceNote = initial.single.note;
-      final eligible = ProjectDependencyActions.eligibleTargets(
-          sourceNote, beforeItems);
-      final selectedIds = ProjectDependencyActions.existingVisibleTargets(
-          sourceNote, eligible).toSet();
+      final eligible =
+          ProjectDependencyActions.eligibleTargets(sourceNote, beforeItems);
+      final selectedIds =
+          ProjectDependencyActions.existingVisibleTargets(sourceNote, eligible)
+              .toSet();
       search = '';
       final confirmed = await showDialog<Set<String>>(
         context: context,
@@ -928,7 +940,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
               height: 390,
               child: Column(
                 children: [
-                  const Text('Scegli solo task esistenti nello stesso progetto. '
+                  const Text(
+                      'Scegli solo task esistenti nello stesso progetto. '
                       'I collegamenti non disponibili restano invariati.'),
                   TextField(
                     decoration: const InputDecoration(
@@ -939,8 +952,11 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   Expanded(
                     child: ListView(
                       children: [
-                        for (final item in eligible.where((item) =>
-                            item.title.toLowerCase().contains(search.toLowerCase())).take(50))
+                        for (final item in eligible
+                            .where((item) => item.title
+                                .toLowerCase()
+                                .contains(search.toLowerCase()))
+                            .take(50))
                           CheckboxListTile(
                             dense: true,
                             title: Text(item.title),
@@ -975,27 +991,32 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       if (confirmed == null || !mounted) return;
       final nowShared = ref.read(sharedSpacesProvider);
       final latestProject = ref.read(projectWorkspaceProvider).byId(project.id);
-      if (nowShared.loading || nowShared.identity?.id != owner ||
-          latestProject == null || !latestProject.isActive ||
+      if (nowShared.loading ||
+          nowShared.identity?.id != owner ||
+          latestProject == null ||
+          !latestProject.isActive ||
           latestProject.sharedSpaceId != project.sharedSpaceId ||
           (latestProject.sharedSpaceId != null &&
-              !(nowShared.byId(latestProject.sharedSpaceId!)?.canEdit(owner) ?? false))) {
+              !(nowShared.byId(latestProject.sharedSpaceId!)?.canEdit(owner) ??
+                  false))) {
         throw const FormatException('Permessi modificati: riprova.');
       }
       final latestLinks = latestProject.sharedSpaceId == null
           ? await ref.read(projectStoreProvider).loadLinks(latestProject.id)
-          : _effectiveLinks(latestProject, nowShared.byId(latestProject.sharedSpaceId!));
+          : _effectiveLinks(
+              latestProject, nowShared.byId(latestProject.sharedSpaceId!));
       final latestWorkspace = ref.read(workspaceProvider);
       if (latestWorkspace.loading) {
         throw const FormatException('Workspace non pronto.');
       }
       final latestItems = ProjectWorkViews.project(
-        notes: latestWorkspace.notes, links: latestLinks);
+          notes: latestWorkspace.notes, links: latestLinks);
       final latestSource = latestItems
           .where((item) => item.note.id == sourceId)
           .toList(growable: false);
       final persisted = await ref.read(databaseProvider).loadNote(sourceId);
-      if (latestSource.length != 1 || persisted == null ||
+      if (latestSource.length != 1 ||
+          persisted == null ||
           !ProjectDependencyActions.sameTaskRevision(sourceNote, persisted) ||
           !ProjectDependencyActions.sameTaskRevision(
               sourceNote, latestSource.single.note)) {

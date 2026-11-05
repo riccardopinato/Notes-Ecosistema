@@ -11,14 +11,16 @@ abstract final class ProjectDependencyActions {
     final grouped = <String, List<ProjectWorkItem>>{};
     for (final item in scopedItems) {
       if (item.kind != ProjectWorkItemKind.task ||
-          item.note.isDeleted || item.note.archived) continue;
+          item.note.isDeleted ||
+          item.note.archived) continue;
       grouped.putIfAbsent(item.note.id.toLowerCase(), () => []).add(item);
     }
     final results = <ProjectWorkItem>[];
     for (final values in grouped.values) {
       if (values.length != 1) continue;
       final item = values.single;
-      if (!item.completed && item.note.id.toLowerCase() != source.id.toLowerCase() &&
+      if (!item.completed &&
+          item.note.id.toLowerCase() != source.id.toLowerCase() &&
           _validTargetId(item.note.id)) results.add(item);
     }
     results.sort((a, b) => a.title.compareTo(b.title));
@@ -27,7 +29,8 @@ abstract final class ProjectDependencyActions {
 
   static List<String> existingVisibleTargets(
       Note source, List<ProjectWorkItem> available) {
-    final eligible = available.map((item) => item.note.id.toLowerCase()).toSet();
+    final eligible =
+        available.map((item) => item.note.id.toLowerCase()).toSet();
     return List.unmodifiable(source.tags
         .where((tag) => tag.startsWith('dep_'))
         .map((tag) => tag.substring(4).toLowerCase())
@@ -41,14 +44,18 @@ abstract final class ProjectDependencyActions {
     required Iterable<String> selectedTargetIds,
     required int nowMilliseconds,
   }) {
-    if (!source.isTask || source.isDeleted || source.archived ||
-        source.taskCompleted || nowMilliseconds <= 0) {
+    if (!source.isTask ||
+        source.isDeleted ||
+        source.archived ||
+        source.taskCompleted ||
+        nowMilliseconds <= 0) {
       throw const FormatException('DEPENDENCY_SOURCE_NOT_EDITABLE');
     }
     final grouped = <String, List<ProjectWorkItem>>{};
     for (final item in scopedItems) {
       if (item.kind != ProjectWorkItemKind.task ||
-          item.note.isDeleted || item.note.archived) continue;
+          item.note.isDeleted ||
+          item.note.archived) continue;
       grouped.putIfAbsent(item.note.id.toLowerCase(), () => []).add(item);
     }
     final self = source.id.toLowerCase();
@@ -62,7 +69,8 @@ abstract final class ProjectDependencyActions {
       throw const FormatException('DEPENDENCY_TOO_MANY_OR_DUPLICATE');
     }
     for (final id in ids) {
-      if (id == self || !_validTargetId(id) ||
+      if (id == self ||
+          !_validTargetId(id) ||
           grouped[id]?.length != 1 ||
           grouped[id]!.single.completed) {
         throw const FormatException('DEPENDENCY_TARGET_OUT_OF_SCOPE');
@@ -71,7 +79,8 @@ abstract final class ProjectDependencyActions {
     // Preserve invisible or completed legacy links, never discard them
     // merely because a permission-scoped picker cannot display them.
     final eligible = eligibleTargets(source, scopedItems)
-        .map((item) => item.note.id.toLowerCase()).toSet();
+        .map((item) => item.note.id.toLowerCase())
+        .toSet();
     final preserved = source.tags.where((tag) {
       if (!tag.startsWith('dep_')) return false;
       return !eligible.contains(tag.substring(4).toLowerCase());
@@ -83,8 +92,8 @@ abstract final class ProjectDependencyActions {
       graph[entry.key] = entry.value.single.note.tags
           .where((tag) => tag.startsWith('dep_'))
           .map((tag) => tag.substring(4).toLowerCase())
-          .where((id) => grouped[id]?.length == 1 &&
-              !grouped[id]!.single.completed)
+          .where((id) =>
+              grouped[id]?.length == 1 && !grouped[id]!.single.completed)
           .toSet();
     }
     graph[self] = {
@@ -121,8 +130,7 @@ abstract final class ProjectDependencyActions {
   }
 
   static bool _validTargetId(String id) =>
-      id.isNotEmpty && id.length <= 36 &&
-      RegExp(r'^[a-z0-9_-]+$').hasMatch(id);
+      id.isNotEmpty && id.length <= 36 && RegExp(r'^[a-z0-9_-]+$').hasMatch(id);
 
   static bool _sameTags(List<String> left, List<String> right) {
     if (left.length != right.length) return false;
