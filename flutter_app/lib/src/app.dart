@@ -445,9 +445,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     final matches = state.notes.where((note) => note.id == source.id).toList();
     if (matches.length != 1) return;
     final current = matches.single;
-    if (current.isDeleted || current.archived || current.isTask ||
-        current.isVisual || current.updatedAt != source.updatedAt ||
-        current.title != source.title || current.body != source.body ||
+    if (current.isDeleted ||
+        current.archived ||
+        current.isTask ||
+        current.isVisual ||
+        current.updatedAt != source.updatedAt ||
+        current.title != source.title ||
+        current.body != source.body ||
         current.collectionId != source.collectionId ||
         current.tags.join('\\u0000') != source.tags.join('\\u0000')) return;
     // Shared-space role/switch safety remains a separate #46 gate.

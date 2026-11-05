@@ -64,6 +64,7 @@ class EditorScreen extends ConsumerStatefulWidget {
   final List<Note> allNotes;
   final bool readOnly;
   final bool autoRecord;
+
   /// Explicit Smart Inbox tag selection. Restored drafts always take priority.
   final List<String> suggestedTags;
 
@@ -202,7 +203,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _dirty = true;
           _draftStatus = 'Bozza recuperata dal dispositivo';
           if (widget.suggestedTags.isNotEmpty) {
-            _error = 'Bozza già presente: i tag suggeriti non sono stati aggiunti.';
+            _error =
+                'Bozza già presente: i tag suggeriti non sono stati aggiunti.';
           }
           _mode = Checklist.hasMarker(draft.body)
               ? _EditorMode.checklist
@@ -421,13 +423,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       if (widget.suggestedTags.isNotEmpty) {
         final expected = widget.note;
         final actual = await _database.loadNote(_id);
-        final visible = ref.read(workspaceProvider).notes
+        final visible = ref
+            .read(workspaceProvider)
+            .notes
             .where((candidate) => candidate.id == _id)
             .toList(growable: false);
-        if (expected == null || actual == null || visible.length != 1 ||
-            actual.isDeleted || actual.archived ||
+        if (expected == null ||
+            actual == null ||
+            visible.length != 1 ||
+            actual.isDeleted ||
+            actual.archived ||
             actual.updatedAt != expected.updatedAt ||
-            actual.title != expected.title || actual.body != expected.body ||
+            actual.title != expected.title ||
+            actual.body != expected.body ||
             actual.collectionId != expected.collectionId ||
             actual.tags.join('\\u0000') != expected.tags.join('\\u0000') ||
             visible.single.updatedAt != expected.updatedAt) {

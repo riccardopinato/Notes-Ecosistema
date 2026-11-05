@@ -43,6 +43,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onSketch;
   final ValueChanged<String> onCollection;
   final ValueChanged<Note> onOpenNote;
+
   /// Opens the canonical editor with user-selected tag drafts; never saves here.
   final Future<void> Function(Note source, List<String> selectedTags)?
       onDraftSmartInboxTags;
@@ -168,64 +169,66 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-        title: Text(labels[0]),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(preview.source.title),
-                const SizedBox(height: 8),
-                Text(preview.reasonCode,
-                    style: Theme.of(dialogContext).textTheme.labelSmall),
-                const SizedBox(height: 8),
-                Text(preview.sourceExcerpt),
-                const SizedBox(height: 12),
-                ...preview.candidates.map((value) => canDraftTags
-                    ? CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        value: selectedTags.contains(value),
-                        title: Text('#$value'),
-                        onChanged: (checked) => setDialogState(() {
-                          if (checked == true) {
-                            selectedTags.add(value);
-                          } else {
-                            selectedTags.remove(value);
-                          }
-                        }),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text('• $value'),
-                      )),
-                const SizedBox(height: 12),
-                Text(labels[3]),
-              ],
+          title: Text(labels[0]),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(preview.source.title),
+                  const SizedBox(height: 8),
+                  Text(preview.reasonCode,
+                      style: Theme.of(dialogContext).textTheme.labelSmall),
+                  const SizedBox(height: 8),
+                  Text(preview.sourceExcerpt),
+                  const SizedBox(height: 12),
+                  ...preview.candidates.map((value) => canDraftTags
+                      ? CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: selectedTags.contains(value),
+                          title: Text('#$value'),
+                          onChanged: (checked) => setDialogState(() {
+                            if (checked == true) {
+                              selectedTags.add(value);
+                            } else {
+                              selectedTags.remove(value);
+                            }
+                          }),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('• $value'),
+                        )),
+                  const SizedBox(height: 12),
+                  Text(labels[3]),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(labels[1])),
-          FilledButton(
-            key: const ValueKey('smart-inbox-preview-open-editor'),
-            onPressed: canDraftTags && selectedTags.isEmpty
-                ? null
-                : () => Navigator.pop(dialogContext, true),
-            child: Text(canDraftTags ? switch (code) {
-              'it' => 'Apri bozza con tag',
-              'es' => 'Abrir borrador con etiquetas',
-              'fr' => 'Ouvrir le brouillon avec tags',
-              'de' => 'Entwurf mit Tags öffnen',
-              'pt' => 'Abrir rascunho com tags',
-              _ => 'Open draft with tags',
-            } : labels[2]),
-          ),
-        ],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(labels[1])),
+            FilledButton(
+              key: const ValueKey('smart-inbox-preview-open-editor'),
+              onPressed: canDraftTags && selectedTags.isEmpty
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              child: Text(canDraftTags
+                  ? switch (code) {
+                      'it' => 'Apri bozza con tag',
+                      'es' => 'Abrir borrador con etiquetas',
+                      'fr' => 'Ouvrir le brouillon avec tags',
+                      'de' => 'Entwurf mit Tags öffnen',
+                      'pt' => 'Abrir rascunho com tags',
+                      _ => 'Open draft with tags',
+                    }
+                  : labels[2]),
+            ),
+          ],
         ),
       ),
     );
