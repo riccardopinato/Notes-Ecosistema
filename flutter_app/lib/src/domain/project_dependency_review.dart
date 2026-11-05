@@ -58,7 +58,9 @@ abstract final class ProjectDependencyReview {
         if (!seen.add(id) ||
             target == null ||
             target.length != 1 ||
-            target.single.completed) continue;
+            target.single.completed) {
+          continue;
+        }
         names.add(target.single.title);
         if (names.length >= 5) break;
       }
