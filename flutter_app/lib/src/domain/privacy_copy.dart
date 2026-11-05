@@ -60,6 +60,7 @@ abstract final class PrivacyCopy {
         ));
       }
     }
+
     addMatches(_email, PrivacyMatchKind.email);
     addMatches(_iban, PrivacyMatchKind.iban, accepted: _validIban);
     addMatches(_mobile, PrivacyMatchKind.possibleMobile);
@@ -81,8 +82,7 @@ abstract final class PrivacyCopy {
     return List.unmodifiable(distinct);
   }
 
-  static String redact(
-      String original, Iterable<int> selectedIndices) {
+  static String redact(String original, Iterable<int> selectedIndices) {
     final matches = scan(original);
     final selected = selectedIndices.toSet();
     if (selected.any((i) => i < 0 || i >= matches.length)) {
