@@ -1578,8 +1578,7 @@ class _NaturalLanguagePreviewDialogState
                     DropdownMenuItem(value: 2, child: Text('Media')),
                     DropdownMenuItem(value: 3, child: Text('Alta')),
                   ],
-                  onChanged: (value) =>
-                      setState(() => _priority = value ?? 0),
+                  onChanged: (value) => setState(() => _priority = value ?? 0),
                 ),
                 if (widget.suggested.unknownParts.isNotEmpty) ...[
                   const SizedBox(height: 10),

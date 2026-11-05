@@ -141,8 +141,11 @@ abstract final class NaturalLanguageTask {
     if (!_iso.hasMatch(value)) return null;
     final parts = value.split('-').map(int.parse).toList(growable: false);
     final date = DateTime(parts[0], parts[1], parts[2]);
-    if (date.year != parts[0] || date.month != parts[1] || date.day != parts[2])
-      { return null; }
+    if (date.year != parts[0] ||
+        date.month != parts[1] ||
+        date.day != parts[2]) {
+      return null;
+    }
     return date;
   }
 
