@@ -39,7 +39,8 @@ void main() {
   });
 
   test('preview rejects checkbox rows beyond the canonical candidate cap', () {
-    final late = source(body: [
+    final late = source(
+        body: [
       for (var i = 0; i < 12; i++) '- Bullet $i',
       '- [ ] Later',
     ].join('\\n'));

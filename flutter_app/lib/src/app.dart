@@ -492,7 +492,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     try {
       final sharedBefore = ref.read(sharedSpacesProvider);
       final owner = sharedBefore.identity?.id;
-      if (sharedBefore.loading || sharedBefore.error != null ||
+      if (sharedBefore.loading ||
+          sharedBefore.error != null ||
           owner == null ||
           sharedBefore.spaces
               .any((space) => space.contentIds.contains(source.id))) {
@@ -511,7 +512,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       if (workspace.loading ||
           matching.length != 1 ||
           live == null ||
-          sharedNow.loading || sharedNow.error != null ||
+          sharedNow.loading ||
+          sharedNow.error != null ||
           sharedNow.identity?.id != owner ||
           sharedNow.spaces
               .any((space) => space.contentIds.contains(source.id)) ||
@@ -554,7 +556,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
     final dbTask = await ref.read(databaseProvider).loadNote(id);
     final shared = ref.read(sharedSpacesProvider);
-    if (dbTask == null || shared.error != null ||
+    if (dbTask == null ||
+        shared.error != null ||
         shared.loading ||
         shared.spaces.any((space) => space.contentIds.contains(id)) ||
         !SmartInboxChecklistAction.canUndo(expected, dbTask)) {
