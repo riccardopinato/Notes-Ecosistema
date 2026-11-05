@@ -492,12 +492,15 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     try {
       final sharedBefore = ref.read(sharedSpacesProvider);
       final owner = sharedBefore.identity?.id;
-      if (sharedBefore.loading || owner == null ||
-          sharedBefore.spaces.any((space) => space.contentIds.contains(source.id))) {
-        throw const FormatException('Fonte non privata o permessi non verificati.');
+      if (sharedBefore.loading ||
+          owner == null ||
+          sharedBefore.spaces
+              .any((space) => space.contentIds.contains(source.id))) {
+        throw const FormatException(
+            'Fonte non privata o permessi non verificati.');
       }
-      final selectedItems = SmartInboxChecklistAction.selectedItems(
-          source, selected);
+      final selectedItems =
+          SmartInboxChecklistAction.selectedItems(source, selected);
       final database = ref.read(databaseProvider);
       final live = await database.loadNote(source.id);
       final workspace = ref.read(workspaceProvider);
@@ -505,11 +508,16 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           .where((note) => note.id == source.id)
           .toList(growable: false);
       final sharedNow = ref.read(sharedSpacesProvider);
-      if (workspace.loading || matching.length != 1 || live == null ||
-          sharedNow.loading || sharedNow.identity?.id != owner ||
-          sharedNow.spaces.any((space) => space.contentIds.contains(source.id)) ||
+      if (workspace.loading ||
+          matching.length != 1 ||
+          live == null ||
+          sharedNow.loading ||
+          sharedNow.identity?.id != owner ||
+          sharedNow.spaces
+              .any((space) => space.contentIds.contains(source.id)) ||
           !SmartInboxSourcePreview.sameCanonicalRevision(source, live) ||
-          !SmartInboxSourcePreview.sameCanonicalRevision(source, matching.single)) {
+          !SmartInboxSourcePreview.sameCanonicalRevision(
+              source, matching.single)) {
         throw const FormatException('Fonte modificata o non più accessibile.');
       }
       if (SmartInboxChecklistAction.alreadyCreated(
@@ -546,10 +554,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
     final dbTask = await ref.read(databaseProvider).loadNote(id);
     final shared = ref.read(sharedSpacesProvider);
-    if (dbTask == null || shared.loading ||
+    if (dbTask == null ||
+        shared.loading ||
         shared.spaces.any((space) => space.contentIds.contains(id)) ||
         !SmartInboxChecklistAction.canUndo(expected, dbTask)) {
-      throw const FormatException('Attività modificata: annullamento non sicuro.');
+      throw const FormatException(
+          'Attività modificata: annullamento non sicuro.');
     }
     await ref.read(workspaceProvider.notifier).trash(id);
   }

@@ -7,7 +7,8 @@ void main() {
   Note source({
     String body = '- [ ] Alpha\n- [ ] Beta\n- [x] Done',
     String id = 'source-1',
-  }) => Note(
+  }) =>
+      Note(
         id: id,
         title: 'Fonte',
         body: body,
@@ -51,9 +52,7 @@ void main() {
         SmartInboxChecklistAction.alreadyCreated(
             [created], 'other-source', ['Beta', 'Alpha']),
         isFalse);
-    expect(
-        SmartInboxChecklistAction.alreadyCreated(
-            [created], a.id, ['Alpha']),
+    expect(SmartInboxChecklistAction.alreadyCreated([created], a.id, ['Alpha']),
         isFalse);
     expect(
         SmartInboxChecklistAction.alreadyCreated(
@@ -70,13 +69,18 @@ void main() {
       nowMilliseconds: 3000,
     );
     expect(SmartInboxChecklistAction.canUndo(task, task), isTrue);
-    expect(SmartInboxChecklistAction.canUndo(
-        task, task.copyWith(updatedAt: 3001)), isFalse);
-    expect(SmartInboxChecklistAction.canUndo(
-        task, task.copyWith(title: 'Modified')), isFalse);
-    expect(SmartInboxChecklistAction.canUndo(
-        task, task.copyWith(deletedAt: 4000)), isFalse);
-    expect(SmartInboxChecklistAction.canUndo(
-        task, task.copyWith(archived: true)), isFalse);
+    expect(
+        SmartInboxChecklistAction.canUndo(task, task.copyWith(updatedAt: 3001)),
+        isFalse);
+    expect(
+        SmartInboxChecklistAction.canUndo(
+            task, task.copyWith(title: 'Modified')),
+        isFalse);
+    expect(
+        SmartInboxChecklistAction.canUndo(task, task.copyWith(deletedAt: 4000)),
+        isFalse);
+    expect(
+        SmartInboxChecklistAction.canUndo(task, task.copyWith(archived: true)),
+        isFalse);
   });
 }

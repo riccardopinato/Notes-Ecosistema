@@ -19,7 +19,8 @@ abstract final class SmartInboxChecklistAction {
     if (selected.isEmpty ||
         selected.length > 8 ||
         selected.toSet().length != selected.length ||
-        selected.any((item) => !allowed.contains(item) || !canonical.contains(item))) {
+        selected.any(
+            (item) => !allowed.contains(item) || !canonical.contains(item))) {
       throw const FormatException('SMART_INBOX_SELECTION_NOT_IN_SOURCE');
     }
     return List.unmodifiable(selected);
@@ -34,7 +35,8 @@ abstract final class SmartInboxChecklistAction {
       if (note.isDeleted || !note.isTask) continue;
       final details = TaskDetails.tryDecode(note.taskJson);
       if (details?.linkedNoteId != sourceId) continue;
-      if (_signature(details!.subtasks.map((item) => item.title)) == signature) {
+      if (_signature(details!.subtasks.map((item) => item.title)) ==
+          signature) {
         return true;
       }
     }
@@ -42,7 +44,9 @@ abstract final class SmartInboxChecklistAction {
   }
 
   static bool canUndo(Note committed, Note current) {
-    if (!committed.isTask || !current.isTask || current.isDeleted ||
+    if (!committed.isTask ||
+        !current.isTask ||
+        current.isDeleted ||
         current.archived) return false;
     if (committed.id != current.id ||
         committed.updatedAt != current.updatedAt ||

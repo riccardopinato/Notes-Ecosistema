@@ -50,6 +50,7 @@ class HomeScreen extends StatefulWidget {
   /// Opens the canonical editor with user-selected tag drafts; never saves here.
   final Future<void> Function(Note source, List<String> selectedTags)?
       onDraftSmartInboxTags;
+
   /// A confirmed source-backed action creates exactly one canonical Task.
   final Future<String> Function(Note source, List<String> selected)?
       onCreateSmartInboxChecklistTask;
@@ -194,24 +195,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   Text(preview.sourceExcerpt),
                   const SizedBox(height: 12),
-                  ...preview.candidates.map((value) => (canDraftTags || canCreateChecklist)
-                      ? CheckboxListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          value: selectedTags.contains(value),
-                          title: Text(canCreateChecklist ? value : '#$value'),
-                          onChanged: (checked) => setDialogState(() {
-                            if (checked == true) {
-                              selectedTags.add(value);
-                            } else {
-                              selectedTags.remove(value);
-                            }
-                          }),
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('• $value'),
-                        )),
+                  ...preview.candidates
+                      .map((value) => (canDraftTags || canCreateChecklist)
+                          ? CheckboxListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              value: selectedTags.contains(value),
+                              title:
+                                  Text(canCreateChecklist ? value : '#$value'),
+                              onChanged: (checked) => setDialogState(() {
+                                if (checked == true) {
+                                  selectedTags.add(value);
+                                } else {
+                                  selectedTags.remove(value);
+                                }
+                              }),
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text('• $value'),
+                            )),
                   const SizedBox(height: 12),
                   Text(labels[3]),
                 ],
@@ -224,10 +227,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text(labels[1])),
             FilledButton(
               key: const ValueKey('smart-inbox-preview-open-editor'),
-              onPressed: (canDraftTags || canCreateChecklist) &&
-                      selectedTags.isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
+              onPressed:
+                  (canDraftTags || canCreateChecklist) && selectedTags.isEmpty
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
               child: Text(canCreateChecklist
                   ? switch (code) {
                       'it' => 'Crea attività',
@@ -238,15 +241,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       _ => 'Create task',
                     }
                   : canDraftTags
-                  ? switch (code) {
-                      'it' => 'Apri bozza con tag',
-                      'es' => 'Abrir borrador con etiquetas',
-                      'fr' => 'Ouvrir le brouillon avec tags',
-                      'de' => 'Entwurf mit Tags öffnen',
-                      'pt' => 'Abrir rascunho com tags',
-                      _ => 'Open draft with tags',
-                    }
-                  : labels[2]),
+                      ? switch (code) {
+                          'it' => 'Apri bozza con tag',
+                          'es' => 'Abrir borrador con etiquetas',
+                          'fr' => 'Ouvrir le brouillon avec tags',
+                          'de' => 'Entwurf mit Tags öffnen',
+                          'pt' => 'Abrir rascunho com tags',
+                          _ => 'Open draft with tags',
+                        }
+                      : labels[2]),
             ),
           ],
         ),
@@ -264,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (canCreateChecklist) {
       try {
         final id = await widget.onCreateSmartInboxChecklistTask!(
-          current, preview.candidates.where(selectedTags.contains).toList());
+            current, preview.candidates.where(selectedTags.contains).toList());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(switch (code) {
@@ -292,7 +295,9 @@ class _HomeScreenState extends State<HomeScreen> {
       } on Object catch (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString().replaceFirst('FormatException: ', ''))),
+          SnackBar(
+              content:
+                  Text(error.toString().replaceFirst('FormatException: ', ''))),
         );
       }
       return;
@@ -319,7 +324,9 @@ class _HomeScreenState extends State<HomeScreen> {
     } on Object catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('FormatException: ', ''))),
+        SnackBar(
+            content:
+                Text(error.toString().replaceFirst('FormatException: ', ''))),
       );
     }
   }
