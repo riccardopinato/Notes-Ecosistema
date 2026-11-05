@@ -5,7 +5,7 @@ import 'package:notes_ecosistema/src/domain/smart_inbox_checklist_action.dart';
 
 void main() {
   Note source({
-    String body = '- [ ] Alpha\\n- [ ] Beta\\n- [x] Done',
+    String body = '- [ ] Alpha\n- [ ] Beta\n- [x] Done',
     String id = 'source-1',
   }) => Note(
         id: id,
