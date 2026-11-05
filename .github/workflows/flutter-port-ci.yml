@@ -260,6 +260,25 @@ jobs:
       - name: Build opt-in PDF Toolbox QA APK
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
         run: |
+          # Isolate QA data and signature from any installed production Notes app.
+          cp android/app/build.gradle.kts android/app/build.gradle.kts.before_pdf_qa
+          cp android/app/src/main/AndroidManifest.xml android/app/src/main/AndroidManifest.xml.before_pdf_qa
+          trap 'mv android/app/build.gradle.kts.before_pdf_qa android/app/build.gradle.kts; mv android/app/src/main/AndroidManifest.xml.before_pdf_qa android/app/src/main/AndroidManifest.xml' EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path("android/app/build.gradle.kts")
+          before = 'applicationId = "it.notes.ecosystem.lymlyc"'
+          after = 'applicationId = "it.notes.ecosystem.lymlyc.toolboxqa"'
+          content = gradle.read_text()
+          assert content.count(before) == 1, "Cannot isolate QA applicationId"
+          gradle.write_text(content.replace(before, after))
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          old_label = 'android:label="notes_ecosistema"'
+          assert source.count(old_label) == 1, "Cannot isolate QA app label"
+          manifest.write_text(source.replace(old_label, 'android:label="Notes PDF QA"'))
+          PY
           flutter build apk --debug --no-pub --dart-define=NOTES_ENABLE_PDF_TOOLBOX=true
           cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
 
