@@ -329,8 +329,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                       DropdownMenuItem(value: 2, child: Text('Media')),
                       DropdownMenuItem(value: 3, child: Text('Alta')),
                     ],
-                    onChanged: (value) =>
-                        refresh(() => priority = value ?? 0),
+                    onChanged: (value) => refresh(() => priority = value ?? 0),
                   ),
                   if (suggested.unknownParts.isNotEmpty) ...[
                     const SizedBox(height: 10),
@@ -360,14 +359,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     due: due.text,
                     priority: priority,
                   );
-                  Navigator.pop(dialogContext, _TaskDraft(
-                    validated.title,
-                    inputResult,
-                    TaskDetails.empty().copyWith(
-                      due: validated.due,
-                      priority: validated.priority,
-                    ),
-                  ));
+                  Navigator.pop(
+                      dialogContext,
+                      _TaskDraft(
+                        validated.title,
+                        inputResult,
+                        TaskDetails.empty().copyWith(
+                          due: validated.due,
+                          priority: validated.priority,
+                        ),
+                      ));
                 } on FormatException catch (error) {
                   refresh(() => validationError = error.message);
                 }
@@ -383,8 +384,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     if (result == null || !mounted) return;
     final existing = widget.notes.where((note) {
       if (!note.isTask || note.isDeleted || note.archived) return false;
-      return note.title.trim().toLowerCase() ==
-              result.title.toLowerCase() &&
+      return note.title.trim().toLowerCase() == result.title.toLowerCase() &&
           TaskDetails.tryDecode(note.taskJson)?.due == result.details.due;
     }).isNotEmpty;
     if (existing) {
@@ -392,9 +392,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Possibile duplicato'),
-          content: const Text(
-              'Esiste già una task con lo stesso titolo e scadenza. '
-              'Vuoi creare ugualmente una nuova attività?'),
+          content:
+              const Text('Esiste già una task con lo stesso titolo e scadenza. '
+                  'Vuoi creare ugualmente una nuova attività?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),

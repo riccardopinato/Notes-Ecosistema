@@ -62,7 +62,8 @@ abstract final class NaturalLanguageTask {
       notes.add('Più scadenze indicate');
     }
 
-    title = title.replaceAll(RegExp(r'\s+'), ' ')
+    title = title
+        .replaceAll(RegExp(r'\s+'), ' ')
         .replaceAll(RegExp(r'^[,;.!?\s]+|[,;.!?\s]+$'), '')
         .trim();
     if (title.isEmpty || title.length > 200) {
@@ -87,13 +88,15 @@ abstract final class NaturalLanguageTask {
   }) {
     final cleanTitle = title.trim();
     final cleanDue = due.trim();
-    if (cleanTitle.isEmpty || cleanTitle.length > 200 ||
-        cleanTitle.contains('\u0000') || priority < 0 || priority > 3) {
+    if (cleanTitle.isEmpty ||
+        cleanTitle.length > 200 ||
+        cleanTitle.contains('\u0000') ||
+        priority < 0 ||
+        priority > 3) {
       throw const FormatException('Titolo o priorità non validi.');
     }
     if (cleanDue.isNotEmpty &&
-        (!_iso.hasMatch(cleanDue) ||
-            _parseIso(cleanDue) == null)) {
+        (!_iso.hasMatch(cleanDue) || _parseIso(cleanDue) == null)) {
       throw const FormatException('Scadenza non valida: usa YYYY-MM-DD.');
     }
     return NaturalLanguageTaskDraft(
@@ -105,8 +108,7 @@ abstract final class NaturalLanguageTask {
   }
 
   static DateTime? _resolve(String value, DateTime today) {
-    final token = value.toLowerCase()
-        .replaceAll('à', 'a').replaceAll('ì', 'i');
+    final token = value.toLowerCase().replaceAll('à', 'a').replaceAll('ì', 'i');
     final day = DateTime(today.year, today.month, today.day);
     if (_iso.hasMatch(token)) return _parseIso(token);
     if (token == 'today' || token == 'oggi') return day;
@@ -114,26 +116,33 @@ abstract final class NaturalLanguageTask {
       return DateTime(day.year, day.month, day.day + 1);
     }
     const days = {
-      'lunedi': 1, 'monday': 1,
-      'martedi': 2, 'tuesday': 2,
-      'mercoledi': 3, 'wednesday': 3,
-      'giovedi': 4, 'thursday': 4,
-      'venerdi': 5, 'friday': 5,
-      'sabato': 6, 'saturday': 6,
-      'domenica': 7, 'sunday': 7,
+      'lunedi': 1,
+      'monday': 1,
+      'martedi': 2,
+      'tuesday': 2,
+      'mercoledi': 3,
+      'wednesday': 3,
+      'giovedi': 4,
+      'thursday': 4,
+      'venerdi': 5,
+      'friday': 5,
+      'sabato': 6,
+      'saturday': 6,
+      'domenica': 7,
+      'sunday': 7,
     };
     final weekday = days[token];
     if (weekday == null) return null;
-    return DateTime(day.year, day.month, day.day +
-        ((weekday - day.weekday + 7) % 7));
+    return DateTime(
+        day.year, day.month, day.day + ((weekday - day.weekday + 7) % 7));
   }
 
   static DateTime? _parseIso(String value) {
     if (!_iso.hasMatch(value)) return null;
     final parts = value.split('-').map(int.parse).toList(growable: false);
     final date = DateTime(parts[0], parts[1], parts[2]);
-    if (date.year != parts[0] || date.month != parts[1] ||
-        date.day != parts[2]) return null;
+    if (date.year != parts[0] || date.month != parts[1] || date.day != parts[2])
+      return null;
     return date;
   }
 

@@ -41,9 +41,13 @@ void main() {
     );
     expect(draft.due, isNull);
     expect(draft.unknownParts, isNotEmpty);
-    expect(() => NaturalLanguageTask.validateEdited(
-      title: 'Call Andrea', due: '2026-02-30', priority: 2,
-    ), throwsFormatException);
+    expect(
+        () => NaturalLanguageTask.validateEdited(
+              title: 'Call Andrea',
+              due: '2026-02-30',
+              priority: 2,
+            ),
+        throwsFormatException);
   });
 
   test('past ISO deadline is not silently moved to the future', () {
@@ -67,14 +71,24 @@ void main() {
   test('editing validation enforces limits without writing', () {
     expect(() => NaturalLanguageTask.parse('', today: reference),
         throwsFormatException);
-    expect(() => NaturalLanguageTask.validateEdited(
-      title: '', due: '', priority: 1,
-    ), throwsFormatException);
-    expect(() => NaturalLanguageTask.validateEdited(
-      title: 'okay', due: '', priority: 9,
-    ), throwsFormatException);
+    expect(
+        () => NaturalLanguageTask.validateEdited(
+              title: '',
+              due: '',
+              priority: 1,
+            ),
+        throwsFormatException);
+    expect(
+        () => NaturalLanguageTask.validateEdited(
+              title: 'okay',
+              due: '',
+              priority: 9,
+            ),
+        throwsFormatException);
     final valid = NaturalLanguageTask.validateEdited(
-      title: 'Task', due: '', priority: 2,
+      title: 'Task',
+      due: '',
+      priority: 2,
     );
     expect(valid.due, isNull);
     expect(valid.priority, 2);
