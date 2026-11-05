@@ -11,6 +11,12 @@ on:
     paths:
       - "flutter_app/**"
   workflow_dispatch:
+    inputs:
+      production_signed:
+        description: 'Sign Android release with externally managed key (main only)'
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: read
@@ -238,6 +244,9 @@ jobs:
         if: failure()
         run: git diff -- lib test
 
+      - name: Production-signing configurator unit tests
+        run: python3 -m unittest discover -s tool -p 'test_release_signing_config.py'
+
       - name: Analyze
         run: flutter analyze --no-pub
 
@@ -258,7 +267,7 @@ jobs:
       # The normal debug/release and Play builds keep PDF Toolbox hidden.
       # An explicit QA APK is generated separately for physical-device testing.
       - name: Build opt-in PDF Toolbox QA APK
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
         run: |
           # Isolate QA data and signature from any installed production Notes app.
           cp android/app/build.gradle.kts android/app/build.gradle.kts.before_pdf_qa
@@ -283,7 +292,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
 
       - name: Upload opt-in PDF Toolbox QA APK and test protocol
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
         uses: actions/upload-artifact@v4
         with:
           name: Notes-PDF-Toolbox-QA-debug
@@ -301,7 +310,41 @@ jobs:
           test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # Push/PR builds are never distributable. Manual signing is main-only.
+      - name: Configure protected production signing
+        if: github.event_name == 'workflow_dispatch' && inputs.production_signed == true
+        shell: bash
+        env:
+          NOTES_KEYSTORE_B64: ${{ secrets.NOTES_ANDROID_KEYSTORE_BASE64 }}
+          NOTES_SIGNING_STORE_PASSWORD: ${{ secrets.NOTES_ANDROID_KEYSTORE_PASSWORD }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ secrets.NOTES_ANDROID_KEY_ALIAS }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ secrets.NOTES_ANDROID_KEY_PASSWORD }}
+          NOTES_EXPECTED_CERT_SHA256: ${{ secrets.NOTES_ANDROID_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          for key in NOTES_KEYSTORE_B64 NOTES_SIGNING_STORE_PASSWORD NOTES_SIGNING_KEY_ALIAS NOTES_SIGNING_KEY_PASSWORD NOTES_EXPECTED_CERT_SHA256; do
+            if [ -z "$(printenv "$key")" ]; then
+              echo "::error::Missing protected release signer setting."
+              exit 1
+            fi
+          done
+          if ! printf '%s' "$NOTES_EXPECTED_CERT_SHA256" | grep -Eq '^[a-fA-F0-9]{64}$'; then
+            echo "::error::Approved cert digest must be 64 hex characters."
+            exit 1
+          fi
+          umask 077
+          export NOTES_SIGNING_KEYSTORE_FILE="$RUNNER_TEMP/notes-release-upload.jks"
+          printf '%s' "$NOTES_KEYSTORE_B64" | base64 --decode > "$NOTES_SIGNING_KEYSTORE_FILE"
+          chmod 600 "$NOTES_SIGNING_KEYSTORE_FILE"
+          python3 tool/configure_release_signing.py android/app/build.gradle.kts
+
       - name: Build release APKs per ABI
+        env:
+          NOTES_SIGNING_KEYSTORE_FILE: ${{ runner.temp }}/notes-release-upload.jks
+          NOTES_SIGNING_STORE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEYSTORE_PASSWORD || '' }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_ALIAS || '' }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_PASSWORD || '' }}
         run: >
           flutter build apk --release --split-per-abi --no-pub
           --obfuscate --split-debug-info=build/symbols
