@@ -79,6 +79,7 @@ class MainActivity : FlutterActivity() {
     private var pendingSharedSpaceId: String? = null
     private var pendingReminderAction: Map<String, Any?>? = null
     private val localLlmBridge by lazy { LocalLlmBridge(this) }
+    private val pdfToolboxBridge by lazy { PdfToolkitBridge(applicationContext) }
     private val localAiPackBridge by lazy { LocalAiPackBridge(this) }
     private val needleRuntimeBridge by lazy {
         NeedleRuntimeBridge(this) { localAiPackBridge.installedModelPath() }
@@ -98,6 +99,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        pdfToolboxBridge.register(flutterEngine.dartExecutor.binaryMessenger)
         channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL,
