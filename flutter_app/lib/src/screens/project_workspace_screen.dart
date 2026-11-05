@@ -854,11 +854,10 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
 
   /// Explicit, scoped two-stage selector. The source and all selected targets
   /// are reloaded before committing through the existing Task writer.
-  Future<void> _previewGoalTimeline(
-      List<ProjectWorkItem> scopedItems) async {
+  Future<void> _previewGoalTimeline(List<ProjectWorkItem> scopedItems) async {
     final targetDate = TextEditingController(
-      text: DateFormat('yyyy-MM-dd').format(
-          DateTime.now().add(const Duration(days: 14))),
+      text: DateFormat('yyyy-MM-dd')
+          .format(DateTime.now().add(const Duration(days: 14))),
     );
     final minutes = TextEditingController(text: '');
     final capacity = TextEditingController(text: '');
@@ -919,14 +918,18 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       final latestShared = ref.read(sharedSpacesProvider);
       final latestWorkspace = ref.read(workspaceProvider);
       final project = ref.read(projectWorkspaceProvider).byId(widget.projectId);
-      if (latestWorkspace.loading || latestShared.loading ||
-          latestShared.error != null || project == null || !project.isActive ||
+      if (latestWorkspace.loading ||
+          latestShared.loading ||
+          latestShared.error != null ||
+          project == null ||
+          !project.isActive ||
           (project.sharedSpaceId != null &&
               latestShared.byId(project.sharedSpaceId!) == null)) {
         throw const FormatException('Fonte del progetto non disponibile.');
       }
       final space = project.sharedSpaceId == null
-          ? null : latestShared.byId(project.sharedSpaceId!);
+          ? null
+          : latestShared.byId(project.sharedSpaceId!);
       final links = project.sharedSpaceId == null
           ? await ref.read(projectStoreProvider).loadLinks(project.id)
           : _effectiveLinks(project, space);

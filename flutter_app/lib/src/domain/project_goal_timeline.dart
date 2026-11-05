@@ -23,15 +23,21 @@ abstract final class ProjectGoalTimeline {
     required int minutesPerDay,
   }) {
     final when = _date(deadline);
-    if (when == null || minutesPerTask < 5 ||
-        minutesPerTask > 720 || minutesPerDay < 30 ||
-        minutesPerDay > 720 || minutesPerTask > minutesPerDay) {
+    if (when == null ||
+        minutesPerTask < 5 ||
+        minutesPerTask > 720 ||
+        minutesPerDay < 30 ||
+        minutesPerDay > 720 ||
+        minutesPerTask > minutesPerDay) {
       throw const FormatException('TIMELINE_INVALID_USER_CONSTRAINTS');
     }
-    final active = items.where((item) =>
-        item.kind == ProjectWorkItemKind.task &&
-        !item.note.isDeleted && !item.note.archived &&
-        !item.completed).toList(growable: false);
+    final active = items
+        .where((item) =>
+            item.kind == ProjectWorkItemKind.task &&
+            !item.note.isDeleted &&
+            !item.note.archived &&
+            !item.completed)
+        .toList(growable: false);
     if (active.isEmpty || active.length > 500) {
       throw const FormatException('TIMELINE_TASK_COUNT_UNSUPPORTED');
     }
@@ -46,7 +52,8 @@ abstract final class ProjectGoalTimeline {
     final all = <String, ProjectWorkItem>{};
     for (final item in items) {
       if (item.kind != ProjectWorkItemKind.task ||
-          item.note.isDeleted || item.note.archived) continue;
+          item.note.isDeleted ||
+          item.note.archived) continue;
       final id = item.note.id.toLowerCase();
       if (all.containsKey(id)) {
         throw const FormatException('TIMELINE_DUPLICATE_TASK');
@@ -116,8 +123,8 @@ abstract final class ProjectGoalTimeline {
     if (!RegExp(r'^20\d{2}-\d{2}-\d{2}$').hasMatch(text)) return null;
     final p = text.split('-').map(int.parse).toList();
     final date = DateTime(p[0], p[1], p[2]);
-    if (date.year != p[0] || date.month != p[1] ||
-        date.day != p[2]) return null;
+    if (date.year != p[0] || date.month != p[1] || date.day != p[2])
+      return null;
     return date;
   }
 
