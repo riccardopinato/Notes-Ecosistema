@@ -15,6 +15,13 @@ import '../state/workspace_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/ui_resilience.dart';
 
+// The native PDF editor is dark-launched until real-document Android QA is signed off.
+// A QA-only debug APK may enable it with --dart-define=NOTES_ENABLE_PDF_TOOLBOX=true.
+const bool _pdfToolboxQaEnabled = bool.fromEnvironment(
+  'NOTES_ENABLE_PDF_TOOLBOX',
+  defaultValue: false,
+);
+
 class PdfWorkspaceScreen extends ConsumerStatefulWidget {
   const PdfWorkspaceScreen({
     required this.noteId,
@@ -119,7 +126,9 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('Apri PDF originale'),
             ),
-            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+            if (_pdfToolboxQaEnabled &&
+                !kIsWeb &&
+                defaultTargetPlatform == TargetPlatform.android) ...[
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 key: const ValueKey('pdf-toolbox-open'),
