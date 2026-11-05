@@ -2205,12 +2205,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       // Refuse destructive restore while Shared Live Sync is writing.
       // The pause prevents foreground, delayed and periodic sync from starting
       // while the external safety ZIP is being saved, checked and restored.
-      pausedLiveSync = ref.read(sharedLiveSyncProvider.notifier);
-      if (!pausedLiveSync.tryBeginRestorePause()) {
+      final liveSync = ref.read(sharedLiveSyncProvider.notifier);
+      if (!liveSync.tryBeginRestorePause()) {
         throw const FormatException(
           'Sincronizzazione in corso: riprova il ripristino dopo la fine.',
         );
       }
+      pausedLiveSync = liveSync;
       hasRestorePause = true;
 
       // Cross-store restores are NOT one atomic transaction. Require a
