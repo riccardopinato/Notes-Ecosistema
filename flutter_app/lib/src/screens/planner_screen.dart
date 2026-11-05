@@ -10,6 +10,7 @@ import '../domain/focus.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/planner_insights.dart';
+import '../domain/natural_language_task.dart';
 import '../platform/reminder_bridge.dart';
 import '../widgets/editorial.dart';
 import '../widgets/ui_resilience.dart';
@@ -246,6 +247,185 @@ class _PlannerScreenState extends State<PlannerScreen> {
         ),
       );
 
+  Future<void> _draftTaskFromText() async {
+    final input = TextEditingController();
+    final inputResult = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Da testo ad attività'),
+        content: SizedBox(
+          width: 520,
+          child: TextField(
+            controller: input,
+            autofocus: true,
+            maxLines: 4,
+            maxLength: 1000,
+            decoration: const InputDecoration(
+              labelText: 'Scrivi cosa devi fare',
+              hintText: 'Prepara la presentazione entro venerdì, priorità alta',
+              helperText: 'Nessuna attività viene creata senza conferma.',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, input.text),
+            child: const Text('Anteprima'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (inputResult == null || !mounted) return;
+    NaturalLanguageTaskDraft suggested;
+    try {
+      suggested = NaturalLanguageTask.parse(
+        inputResult,
+        today: DateTime.now(),
+      );
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+      return;
+    }
+
+    final title = TextEditingController(text: suggested.title);
+    final due = TextEditingController(text: suggested.due ?? '');
+    var priority = suggested.priority;
+    String? validationError;
+    final result = await showDialog<_TaskDraft>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, refresh) => AlertDialog(
+          title: const Text('Verifica la bozza'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('I campi sono modificabili. Date e orari non '
+                      'riconosciuti devono essere inseriti manualmente.'),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: title,
+                    maxLength: 200,
+                    decoration: const InputDecoration(labelText: 'Attività'),
+                  ),
+                  TextField(
+                    controller: due,
+                    decoration: const InputDecoration(
+                        labelText: 'Scadenza YYYY-MM-DD (facoltativa)'),
+                  ),
+                  DropdownButtonFormField<int>(
+                    value: priority,
+                    decoration: const InputDecoration(labelText: 'Priorità'),
+                    items: const [
+                      DropdownMenuItem(value: 0, child: Text('Non assegnata')),
+                      DropdownMenuItem(value: 1, child: Text('Bassa')),
+                      DropdownMenuItem(value: 2, child: Text('Media')),
+                      DropdownMenuItem(value: 3, child: Text('Alta')),
+                    ],
+                    onChanged: (value) =>
+                        refresh(() => priority = value ?? 0),
+                  ),
+                  if (suggested.unknownParts.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text('Da verificare manualmente: '
+                        '${suggested.unknownParts.join('; ')}'),
+                  ],
+                  if (validationError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(validationError!,
+                        style: TextStyle(
+                            color: Theme.of(dialogContext).colorScheme.error)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () {
+                try {
+                  final validated = NaturalLanguageTask.validateEdited(
+                    title: title.text,
+                    due: due.text,
+                    priority: priority,
+                  );
+                  Navigator.pop(dialogContext, _TaskDraft(
+                    validated.title,
+                    inputResult,
+                    TaskDetails.empty().copyWith(
+                      due: validated.due,
+                      priority: validated.priority,
+                    ),
+                  ));
+                } on FormatException catch (error) {
+                  refresh(() => validationError = error.message);
+                }
+              },
+              child: const Text('Crea attività'),
+            ),
+          ],
+        ),
+      ),
+    );
+    title.dispose();
+    due.dispose();
+    if (result == null || !mounted) return;
+    final existing = widget.notes.where((note) {
+      if (!note.isTask || note.isDeleted || note.archived) return false;
+      return note.title.trim().toLowerCase() ==
+              result.title.toLowerCase() &&
+          TaskDetails.tryDecode(note.taskJson)?.due == result.details.due;
+    }).isNotEmpty;
+    if (existing) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Possibile duplicato'),
+          content: const Text(
+              'Esiste già una task con lo stesso titolo e scadenza. '
+              'Vuoi creare ugualmente una nuova attività?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Crea comunque'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    await _run(() async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await widget.onSave(Note(
+        id: const Uuid().v4(),
+        title: result.title,
+        body: result.body,
+        favorite: false,
+        createdAt: now,
+        updatedAt: now,
+        pinned: false,
+        archived: false,
+        tags: const [],
+        taskJson: result.details.encode(),
+      ));
+    });
+  }
+
   Future<void> _showEisenhower() async {
     final labels = AppStrings.of(context);
     final matrix = PlannerInsights.eisenhower(widget.notes, DateTime.now());
@@ -340,6 +520,12 @@ class _PlannerScreenState extends State<PlannerScreen> {
           spacing: 8,
           runSpacing: 8,
           children: [
+            OutlinedButton.icon(
+              key: const ValueKey('natural-language-task-draft'),
+              onPressed: _busy ? null : _draftTaskFromText,
+              icon: const Icon(Icons.auto_fix_high_outlined),
+              label: const Text('Da testo a task'),
+            ),
             OutlinedButton.icon(
               onPressed: _busy ? null : _showEisenhower,
               icon: const Icon(Icons.grid_view_outlined),
