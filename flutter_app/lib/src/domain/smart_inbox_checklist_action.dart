@@ -61,6 +61,6 @@ abstract final class SmartInboxChecklistAction {
   static String _signature(Iterable<String> values) {
     final items = values.map((value) => value.trim().toLowerCase()).toList()
       ..sort();
-    return items.join('\\u0000');
+    return items.join('\u0000');
   }
 }
