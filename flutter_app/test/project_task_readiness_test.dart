@@ -10,7 +10,8 @@ void main() {
     String stage = 'TODO',
     bool completed = false,
     bool archived = false,
-  }) => ProjectWorkItem(
+  }) =>
+      ProjectWorkItem(
         note: Note(
           id: id,
           title: id,
@@ -49,8 +50,8 @@ void main() {
       ProjectTaskReadinessStatus.done,
     ]);
     expect(result[2].reasonCode, 'DEPENDENCY_OPEN');
-    expect(result.map((x) => x.taskId),
-        ['ready', 'doing', 'waiting', 'finished']);
+    expect(
+        result.map((x) => x.taskId), ['ready', 'doing', 'waiting', 'finished']);
     expect(items[2].note.tags, ['dep_doing']);
   });
 
@@ -91,8 +92,7 @@ void main() {
   });
 
   test('inconsistent DONE stage is never treated as completed', () {
-    final result =
-        ProjectTaskReadiness.inspect([task('wrong', stage: 'DONE')]);
+    final result = ProjectTaskReadiness.inspect([task('wrong', stage: 'DONE')]);
     expect(result.single.status, ProjectTaskReadinessStatus.ready);
     expect(result.single.reasonCode, 'TASK_STAGE_INCONSISTENT');
   });

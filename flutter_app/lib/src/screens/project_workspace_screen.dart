@@ -575,7 +575,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   children: [
                     const Text('Stato attività · solo lettura'),
                     const SizedBox(height: 6),
-                    const Text('Le dipendenze e gli stati sono derivati dai task ' 
+                    const Text(
+                        'Le dipendenze e gli stati sono derivati dai task '
                         'del progetto. Nessuno spostamento automatico.'),
                     for (final status in readiness)
                       ListTile(
@@ -601,8 +602,9 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                           ProjectTaskReadinessStatus.ready => 'READY',
                         }),
                         onTap: () {
-                          final matches = guidanceItems.where((item) =>
-                              item.note.id == status.taskId).toList();
+                          final matches = guidanceItems
+                              .where((item) => item.note.id == status.taskId)
+                              .toList();
                           if (matches.length == 1) {
                             widget.onOpenItem(matches.single.note, !canEdit);
                           }

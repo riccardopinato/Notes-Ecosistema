@@ -27,10 +27,12 @@ abstract final class ProjectTaskReadiness {
       throw const FormatException('INVALID_READINESS_LIMIT');
     }
     if (limit == 0) return const [];
-    final scoped = items.where((item) =>
-        item.kind == ProjectWorkItemKind.task &&
-        !item.note.isDeleted &&
-        !item.note.archived).toList(growable: false);
+    final scoped = items
+        .where((item) =>
+            item.kind == ProjectWorkItemKind.task &&
+            !item.note.isDeleted &&
+            !item.note.archived)
+        .toList(growable: false);
 
     // Source policy caps a project at 5,000 items; reject unsupported scopes
     // rather than showing an incorrectly authoritative READY status.
@@ -76,16 +78,15 @@ abstract final class ProjectTaskReadiness {
       } else if (item.completed) {
         status = ProjectTaskReadinessStatus.done;
         reason = 'TASK_DONE';
-      } else if (item.note.tags.any(
-          (tag) => tag.trim().toLowerCase() == 'blocked')) {
+      } else if (item.note.tags
+          .any((tag) => tag.trim().toLowerCase() == 'blocked')) {
         status = ProjectTaskReadinessStatus.blocked;
         reason = 'EXPLICIT_BLOCKED';
       } else if (missing.contains(id)) {
         status = ProjectTaskReadinessStatus.blocked;
         reason = 'DEPENDENCY_UNAVAILABLE';
       } else if ((links[id] ?? const <String>{}).isNotEmpty) {
-        final cycle = links[id]!.any(
-            (target) => _reaches(links, target, id));
+        final cycle = links[id]!.any((target) => _reaches(links, target, id));
         status = ProjectTaskReadinessStatus.blocked;
         reason = cycle ? 'DEPENDENCY_CYCLE' : 'DEPENDENCY_OPEN';
       } else if (item.stage == 'DOING') {
@@ -93,9 +94,8 @@ abstract final class ProjectTaskReadiness {
         reason = 'TASK_DOING';
       } else {
         status = ProjectTaskReadinessStatus.ready;
-        reason = item.stage == 'DONE'
-            ? 'TASK_STAGE_INCONSISTENT'
-            : 'TASK_READY';
+        reason =
+            item.stage == 'DONE' ? 'TASK_STAGE_INCONSISTENT' : 'TASK_READY';
       }
       result.add(ProjectTaskReadinessRecord(
         taskId: item.note.id,
