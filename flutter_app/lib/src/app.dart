@@ -20,6 +20,7 @@ import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/editing.dart';
 import 'domain/disaster_recovery.dart';
+import 'domain/recovery_safety.dart';
 import 'domain/import_provenance.dart';
 import 'domain/intelligence.dart';
 import 'domain/note_to_checklist.dart';
@@ -2212,6 +2213,44 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       if (savedSafetyCopy == null || savedSafetyCopy.trim().isEmpty) {
         return;
       }
+
+      // Saving is not sufficient evidence for Android SAF or external
+      // document providers. The user must re-open the externally stored copy.
+      // All persistent restore writes are below this gate.
+      if (!mounted) return;
+      final verifyReadback = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Verifica il backup di sicurezza'),
+          content: const Text(
+            'Prima di ripristinare, seleziona il file ZIP appena salvato. '
+            'Notes confronterà tutti i byte del file con il backup creato. '
+            'Puoi annullare senza modificare alcun dato.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla ripristino'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Seleziona copia salvata'),
+            ),
+          ],
+        ),
+      );
+      if (verifyReadback != true) return;
+      final externalCopy = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (externalCopy == null || externalCopy.files.isEmpty) return;
+      RecoverySafety.requireVerifiedExternalCopy(
+        generated: safetyBytes,
+        readBack: externalCopy.files.single.bytes,
+      );
 
       final noteIds = recovery.snapshot.notes.map((note) => note.id).toSet();
       final sharedIds =
