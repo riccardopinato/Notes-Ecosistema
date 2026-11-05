@@ -160,7 +160,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   String? _plannerTaskId;
   String _reminderSignature = '';
   bool _smartInboxTaskSaving = false;
-  final Map<String, Note> _smartInboxTaskUndo = {};
+  final Map<String, ({Note task, String owner})> _smartInboxTaskUndo = {};
   bool _semanticSearchEnabled = true;
 
   static const _semanticSearchPreference = 'semantic_search_enabled';
@@ -537,7 +537,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       await ref.read(workspaceProvider.notifier).save(task);
       final saved = await database.loadNote(task.id);
       if (saved != null && saved.isTask && !saved.isDeleted) {
-        _smartInboxTaskUndo[task.id] = saved;
+        _smartInboxTaskUndo[task.id] = (task: saved, owner: owner);
         if (_smartInboxTaskUndo.length > 12) {
           _smartInboxTaskUndo.remove(_smartInboxTaskUndo.keys.first);
         }
@@ -550,8 +550,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
   /// Explicit, bounded Undo: soft-trash the unmodified derived task only.
   Future<void> _undoSmartInboxChecklistTask(String id) async {
-    final expected = _smartInboxTaskUndo.remove(id);
-    if (expected == null) {
+    final receipt = _smartInboxTaskUndo.remove(id);
+    if (receipt == null) {
       throw const FormatException('Annullamento non più disponibile.');
     }
     final dbTask = await ref.read(databaseProvider).loadNote(id);
@@ -559,8 +559,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     if (dbTask == null ||
         shared.error != null ||
         shared.loading ||
+        shared.identity?.id != receipt.owner ||
         shared.spaces.any((space) => space.contentIds.contains(id)) ||
-        !SmartInboxChecklistAction.canUndo(expected, dbTask)) {
+        !SmartInboxChecklistAction.canUndo(receipt.task, dbTask)) {
       throw const FormatException(
           'Attività modificata: annullamento non sicuro.');
     }
