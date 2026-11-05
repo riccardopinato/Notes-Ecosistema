@@ -248,38 +248,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
       );
 
   Future<void> _draftTaskFromText() async {
-    final input = TextEditingController();
     final inputResult = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Da testo ad attività'),
-        content: SizedBox(
-          width: 520,
-          child: TextField(
-            controller: input,
-            autofocus: true,
-            maxLines: 4,
-            maxLength: 1000,
-            decoration: const InputDecoration(
-              labelText: 'Scrivi cosa devi fare',
-              hintText: 'Prepara la presentazione entro venerdì, priorità alta',
-              helperText: 'Nessuna attività viene creata senza conferma.',
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annulla'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, input.text),
-            child: const Text('Anteprima'),
-          ),
-        ],
-      ),
+      builder: (_) => const _NaturalLanguageTextDialog(),
     );
-    input.dispose();
     if (inputResult == null || !mounted) return;
     NaturalLanguageTaskDraft suggested;
     try {
@@ -292,95 +264,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
       return;
     }
 
-    final title = TextEditingController(text: suggested.title);
-    final due = TextEditingController(text: suggested.due ?? '');
-    var priority = suggested.priority;
-    String? validationError;
     final result = await showDialog<_TaskDraft>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, refresh) => AlertDialog(
-          title: const Text('Verifica la bozza'),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('I campi sono modificabili. Date e orari non '
-                      'riconosciuti devono essere inseriti manualmente.'),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: title,
-                    maxLength: 200,
-                    decoration: const InputDecoration(labelText: 'Attività'),
-                  ),
-                  TextField(
-                    controller: due,
-                    decoration: const InputDecoration(
-                        labelText: 'Scadenza YYYY-MM-DD (facoltativa)'),
-                  ),
-                  DropdownButtonFormField<int>(
-                    value: priority,
-                    decoration: const InputDecoration(labelText: 'Priorità'),
-                    items: const [
-                      DropdownMenuItem(value: 0, child: Text('Non assegnata')),
-                      DropdownMenuItem(value: 1, child: Text('Bassa')),
-                      DropdownMenuItem(value: 2, child: Text('Media')),
-                      DropdownMenuItem(value: 3, child: Text('Alta')),
-                    ],
-                    onChanged: (value) => refresh(() => priority = value ?? 0),
-                  ),
-                  if (suggested.unknownParts.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text('Da verificare manualmente: '
-                        '${suggested.unknownParts.join('; ')}'),
-                  ],
-                  if (validationError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(validationError!,
-                        style: TextStyle(
-                            color: Theme.of(dialogContext).colorScheme.error)),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annulla'),
-            ),
-            FilledButton(
-              onPressed: () {
-                try {
-                  final validated = NaturalLanguageTask.validateEdited(
-                    title: title.text,
-                    due: due.text,
-                    priority: priority,
-                  );
-                  Navigator.pop(
-                      dialogContext,
-                      _TaskDraft(
-                        validated.title,
-                        inputResult,
-                        TaskDetails.empty().copyWith(
-                          due: validated.due,
-                          priority: validated.priority,
-                        ),
-                      ));
-                } on FormatException catch (error) {
-                  refresh(() => validationError = error.message);
-                }
-              },
-              child: const Text('Crea attività'),
-            ),
-          ],
-        ),
+      builder: (_) => _NaturalLanguagePreviewDialog(
+        suggested: suggested,
+        originalText: inputResult,
       ),
     );
-    title.dispose();
-    due.dispose();
     if (result == null || !mounted) return;
     final existing = widget.notes.where((note) {
       if (!note.isTask || note.isDeleted || note.archived) return false;
@@ -1578,6 +1468,165 @@ class _DateNavigator extends StatelessWidget {
       ],
     );
   }
+}
+
+class _NaturalLanguageTextDialog extends StatefulWidget {
+  const _NaturalLanguageTextDialog();
+
+  @override
+  State<_NaturalLanguageTextDialog> createState() =>
+      _NaturalLanguageTextDialogState();
+}
+
+class _NaturalLanguageTextDialogState
+    extends State<_NaturalLanguageTextDialog> {
+  final TextEditingController _input = TextEditingController();
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Da testo ad attività'),
+        content: SizedBox(
+          width: 520,
+          child: TextField(
+            controller: _input,
+            autofocus: true,
+            maxLines: 4,
+            maxLength: 1000,
+            decoration: const InputDecoration(
+              labelText: 'Scrivi cosa devi fare',
+              hintText: 'Prepara la presentazione entro venerdì, priorità alta',
+              helperText: 'Nessuna attività viene creata senza conferma.',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _input.text),
+            child: const Text('Anteprima'),
+          ),
+        ],
+      );
+}
+
+class _NaturalLanguagePreviewDialog extends StatefulWidget {
+  const _NaturalLanguagePreviewDialog({
+    required this.suggested,
+    required this.originalText,
+  });
+  final NaturalLanguageTaskDraft suggested;
+  final String originalText;
+
+  @override
+  State<_NaturalLanguagePreviewDialog> createState() =>
+      _NaturalLanguagePreviewDialogState();
+}
+
+class _NaturalLanguagePreviewDialogState
+    extends State<_NaturalLanguagePreviewDialog> {
+  late final TextEditingController _title =
+      TextEditingController(text: widget.suggested.title);
+  late final TextEditingController _due =
+      TextEditingController(text: widget.suggested.due ?? '');
+  late int _priority = widget.suggested.priority;
+  String? _validationError;
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _due.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Verifica la bozza'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('I campi sono modificabili. Date e orari non '
+                    'riconosciuti devono essere inseriti manualmente.'),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _title,
+                  maxLength: 200,
+                  decoration: const InputDecoration(labelText: 'Attività'),
+                ),
+                TextField(
+                  controller: _due,
+                  decoration: const InputDecoration(
+                      labelText: 'Scadenza YYYY-MM-DD (facoltativa)'),
+                ),
+                DropdownButtonFormField<int>(
+                  initialValue: _priority,
+                  decoration: const InputDecoration(labelText: 'Priorità'),
+                  items: const [
+                    DropdownMenuItem(value: 0, child: Text('Non assegnata')),
+                    DropdownMenuItem(value: 1, child: Text('Bassa')),
+                    DropdownMenuItem(value: 2, child: Text('Media')),
+                    DropdownMenuItem(value: 3, child: Text('Alta')),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _priority = value ?? 0),
+                ),
+                if (widget.suggested.unknownParts.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text('Da verificare manualmente: '
+                      '${widget.suggested.unknownParts.join('; ')}'),
+                ],
+                if (_validationError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(_validationError!,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () {
+              try {
+                final validated = NaturalLanguageTask.validateEdited(
+                  title: _title.text,
+                  due: _due.text,
+                  priority: _priority,
+                );
+                Navigator.pop(
+                    context,
+                    _TaskDraft(
+                      validated.title,
+                      widget.originalText,
+                      TaskDetails.empty().copyWith(
+                        due: validated.due,
+                        priority: validated.priority,
+                      ),
+                    ));
+              } on FormatException catch (error) {
+                setState(() => _validationError = error.message);
+              }
+            },
+            child: const Text('Crea attività'),
+          ),
+        ],
+      );
 }
 
 class _TaskDraft {
