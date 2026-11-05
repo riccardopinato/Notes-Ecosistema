@@ -123,13 +123,15 @@ void main() {
       nowMilliseconds: 30,
     );
     expect(saved.tags, ['dep_b', 'dep_new', 'work']);
-    expect(() => ProjectDependencyActions.update(
-      source: a.note,
-      scopedItems: [a, b, appeared],
-      selectedTargetIds: ['new'],
-      originallyVisibleIds: ['b'],
-      nowMilliseconds: 30,
-    ), throwsFormatException);
+    expect(
+        () => ProjectDependencyActions.update(
+              source: a.note,
+              scopedItems: [a, b, appeared],
+              selectedTargetIds: ['new'],
+              originallyVisibleIds: ['b'],
+              nowMilliseconds: 30,
+            ),
+        throwsFormatException);
   });
 
   test('rejects stale source and duplicate identity, allows explicit clear',

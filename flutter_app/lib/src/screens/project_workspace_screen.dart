@@ -1000,7 +1000,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       if (confirmed == null || !mounted) return;
       final nowShared = ref.read(sharedSpacesProvider);
       final latestProject = ref.read(projectWorkspaceProvider).byId(project.id);
-      if (nowShared.loading || nowShared.error != null ||
+      if (nowShared.loading ||
+          nowShared.error != null ||
           nowShared.identity?.id != owner ||
           latestProject == null ||
           !latestProject.isActive ||
