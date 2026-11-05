@@ -82,6 +82,31 @@ void main() {
     expect(a.note.tags, ['dep_b']);
   });
 
+  test('dependency details show only scoped prerequisite names', () {
+    final items = [
+      task('next', tags: ['dep_source', 'dep_hidden']),
+      task('source'),
+    ];
+    final details = ProjectDependencyReview.details(items);
+    expect(details.length, 1);
+    expect(details.single.sourceTitle, 'next');
+    expect(details.single.reasonCode, 'DEPENDENCY_TARGET_UNAVAILABLE');
+    expect(details.single.visibleBlockerTitles, ['source']);
+    expect(details.single.visibleBlockerTitles, isNot(contains('hidden')));
+    expect(items.first.note.tags, ['dep_source', 'dep_hidden']);
+    expect(() => ProjectDependencyReview.details(items, limit: 101),
+        throwsFormatException);
+  });
+
+  test('completed prerequisite is not exposed as a blocker', () {
+    final details = ProjectDependencyReview.details([
+      task('next', tags: ['dep_done', 'dep_open']),
+      task('done', completed: true),
+      task('open'),
+    ]);
+    expect(details.single.visibleBlockerTitles, ['open']);
+  });
+
   test('duplicate target identity and invalid policy are rejected', () {
     final result = ProjectDependencyReview.inspect([
       task('next', tags: ['dep_duplicate']),

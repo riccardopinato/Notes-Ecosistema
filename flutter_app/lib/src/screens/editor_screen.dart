@@ -26,6 +26,7 @@ import '../domain/knowledge.dart';
 import '../domain/note.dart';
 import '../domain/note_local_signals.dart';
 import '../domain/note_to_checklist.dart';
+import '../domain/smart_inbox_source_preview.dart';
 import '../domain/planner.dart';
 import '../domain/properties.dart';
 import '../domain/reference_lifecycle.dart';
@@ -37,6 +38,7 @@ import '../screens/sketch_screen.dart';
 import '../screens/whiteboard_screen.dart';
 import 'pdf_workspace_screen.dart';
 import '../state/workspace_controller.dart';
+import '../state/shared_spaces_controller.dart';
 import '../widgets/editorial.dart';
 import '../widgets/knowledge_tools.dart';
 import '../widgets/properties_sheet.dart';
@@ -100,6 +102,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _propertiesLoaded = false;
   bool _focusEditor = false;
   bool _autoRecordStarted = false;
+  Note? _smartInboxCommitted;
+  Note? _smartInboxLastSubmitted;
   Map<String, SyncedBlock> _syncedBlocks = const {};
   final List<({String assetKey, String text, String engine})> _pendingOcr = [];
 
@@ -418,34 +422,32 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           await pendingDraft;
         } catch (_) {}
       }
-      // A Smart Inbox proposal must not overwrite a source changed after
-      // its preview, including a remote edit or account/library switch.
+      // Save-time freshness must apply to the authorized private note.
+      // After a successful canonical write, use that committed snapshot for
+      // sidecar retries, never the stale initial route snapshot.
       if (widget.suggestedTags.isNotEmpty) {
-        final expected = widget.note;
+        final expected = _smartInboxCommitted ?? widget.note;
         final actual = await _database.loadNote(_id);
         final visible = ref
             .read(workspaceProvider)
             .notes
             .where((candidate) => candidate.id == _id)
             .toList(growable: false);
+        final shared = ref.read(sharedSpacesProvider);
         if (expected == null ||
             actual == null ||
             visible.length != 1 ||
-            actual.isDeleted ||
-            actual.archived ||
-            actual.updatedAt != expected.updatedAt ||
-            actual.title != expected.title ||
-            actual.body != expected.body ||
-            actual.collectionId != expected.collectionId ||
-            actual.tags.join('\\u0000') != expected.tags.join('\\u0000') ||
-            visible.single.updatedAt != expected.updatedAt) {
+            shared.spaces.any((space) => space.contentIds.contains(_id)) ||
+            !SmartInboxSourcePreview.sameCanonicalRevision(expected, actual) ||
+            !SmartInboxSourcePreview.sameCanonicalRevision(
+                expected, visible.single)) {
           throw const FormatException(
               'Fonte modificata: riapri il suggerimento prima di salvare.');
         }
       }
       final normalizedTags = NoteTags.normalize(_tags);
       final now = DateTime.now().millisecondsSinceEpoch;
-      final old = widget.note;
+      final old = _smartInboxCommitted ?? widget.note;
       final note = old == null
           ? Note(
               id: _id,
@@ -467,7 +469,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               updatedAt: now,
             );
 
-      await ref.read(workspaceProvider.notifier).save(note);
+      // Retry unfinished OCR/property/block sidecars without duplicating a
+      // canonical save that already succeeded. Changed fields get a new save.
+      final retrySidecarsOnly = widget.suggestedTags.isNotEmpty &&
+          _smartInboxCommitted != null &&
+          _smartInboxLastSubmitted != null &&
+          SmartInboxSourcePreview.sameEditorPayload(
+              _smartInboxLastSubmitted!, note);
+      if (!retrySidecarsOnly) {
+        await ref.read(workspaceProvider.notifier).save(note);
+        if (widget.suggestedTags.isNotEmpty) {
+          _smartInboxLastSubmitted = note;
+          // Read the real persisted revision, including workflow projections.
+          _smartInboxCommitted = note;
+          _smartInboxCommitted = await _database.loadNote(_id) ?? note;
+        }
+      }
       if (_pendingOcr.isNotEmpty) {
         final derivativeStore = ref.read(derivativeStoreProvider);
         for (final pending in _pendingOcr) {

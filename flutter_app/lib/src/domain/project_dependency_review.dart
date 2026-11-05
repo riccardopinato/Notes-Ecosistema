@@ -9,7 +9,71 @@ class ProjectDependencyIssue {
   final String reasonCode;
 }
 
+/// Account- and project-scoped display information. No raw IDs of invisible
+/// prerequisite targets are exposed to the UI.
+class ProjectDependencyDetail {
+  const ProjectDependencyDetail({
+    required this.sourceId,
+    required this.sourceTitle,
+    required this.reasonCode,
+    required this.visibleBlockerTitles,
+  });
+  final String sourceId;
+  final String sourceTitle;
+  final String reasonCode;
+  final List<String> visibleBlockerTitles;
+}
+
 abstract final class ProjectDependencyReview {
+  /// Resolve only currently visible tasks for display; missing/archived target
+  /// identities remain hidden. This is an advisory projection, never a writer.
+  static List<ProjectDependencyDetail> details(
+    Iterable<ProjectWorkItem> items, {
+    int limit = 8,
+  }) {
+    if (limit < 0 || limit > 100) {
+      throw const FormatException('INVALID_DEPENDENCY_LIMIT');
+    }
+    if (limit == 0) return const [];
+    final scoped = items
+        .where((item) =>
+            item.kind == ProjectWorkItemKind.task &&
+            !item.note.archived &&
+            !item.note.isDeleted)
+        .toList(growable: false);
+    final byId = <String, List<ProjectWorkItem>>{};
+    for (final item in scoped) {
+      byId.putIfAbsent(item.note.id.toLowerCase(), () => []).add(item);
+    }
+    final output = <ProjectDependencyDetail>[];
+    for (final issue in inspect(scoped, limit: limit)) {
+      final matches = byId[issue.sourceId];
+      if (matches == null || matches.length != 1) continue;
+      final names = <String>[];
+      final seen = <String>{};
+      for (final tag in matches.single.note.tags) {
+        if (!tag.startsWith('dep_')) continue;
+        final id = tag.substring(4).toLowerCase();
+        final target = byId[id];
+        if (!seen.add(id) ||
+            target == null ||
+            target.length != 1 ||
+            target.single.completed) {
+          continue;
+        }
+        names.add(target.single.title);
+        if (names.length >= 5) break;
+      }
+      output.add(ProjectDependencyDetail(
+        sourceId: issue.sourceId,
+        sourceTitle: matches.single.title,
+        reasonCode: issue.reasonCode,
+        visibleBlockerTitles: List.unmodifiable(names),
+      ));
+    }
+    return List.unmodifiable(output);
+  }
+
   static List<ProjectDependencyIssue> inspect(
     Iterable<ProjectWorkItem> items, {
     int limit = 20,

@@ -68,6 +68,42 @@ class SmartInboxSourcePreview {
     return NoteTags.normalize({...source.tags, ...selection});
   }
 
+  /// Compare the authoritative revision before every Smart Inbox Save.
+  static bool sameCanonicalRevision(Note expected, Note actual) =>
+      expected.id == actual.id &&
+      !actual.isDeleted &&
+      !actual.archived &&
+      !actual.isTask &&
+      !actual.isVisual &&
+      expected.updatedAt == actual.updatedAt &&
+      expected.createdAt == actual.createdAt &&
+      expected.title == actual.title &&
+      expected.body == actual.body &&
+      expected.collectionId == actual.collectionId &&
+      expected.favorite == actual.favorite &&
+      expected.pinned == actual.pinned &&
+      _sameTags(expected.tags, actual.tags) &&
+      expected.deletedAt == actual.deletedAt &&
+      expected.taskJson == actual.taskJson &&
+      expected.sketchJson == actual.sketchJson;
+
+  /// Ignore timestamps only when identifying unchanged submitted edit fields
+  /// after a successful canonical write and a failed optional sidecar.
+  static bool sameEditorPayload(Note saved, Note proposed) =>
+      saved.id == proposed.id &&
+      saved.title == proposed.title &&
+      saved.body == proposed.body &&
+      saved.collectionId == proposed.collectionId &&
+      _sameTags(saved.tags, proposed.tags);
+
+  static bool _sameTags(List<String> first, List<String> second) {
+    if (first.length != second.length) return false;
+    for (var i = 0; i < first.length; i++) {
+      if (first[i] != second[i]) return false;
+    }
+    return true;
+  }
+
   /// Reject absent, duplicate, stale, hidden or changed note snapshots.
   /// The canonical editor remains responsible for final save-time ACL checks.
   Note? current(Iterable<Note> visibleNotes) {
