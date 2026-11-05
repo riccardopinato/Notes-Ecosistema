@@ -35,10 +35,12 @@ abstract final class ProjectDependencyReview {
       throw const FormatException('INVALID_DEPENDENCY_LIMIT');
     }
     if (limit == 0) return const [];
-    final scoped = items.where((item) =>
-        item.kind == ProjectWorkItemKind.task &&
-        !item.note.archived &&
-        !item.note.isDeleted).toList(growable: false);
+    final scoped = items
+        .where((item) =>
+            item.kind == ProjectWorkItemKind.task &&
+            !item.note.archived &&
+            !item.note.isDeleted)
+        .toList(growable: false);
     final byId = <String, List<ProjectWorkItem>>{};
     for (final item in scoped) {
       byId.putIfAbsent(item.note.id.toLowerCase(), () => []).add(item);
@@ -53,7 +55,9 @@ abstract final class ProjectDependencyReview {
         if (!tag.startsWith('dep_')) continue;
         final id = tag.substring(4).toLowerCase();
         final target = byId[id];
-        if (!seen.add(id) || target == null || target.length != 1 ||
+        if (!seen.add(id) ||
+            target == null ||
+            target.length != 1 ||
             target.single.completed) continue;
         names.add(target.single.title);
         if (names.length >= 5) break;

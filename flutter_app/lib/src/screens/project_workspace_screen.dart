@@ -641,7 +641,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                           subtitle: Text(
                             '${switch (detail.reasonCode) {
                               'DEPENDENCY_CYCLE' => 'Dipendenza circolare',
-                              'DEPENDENCY_TARGET_UNAVAILABLE' => 'Prerequisito non disponibile',
+                              'DEPENDENCY_TARGET_UNAVAILABLE' =>
+                                'Prerequisito non disponibile',
                               _ => 'In attesa di prerequisiti',
                             }}'
                             '${detail.visibleBlockerTitles.isEmpty ? '' : ': ${detail.visibleBlockerTitles.join(', ')}'}',
