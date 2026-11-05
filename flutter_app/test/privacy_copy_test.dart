@@ -27,6 +27,12 @@ void main() {
     expect(masked, isNot(contains('c@d.com')));
   });
 
+  test('more than 64 identifiers is rejected rather than partially masked', () {
+    final value = List.generate(65, (i) => 'mail$i@example.org').join(' ');
+    expect(() => PrivacyCopy.scan(value), throwsFormatException);
+    expect(() => PrivacyCopy.redact(value, [0]), throwsFormatException);
+  });
+
   test('oversized sources and forged indices fail closed', () {
     expect(() => PrivacyCopy.scan('x' * 50001), throwsFormatException);
     expect(() => PrivacyCopy.redact('a@b.com', [-1]), throwsFormatException);
