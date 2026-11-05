@@ -37,7 +37,9 @@ void main() {
   });
 
   test('equal-size tampering blocks restore without first-byte shortcuts', () {
-    final generated = Uint8List.fromList(List<int>.generate(1024, (i) => i % 256));
+    final generated = Uint8List.fromList(
+      List<int>.generate(1024, (i) => i % 256),
+    );
     final tampered = Uint8List.fromList(generated);
     tampered[1023] ^= 1;
     expect(
