@@ -40,7 +40,7 @@ class _DocumentDeltaScreenState extends State<DocumentDeltaScreen> {
             const Text('Servono due versioni testuali disponibili.')
           else ...[
             DropdownButtonFormField<String>(
-              value: a?.id,
+              initialValue: a?.id,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Versione iniziale'),
               items: [
@@ -55,7 +55,7 @@ class _DocumentDeltaScreenState extends State<DocumentDeltaScreen> {
               }),
             ),
             DropdownButtonFormField<String>(
-              value: b?.id,
+              initialValue: b?.id,
               isExpanded: true,
               decoration:
                   const InputDecoration(labelText: 'Versione successiva'),
