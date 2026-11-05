@@ -6,6 +6,7 @@ import '../domain/contextual_work_insights.dart';
 import '../domain/project_workload_guard.dart';
 import '../domain/project_dependency_review.dart';
 import '../domain/project_dependency_actions.dart';
+import '../domain/project_task_readiness.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/project_workspace.dart';
@@ -491,6 +492,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
         ProjectDependencyReview.inspect(guidanceItems, limit: 100);
     final dependencyDetails =
         ProjectDependencyReview.details(guidanceItems, limit: 8);
+    final readiness = ProjectTaskReadiness.inspect(guidanceItems, limit: 8);
     final workload = ProjectWorkloadGuard.evaluate(
       guidanceItems,
       civilDay: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -563,6 +565,54 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
               detail: 'Questo progetto resta intatto, ma i contenuti team '
                   'torneranno visibili quando lo Shared Space sarà disponibile.',
             ),
+          ],
+          if (project.isActive && readiness.isNotEmpty) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Stato attività · solo lettura'),
+                    const SizedBox(height: 6),
+                    const Text('Le dipendenze e gli stati sono derivati dai task ' 
+                        'del progetto. Nessuno spostamento automatico.'),
+                    for (final status in readiness)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(status.title),
+                        subtitle: Text(switch (status.reasonCode) {
+                          'DEPENDENCY_CYCLE' => 'Dipendenza circolare',
+                          'DEPENDENCY_UNAVAILABLE' =>
+                            'Prerequisito mancante o non accessibile',
+                          'DEPENDENCY_OPEN' => 'Attende un altro task',
+                          'EXPLICIT_BLOCKED' => 'Blocco indicato manualmente',
+                          'TASK_DONE' => 'Task completato',
+                          'TASK_DOING' => 'Lavorazione in corso',
+                          'TASK_STAGE_INCONSISTENT' =>
+                            'Stato DONE senza completamento registrato',
+                          _ => 'Nessun blocco esplicito',
+                        }),
+                        trailing: Text(switch (status.status) {
+                          ProjectTaskReadinessStatus.done => 'DONE',
+                          ProjectTaskReadinessStatus.blocked => 'BLOCKED',
+                          ProjectTaskReadinessStatus.doing => 'DOING',
+                          ProjectTaskReadinessStatus.ready => 'READY',
+                        }),
+                        onTap: () {
+                          final matches = guidanceItems.where((item) =>
+                              item.note.id == status.taskId).toList();
+                          if (matches.length == 1) {
+                            widget.onOpenItem(matches.single.note, !canEdit);
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
           if (canEdit && guidance.isNotEmpty) ...[
             Card(
