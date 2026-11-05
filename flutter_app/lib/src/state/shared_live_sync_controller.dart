@@ -159,6 +159,24 @@ class SharedLiveSyncState {
       );
 }
 
+/// Serializes a destructive restore against foreground/background sync
+/// initiation. An already active sync must finish before the backup is taken.
+class SharedLiveRestorePauseGate {
+  bool _paused = false;
+
+  bool get isPaused => _paused;
+
+  bool tryEnter({required bool syncBusy}) {
+    if (_paused || syncBusy) return false;
+    _paused = true;
+    return true;
+  }
+
+  void leave() {
+    _paused = false;
+  }
+}
+
 class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   SharedLiveSyncController(this.ref) : super(const SharedLiveSyncState()) {
     _load();
@@ -175,10 +193,30 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
 
   final Ref ref;
   Timer? _timer;
+  final SharedLiveRestorePauseGate _restorePause = SharedLiveRestorePauseGate();
   int _failureStreak = 0;
   int? _lastIdentityVerificationAt;
   int? _lastIdentityConfigFingerprint;
   int? _lastRemoteDiscoveryAt;
+
+  /// Fail closed if a live sync is already writing. While held, timer,
+  /// lifecycle and explicit sync triggers cannot start another sync.
+  bool tryBeginRestorePause() {
+    if (!mounted || !_restorePause.tryEnter(syncBusy: state.busy)) {
+      return false;
+    }
+    _timer?.cancel();
+    _timer = null;
+    return true;
+  }
+
+  void endRestorePause() {
+    if (!_restorePause.isPaused) return;
+    _restorePause.leave();
+    if (mounted && state.enabled && !state.busy) {
+      _schedule(_normalInterval);
+    }
+  }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -344,12 +382,12 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   void _schedule(Duration delay) {
     _timer?.cancel();
     _timer = null;
-    if (!mounted || !state.enabled) return;
+    if (!mounted || !state.enabled || _restorePause.isPaused) return;
     _timer = Timer(delay, () => unawaited(_scheduledSync()));
   }
 
   Future<void> _scheduledSync() async {
-    if (!mounted || !state.enabled) return;
+    if (!mounted || !state.enabled || _restorePause.isPaused) return;
     if (state.busy) {
       _schedule(_busyRetry);
       return;
@@ -420,7 +458,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   }
 
   Future<void> syncNow({bool silent = false}) async {
-    if (state.busy) return;
+    if (state.busy || _restorePause.isPaused) return;
 
     _timer?.cancel();
     _timer = null;
@@ -554,6 +592,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   }
 
   Future<void> syncOnForeground() async {
+    if (_restorePause.isPaused) return;
     unawaited(refreshBackgroundStatus());
     if (!state.enabled || state.busy) return;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -579,14 +618,14 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   }
 
   Future<void> syncSoon() async {
-    if (!state.enabled || state.busy) return;
+    if (!state.enabled || state.busy || _restorePause.isPaused) return;
     final nextRetryAt = state.nextRetryAt;
     if (nextRetryAt != null &&
         nextRetryAt > DateTime.now().millisecondsSinceEpoch) {
       return;
     }
     await Future<void>.delayed(const Duration(milliseconds: 350));
-    if (mounted && state.enabled && !state.busy) {
+    if (mounted && state.enabled && !state.busy && !_restorePause.isPaused) {
       await syncNow(silent: true);
     }
   }
