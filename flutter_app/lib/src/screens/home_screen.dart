@@ -13,6 +13,8 @@ import '../domain/note.dart';
 import '../domain/smart_inbox_source_preview.dart';
 import '../domain/workday.dart';
 import '../widgets/editorial.dart';
+import '../domain/privacy_copy.dart';
+import 'privacy_copy_screen.dart';
 import 'document_delta_screen.dart';
 import '../domain/document_delta.dart';
 
@@ -492,6 +494,34 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 12),
         _StudyCard(onTap: widget.onStudy),
         const SizedBox(height: 16),
+        OutlinedButton.icon(
+          key: const ValueKey('privacy-shield-open'),
+          onPressed: () {
+            final sources = widget.notes
+                .where((note) =>
+                    !note.isDeleted &&
+                    !note.archived &&
+                    !note.isVisual &&
+                    !note.isTask &&
+                    note.body.trim().isNotEmpty)
+                .take(500)
+                .map((note) => PrivacyCopySource(
+                      id: note.id,
+                      title: note.title.trim().isEmpty
+                          ? 'Nota senza titolo'
+                          : note.title,
+                      text: note.body,
+                      revision: note.updatedAt.toString(),
+                    ))
+                .toList(growable: false);
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => PrivacyCopyScreen(sources: sources),
+            ));
+          },
+          icon: const Icon(Icons.shield_outlined),
+          label: const Text('Privacy Shield · copia testo'),
+        ),
+        const SizedBox(height: 12),
         _KnowledgeGraphCard(onTap: widget.onGraph),
         const SizedBox(height: 16),
         _AutomationCard(onTap: widget.onAutomations),

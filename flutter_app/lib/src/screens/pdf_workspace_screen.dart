@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/attachments.dart';
 import '../domain/derivatives.dart';
 import '../domain/documents.dart';
+import '../domain/privacy_copy.dart';
+import 'privacy_copy_screen.dart';
 import '../domain/document_delta.dart';
 import 'document_delta_screen.dart';
 import '../platform/attachment_bridge.dart';
@@ -181,6 +183,26 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                   query: _search.text,
                   onCorrect: () => _correctOcr(ocr),
                 ),
+              ],
+              if (ocr != null) ...[
+                OutlinedButton.icon(
+                  key: const ValueKey('pdf-ocr-privacy-copy'),
+                  onPressed: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => PrivacyCopyScreen(sources: [
+                        PrivacyCopySource(
+                          id: ocr.id,
+                          title: 'Testo OCR · ${widget.attachment.name}',
+                          text: ocr.content,
+                          revision: ocr.sourceFingerprint,
+                        ),
+                      ]),
+                    ));
+                  },
+                  icon: const Icon(Icons.shield_outlined),
+                  label: const Text('Esporta copia OCR oscurata (.txt)'),
+                ),
+                const SizedBox(height: 12),
               ],
               const SizedBox(height: 24),
               EditorialSection(
