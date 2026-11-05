@@ -326,8 +326,10 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
         degrees: degrees,
         order: orderText.trim().isEmpty
             ? const []
-            : orderText.split(',').map((part) =>
-                int.tryParse(part.trim()) ?? -1).toList(growable: false),
+            : orderText
+                .split(',')
+                .map((part) => int.tryParse(part.trim()) ?? -1)
+                .toList(growable: false),
       )..validate();
       final store = await AttachmentStore.open();
       final source = await store.file(widget.attachment.key).readAsBytes();

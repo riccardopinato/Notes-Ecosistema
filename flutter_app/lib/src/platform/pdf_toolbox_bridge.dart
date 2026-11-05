@@ -22,8 +22,11 @@ class PdfToolboxRequest {
   void validate() {
     switch (operation) {
       case PdfToolboxOperation.extractRange:
-        if (firstPage == null || lastPage == null ||
-            firstPage! < 1 || lastPage! < firstPage! || lastPage! > 200) {
+        if (firstPage == null ||
+            lastPage == null ||
+            firstPage! < 1 ||
+            lastPage! < firstPage! ||
+            lastPage! > 200) {
           throw const FormatException('PDF_RANGE_INVALID');
         }
         return;
@@ -35,7 +38,8 @@ class PdfToolboxRequest {
         }
         return;
       case PdfToolboxOperation.reorder:
-        if (order.isEmpty || order.length > 200 ||
+        if (order.isEmpty ||
+            order.length > 200 ||
             order.any((value) => value < 1 || value > 200) ||
             order.toSet().length != order.length) {
           throw const FormatException('PDF_ORDER_INVALID');
@@ -54,8 +58,11 @@ abstract final class PdfToolboxBridge {
   static bool validPdfBytes(Uint8List bytes) =>
       bytes.length >= 5 &&
       bytes.length <= maxInputBytes &&
-      bytes[0] == 0x25 && bytes[1] == 0x50 &&
-      bytes[2] == 0x44 && bytes[3] == 0x46 && bytes[4] == 0x2d;
+      bytes[0] == 0x25 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x44 &&
+      bytes[3] == 0x46 &&
+      bytes[4] == 0x2d;
 
   static Future<Uint8List> transform({
     required PdfToolboxRequest request,
@@ -80,10 +87,14 @@ abstract final class PdfToolboxBridge {
       'degrees': request.degrees,
       'order': request.order,
     });
-    if (bytes == null || bytes.length > maxOutputBytes ||
+    if (bytes == null ||
+        bytes.length > maxOutputBytes ||
         bytes.length < 5 ||
-        bytes[0] != 0x25 || bytes[1] != 0x50 ||
-        bytes[2] != 0x44 || bytes[3] != 0x46 || bytes[4] != 0x2d) {
+        bytes[0] != 0x25 ||
+        bytes[1] != 0x50 ||
+        bytes[2] != 0x44 ||
+        bytes[3] != 0x46 ||
+        bytes[4] != 0x2d) {
       throw const FormatException('PDF_OUTPUT_UNSUPPORTED');
     }
     return bytes;

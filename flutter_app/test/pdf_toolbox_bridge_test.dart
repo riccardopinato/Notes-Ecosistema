@@ -10,9 +10,11 @@ void main() {
     expect(PdfToolboxBridge.validPdfBytes(good), isTrue);
     expect(PdfToolboxBridge.validPdfBytes(other), isFalse);
     expect(PdfToolboxBridge.validPdfBytes(Uint8List(0)), isFalse);
-    expect(PdfToolboxBridge.validPdfBytes(
-      Uint8List(PdfToolboxBridge.maxInputBytes + 1),
-    ), isFalse);
+    expect(
+        PdfToolboxBridge.validPdfBytes(
+          Uint8List(PdfToolboxBridge.maxInputBytes + 1),
+        ),
+        isFalse);
   });
 
   test('range, rotation and page sequence are prevalidated', () {
