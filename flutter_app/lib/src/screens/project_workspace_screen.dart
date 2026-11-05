@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../domain/contextual_work_insights.dart';
 import '../domain/project_workload_guard.dart';
 import '../domain/project_dependency_review.dart';
+import '../domain/project_dependency_actions.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/project_workspace.dart';
@@ -424,6 +425,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
   bool _showCompleted = true;
   int _dailyBudgetMinutes = 240;
   int _wipLimit = 3;
+  bool _editingPrerequisites = false;
 
   @override
   void initState() {
@@ -610,7 +612,10 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   workload.unknownDurationTasks > 0 ||
                   workload.blockedTasks > 0 ||
                   workload.inProgressTasks > 0 ||
-                  dependencies.isNotEmpty)) ...[
+                  dependencies.isNotEmpty ||
+                  guidanceItems.any((item) =>
+                      item.kind == ProjectWorkItemKind.task &&
+                      !item.completed))) ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -656,6 +661,20 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                             }
                           },
                         ),
+                    ],
+                    if (canEdit &&
+                        guidanceItems.any((item) =>
+                            item.kind == ProjectWorkItemKind.task &&
+                            !item.completed)) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        key: const ValueKey('project-prerequisite-editor'),
+                        onPressed: _editingPrerequisites
+                            ? null
+                            : () => _editPrerequisites(project, space),
+                        icon: const Icon(Icons.account_tree_outlined),
+                        label: const Text('Gestisci prerequisiti dei task'),
+                      ),
                     ],
                     Wrap(
                       spacing: 12,
@@ -818,6 +837,224 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
           updatedAt: space.contentAddedAt[ids[index]] ?? space.updatedAt,
         ),
     ];
+  }
+
+  /// Explicit, scoped two-stage selector. The source and all selected targets
+  /// are reloaded before committing through the existing Task writer.
+  Future<void> _editPrerequisites(
+      ProjectWorkspace project, SharedSpace? space) async {
+    if (_editingPrerequisites) return;
+    setState(() => _editingPrerequisites = true);
+    try {
+      final beforeShared = ref.read(sharedSpacesProvider);
+      final owner = beforeShared.identity?.id;
+      final active = ref.read(projectWorkspaceProvider).byId(project.id);
+      if (owner == null ||
+          beforeShared.loading ||
+          beforeShared.error != null ||
+          active == null ||
+          !active.isActive ||
+          active.sharedSpaceId != project.sharedSpaceId ||
+          (active.sharedSpaceId != null &&
+              !(beforeShared.byId(active.sharedSpaceId!)?.canEdit(owner) ??
+                  false))) {
+        throw const FormatException('Permessi di progetto non disponibili.');
+      }
+      final beforeLinks = active.sharedSpaceId == null
+          ? await ref.read(projectStoreProvider).loadLinks(active.id)
+          : _effectiveLinks(active, beforeShared.byId(active.sharedSpaceId!));
+      final beforeItems = ProjectWorkViews.project(
+        notes: ref.read(workspaceProvider).notes,
+        links: beforeLinks,
+      );
+      final sources = beforeItems
+          .where((item) =>
+              item.kind == ProjectWorkItemKind.task &&
+              !item.completed &&
+              !item.note.isDeleted &&
+              !item.note.archived)
+          .toList(growable: false);
+      if (!mounted || sources.isEmpty) return;
+      var search = '';
+      final sourceId = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, updateDialog) => AlertDialog(
+            title: const Text('Scegli il task da organizzare'),
+            content: SizedBox(
+              width: 480,
+              height: 360,
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      hintText: 'Cerca un task del progetto',
+                    ),
+                    onChanged: (value) => updateDialog(() => search = value),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        for (final item in sources
+                            .where((item) => item.title
+                                .toLowerCase()
+                                .contains(search.toLowerCase()))
+                            .take(50))
+                          ListTile(
+                            title: Text(item.title),
+                            onTap: () =>
+                                Navigator.pop(dialogContext, item.note.id),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Annulla'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (sourceId == null || !mounted) return;
+      final initial =
+          sources.where((item) => item.note.id == sourceId).toList();
+      if (initial.length != 1) {
+        throw const FormatException('Task non disponibile nel progetto.');
+      }
+      final sourceNote = initial.single.note;
+      if (beforeShared.spaces.any((space) =>
+          space.contentIds.contains(sourceNote.id) && !space.canEdit(owner))) {
+        throw const FormatException('Task visibile ma non modificabile.');
+      }
+      final eligible =
+          ProjectDependencyActions.eligibleTargets(sourceNote, beforeItems);
+      final availableAtOpen = eligible.map((item) => item.note.id).toSet();
+      final selectedIds =
+          ProjectDependencyActions.existingVisibleTargets(sourceNote, eligible)
+              .toSet();
+      search = '';
+      final confirmed = await showDialog<Set<String>>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, updateDialog) => AlertDialog(
+            title: Text('Prerequisiti di: ${initial.single.title}'),
+            content: SizedBox(
+              width: 480,
+              height: 390,
+              child: Column(
+                children: [
+                  const Text(
+                      'Scegli solo task esistenti nello stesso progetto. '
+                      'I collegamenti non disponibili restano invariati.'),
+                  TextField(
+                    decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search),
+                        hintText: 'Cerca il prerequisito'),
+                    onChanged: (value) => updateDialog(() => search = value),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        for (final item in eligible
+                            .where((item) => item.title
+                                .toLowerCase()
+                                .contains(search.toLowerCase()))
+                            .take(50))
+                          CheckboxListTile(
+                            dense: true,
+                            title: Text(item.title),
+                            value: selectedIds.contains(item.note.id),
+                            onChanged: (checked) => updateDialog(() {
+                              if (checked == true) {
+                                selectedIds.add(item.note.id);
+                              } else {
+                                selectedIds.remove(item.note.id);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Annulla'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, {...selectedIds}),
+                child: const Text('Conferma collegamenti'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (confirmed == null || !mounted) return;
+      final nowShared = ref.read(sharedSpacesProvider);
+      final latestProject = ref.read(projectWorkspaceProvider).byId(project.id);
+      if (nowShared.loading ||
+          nowShared.error != null ||
+          nowShared.identity?.id != owner ||
+          latestProject == null ||
+          !latestProject.isActive ||
+          latestProject.sharedSpaceId != project.sharedSpaceId ||
+          (latestProject.sharedSpaceId != null &&
+              !(nowShared.byId(latestProject.sharedSpaceId!)?.canEdit(owner) ??
+                  false))) {
+        throw const FormatException('Permessi modificati: riprova.');
+      }
+      final latestLinks = latestProject.sharedSpaceId == null
+          ? await ref.read(projectStoreProvider).loadLinks(latestProject.id)
+          : _effectiveLinks(
+              latestProject, nowShared.byId(latestProject.sharedSpaceId!));
+      final latestWorkspace = ref.read(workspaceProvider);
+      if (latestWorkspace.loading) {
+        throw const FormatException('Workspace non pronto.');
+      }
+      final latestItems = ProjectWorkViews.project(
+          notes: latestWorkspace.notes, links: latestLinks);
+      if (nowShared.spaces.any((space) =>
+          space.contentIds.contains(sourceId) && !space.canEdit(owner))) {
+        throw const FormatException('Permessi task cambiati: riprova.');
+      }
+      final latestSource = latestItems
+          .where((item) => item.note.id == sourceId)
+          .toList(growable: false);
+      final persisted = await ref.read(databaseProvider).loadNote(sourceId);
+      if (latestSource.length != 1 ||
+          persisted == null ||
+          !ProjectDependencyActions.sameTaskRevision(sourceNote, persisted) ||
+          !ProjectDependencyActions.sameTaskRevision(
+              sourceNote, latestSource.single.note)) {
+        throw const FormatException('Task modificato: riapri i prerequisiti.');
+      }
+      final next = ProjectDependencyActions.update(
+        source: sourceNote,
+        scopedItems: latestItems,
+        selectedTargetIds: confirmed,
+        originallyVisibleIds: availableAtOpen,
+        nowMilliseconds: DateTime.now().millisecondsSinceEpoch,
+      );
+      if (!ProjectDependencyActions.sameTaskRevision(sourceNote, next)) {
+        await widget.onSaveTask(latestProject, next);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Prerequisiti aggiornati. Nessun task spostato.')));
+        }
+      }
+    } on Object catch (error) {
+      if (mounted) _message(error);
+    } finally {
+      if (mounted) setState(() => _editingPrerequisites = false);
+    }
   }
 
   Future<void> _createNextAction(ProjectWorkspace project) async {
