@@ -2088,8 +2088,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     final blocks = await database.recoveryBlocks();
     final properties = await ref.read(propertyStoreProvider).exportBackup();
     final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
-    final derivatives =
-        await ref.read(derivativeStoreProvider).exportBackup();
+    final derivatives = await ref.read(derivativeStoreProvider).exportBackup();
     final projects = await ref.read(projectStoreProvider).exportBackup();
     final study = await ref.read(studyStoreProvider).exportBackup();
     final documents = await ref.read(documentStoreProvider).exportBackup();
