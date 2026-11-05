@@ -13,6 +13,8 @@ import '../domain/note.dart';
 import '../domain/smart_inbox_source_preview.dart';
 import '../domain/workday.dart';
 import '../widgets/editorial.dart';
+import 'document_delta_screen.dart';
+import '../domain/document_delta.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -459,6 +461,35 @@ class _HomeScreenState extends State<HomeScreen> {
               )),
           const SizedBox(height: 8),
         ],
+        OutlinedButton.icon(
+          key: const ValueKey('document-delta-open'),
+          onPressed: () {
+            final sources = widget.notes
+                .where((note) =>
+                    !note.isDeleted &&
+                    !note.archived &&
+                    !note.isTask &&
+                    !note.isVisual &&
+                    note.body.trim().isNotEmpty)
+                .take(500)
+                .map((note) => DocumentDeltaSource(
+                      id: note.id,
+                      title: note.title.trim().isEmpty
+                          ? 'Nota senza titolo'
+                          : note.title,
+                      text: note.body,
+                      revision: note.updatedAt.toString(),
+                      provenance: 'Nota locale · revisione ${note.updatedAt}',
+                    ))
+                .toList(growable: false);
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => DocumentDeltaScreen(sources: sources),
+            ));
+          },
+          icon: const Icon(Icons.difference_outlined),
+          label: const Text('Confronta due note'),
+        ),
+        const SizedBox(height: 12),
         _StudyCard(onTap: widget.onStudy),
         const SizedBox(height: 16),
         _KnowledgeGraphCard(onTap: widget.onGraph),

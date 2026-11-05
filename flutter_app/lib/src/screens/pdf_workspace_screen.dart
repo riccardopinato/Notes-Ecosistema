@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/attachments.dart';
 import '../domain/derivatives.dart';
 import '../domain/documents.dart';
+import '../domain/document_delta.dart';
+import 'document_delta_screen.dart';
 import '../platform/attachment_bridge.dart';
 import '../state/document_controller.dart';
 import '../state/workspace_controller.dart';
@@ -120,6 +122,38 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
             else if (_error != null)
               _ErrorCard(onRetry: _load)
             else ...[
+              if (_derivatives
+                      .where((item) =>
+                          item.sourceAssetKey == widget.attachment.key &&
+                          (item.kind == DerivativeKind.ocrText ||
+                           item.kind == DerivativeKind.ocrCorrected))
+                      .length >= 2) ...[
+                OutlinedButton.icon(
+                  key: const ValueKey('pdf-ocr-delta'),
+                  onPressed: () {
+                    final sources = _derivatives
+                        .where((item) =>
+                            item.sourceAssetKey == widget.attachment.key &&
+                            (item.kind == DerivativeKind.ocrText ||
+                             item.kind == DerivativeKind.ocrCorrected))
+                        .map((item) => DocumentDeltaSource(
+                              id: item.id,
+                              title: '${item.kind.name} · ${item.engine}',
+                              text: item.content,
+                              revision: item.sourceFingerprint,
+                              provenance: 'OCR ${item.engine} · ${item.createdAt} '
+                                  '· sorgente ${item.sourceFingerprint}',
+                            ))
+                        .toList(growable: false);
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => DocumentDeltaScreen(sources: sources),
+                    ));
+                  },
+                  icon: const Icon(Icons.difference_outlined),
+                  label: const Text('Confronta versioni OCR'),
+                ),
+                const SizedBox(height: 12),
+              ],
               const EditorialSection(
                 'Testo ricercabile',
                 detail: 'OCR derivato dalla sorgente, non sostituisce il PDF.',
