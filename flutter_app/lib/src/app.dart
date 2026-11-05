@@ -2150,6 +2150,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _restoreDisasterRecovery() async {
+    SharedLiveSyncController? pausedLiveSync;
+    var hasRestorePause = false;
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
@@ -2199,6 +2201,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ),
       );
       if (confirmed != true) return;
+
+      // Refuse destructive restore while Shared Live Sync is writing.
+      // The pause prevents foreground, delayed and periodic sync from starting
+      // while the external safety ZIP is being saved, checked and restored.
+      pausedLiveSync = ref.read(sharedLiveSyncProvider.notifier);
+      if (!pausedLiveSync.tryBeginRestorePause()) {
+        throw const FormatException(
+          'Sincronizzazione in corso: riprova il ripristino dopo la fine.',
+        );
+      }
+      hasRestorePause = true;
 
       // Cross-store restores are NOT one atomic transaction. Require a
       // recoverable copy of the current state before touching any store.
@@ -2334,6 +2347,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           ),
         ),
       );
+    } finally {
+      if (hasRestorePause) pausedLiveSync?.endRestorePause();
     }
   }
 
