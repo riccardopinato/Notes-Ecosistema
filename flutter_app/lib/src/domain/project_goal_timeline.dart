@@ -53,7 +53,9 @@ abstract final class ProjectGoalTimeline {
     for (final item in items) {
       if (item.kind != ProjectWorkItemKind.task ||
           item.note.isDeleted ||
-          item.note.archived) continue;
+          item.note.archived) {
+        continue;
+      }
       final id = item.note.id.toLowerCase();
       if (all.containsKey(id)) {
         throw const FormatException('TIMELINE_DUPLICATE_TASK');
