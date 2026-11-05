@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -263,6 +263,7 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                   ),
                   if (operation == PdfToolboxOperation.extractRange) ...[
                     TextFormField(
+                      key: const ValueKey('pdf-extract-first'),
                       initialValue: firstText,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
@@ -270,6 +271,7 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                       onChanged: (text) => firstText = text,
                     ),
                     TextFormField(
+                      key: const ValueKey('pdf-extract-last'),
                       initialValue: lastText,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
@@ -291,6 +293,7 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
                     ),
                   if (operation == PdfToolboxOperation.reorder)
                     TextFormField(
+                      key: const ValueKey('pdf-reorder-all'),
                       initialValue: orderText,
                       decoration: const InputDecoration(
                           labelText: 'Ordine completo: 3,1,2'),
@@ -339,12 +342,22 @@ class _PdfWorkspaceScreenState extends ConsumerState<PdfWorkspaceScreen> {
         final picked = await FilePicker.platform.pickFiles(
           type: FileType.custom,
           allowedExtensions: const ['pdf'],
-          withData: true,
+          withData: false,
         );
         if (picked == null || picked.files.isEmpty) return;
-        secondary = picked.files.single.bytes;
-        if (secondary == null) {
-          throw const FormatException('PDF secondario non leggibile.');
+        final selected = picked.files.single;
+        if (selected.size > PdfToolboxBridge.maxInputBytes ||
+            selected.path == null) {
+          throw const FormatException('PDF troppo grande o non disponibile.');
+        }
+        final file = File(selected.path!);
+        final length = await file.length();
+        if (length > PdfToolboxBridge.maxInputBytes) {
+          throw const FormatException('PDF oltre il limite di 16 MiB.');
+        }
+        secondary = await file.readAsBytes();
+        if (!PdfToolboxBridge.validPdfBytes(secondary)) {
+          throw const FormatException('PDF secondario non valido.');
         }
       }
       final output = await PdfToolboxBridge.transform(
