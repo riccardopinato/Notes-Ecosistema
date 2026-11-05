@@ -47,7 +47,9 @@ abstract final class SmartInboxChecklistAction {
     if (!committed.isTask ||
         !current.isTask ||
         current.isDeleted ||
-        current.archived) return false;
+        current.archived) {
+      return false;
+    }
     if (committed.id != current.id ||
         committed.updatedAt != current.updatedAt ||
         committed.createdAt != current.createdAt ||
@@ -55,7 +57,9 @@ abstract final class SmartInboxChecklistAction {
         committed.body != current.body ||
         committed.collectionId != current.collectionId ||
         committed.taskJson != current.taskJson ||
-        committed.tags.length != current.tags.length) return false;
+        committed.tags.length != current.tags.length) {
+      return false;
+    }
     for (var index = 0; index < committed.tags.length; index++) {
       if (committed.tags[index] != current.tags[index]) return false;
     }
