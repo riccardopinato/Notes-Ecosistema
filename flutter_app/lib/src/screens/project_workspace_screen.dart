@@ -951,28 +951,30 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
           content: SizedBox(
             width: 540,
             height: 420,
-            child: ListView(
-              children: [
-                const Text('Le date sono indicative, con capacità '
-                    'uniforme scelta da te. Nessuna scrittura eseguita.'),
-                const SizedBox(height: 8),
-                for (final entry in preview.take(80))
-                  ListTile(
-                    dense: true,
-                    title: Text(entry.title),
-                    subtitle: Text('Previsto: ${entry.date} '
-                        '· ${entry.minutes} minuti'),
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      final task = currentItems
-                          .where((item) => item.note.id == entry.taskId)
-                          .toList();
-                      if (task.length == 1) {
-                        widget.onOpenItem(task.single.note, true);
-                      }
-                    },
-                  ),
-              ],
+            child: ListView.builder(
+              itemCount: preview.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return const Text('Le date sono indicative, con capacità '
+                      'uniforme scelta da te. Nessuna scrittura eseguita.');
+                }
+                final entry = preview[index - 1];
+                return ListTile(
+                  dense: true,
+                  title: Text(entry.title),
+                  subtitle: Text('Previsto: ${entry.date} '
+                      '· ${entry.minutes} minuti'),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    final task = currentItems
+                        .where((item) => item.note.id == entry.taskId)
+                        .toList();
+                    if (task.length == 1) {
+                      widget.onOpenItem(task.single.note, true);
+                    }
+                  },
+                );
+              },
             ),
           ),
           actions: [

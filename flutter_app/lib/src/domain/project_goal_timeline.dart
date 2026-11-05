@@ -120,7 +120,22 @@ abstract final class ProjectGoalTimeline {
   }
 
   static DateTime? _date(String text) {
-    if (!RegExp(r'^20\d{2}-\d{2}-\d{2}$').hasMatch(text)) return null;
+    if (!RegExp(r'^20\d{2}-\d{2}-\d{2}
+    final p = text.split('-').map(int.parse).toList();
+    final date = DateTime(p[0], p[1], p[2]);
+    if (date.year != p[0] || date.month != p[1] || date.day != p[2])
+      return null;
+    return date;
+  }
+
+  static String _key(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+}
+).hasMatch(text)) {
+      return null;
+    }
     final p = text.split('-').map(int.parse).toList();
     final date = DateTime(p[0], p[1], p[2]);
     if (date.year != p[0] || date.month != p[1] || date.day != p[2])
