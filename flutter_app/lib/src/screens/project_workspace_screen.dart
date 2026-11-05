@@ -487,6 +487,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
         .toList(growable: false);
     final dependencies =
         ProjectDependencyReview.inspect(guidanceItems, limit: 100);
+    final dependencyDetails =
+        ProjectDependencyReview.details(guidanceItems, limit: 8);
     final workload = ProjectWorkloadGuard.evaluate(
       guidanceItems,
       civilDay: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -623,12 +625,37 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                       'WIP: ${workload.inProgressTasks}/$_wipLimit.',
                     ),
                     Text('Motivo: ${workload.reasonCode}'),
-                    if (dependencies.isNotEmpty)
+                    if (dependencies.isNotEmpty) ...[
                       Text(
                         'Dipendenze esplicite da verificare: '
                         '${dependencies.length}${dependencies.length == 100 ? '+' : ''}. '
                         'Nessuna modifica automatica.',
                       ),
+                      const SizedBox(height: 8),
+                      for (final detail in dependencyDetails)
+                        ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.account_tree_outlined),
+                          title: Text(detail.sourceTitle),
+                          subtitle: Text(
+                            '${switch (detail.reasonCode) {
+                              'DEPENDENCY_CYCLE' => 'Dipendenza circolare',
+                              'DEPENDENCY_TARGET_UNAVAILABLE' => 'Prerequisito non disponibile',
+                              _ => 'In attesa di prerequisiti',
+                            }}'
+                            '${detail.visibleBlockerTitles.isEmpty ? '' : ': ${detail.visibleBlockerTitles.join(', ')}'}',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            final matching = guidanceItems.where((item) =>
+                                item.note.id.toLowerCase() == detail.sourceId);
+                            if (matching.length == 1) {
+                              widget.onOpenItem(matching.single.note, !canEdit);
+                            }
+                          },
+                        ),
+                    ],
                     Wrap(
                       spacing: 12,
                       children: [
