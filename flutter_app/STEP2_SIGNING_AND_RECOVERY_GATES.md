@@ -65,7 +65,15 @@ Step 2 extracts a reusable validated recovery snapshot builder and requires a
 **user-selected, externally saved pre-restore recovery ZIP** after confirmation
 and *before the first persistent mutation*. Cancel or failure to save aborts
 the operation. The exported snapshot is decoded in-memory for integrity first.
-A cancelled ordinary backup export no longer reports success.
+
+**External read-back verification:** after Save As, a separate file picker asks
+the user to select the saved ZIP; Notes checks the entire external file
+byte-for-byte against the generated snapshot, and aborts without writing when
+the picker is cancelled, the file is unreadable, truncated or differs. This
+checks storage-provider write completion and avoids treating a returned URI as
+proof of persistence. The gate has deterministic unit regressions in
+`test/recovery_safety_test.dart`. A cancelled ordinary backup export no longer
+reports success.
 
 **Limitations:** the file picker's successful return is not yet a verified
 read-back from the external document provider; abrupt power loss can interrupt
@@ -102,3 +110,12 @@ historical debug-signed builds.
 Tracking: [#71](https://github.com/riccardopinato/Notes-Ecosistema/issues/71),
 [#72](https://github.com/riccardopinato/Notes-Ecosistema/issues/72),
 and roadmap [#60](https://github.com/riccardopinato/Notes-Ecosistema/issues/60).
+
+## CI remediation (same Step 2 PR)
+
+The first CI run on PR #74 reported a false inability to extract the APK
+certificate SHA-256 digest. The apksigner parser now normalizes whitespace and
+colon-separated hex output and fails closed if no unique 64-digit fingerprint is
+present. Expected digest matching and rejection of debug certificates on the
+production-signing path remain mandatory. The exact-head rerun must pass before
+merging; this change does not certify an actual protected release signer.
