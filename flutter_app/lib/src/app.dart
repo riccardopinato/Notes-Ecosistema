@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -2127,11 +2128,12 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       final now = DateTime.now();
       final stamp =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      await FilePicker.platform.saveFile(
+      final savedBackup = await FilePicker.platform.saveFile(
         dialogTitle: 'Crea backup di ripristino Notes',
         fileName: 'notes-recovery-$stamp.zip',
         bytes: bytes,
       );
+      if (savedBackup == null || savedBackup.trim().isEmpty) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2181,7 +2183,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             '${recovery.snapshot.collections.length} raccolte, '
             '${recovery.assets.length} allegati e i relativi metadati. '
             'Il pacchetto migrazione/import rimane separato e continua a '
-            'creare copie. Usa Ripristino solo per disaster recovery. Prima di scrivere, sarà obbligatorio salvare una copia di sicurezza dello stato attuale.',
+            'creare copie. Usa Ripristino solo per disaster recovery. '
+            'Prima di scrivere è obbligatorio salvare una copia di '
+            'sicurezza dello stato attuale.',
           ),
           actions: [
             TextButton(
