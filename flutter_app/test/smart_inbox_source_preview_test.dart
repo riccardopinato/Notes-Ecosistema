@@ -40,6 +40,45 @@ void main() {
     expect(result!.candidates, ['Shopping']);
   });
 
+  test('selected tags require explicit source candidates and remain draft-only',
+      () {
+    final source = note('Documento #caffè #nuovo', tags: ['esistente']);
+    final preview = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(
+        source,
+        InboxReviewKind.explicitTags,
+        'EXPLICIT_HASHTAGS_NOT_APPLIED'))!;
+    expect(preview.selectedTagDraft(['nuovo']), ['esistente', 'nuovo']);
+    expect(source.tags, ['esistente']);
+    expect(() => preview.selectedTagDraft([]), throwsFormatException);
+    expect(() => preview.selectedTagDraft(['segreto']), throwsFormatException);
+  });
+
+  test('canonical writer accepts only its own committed retry snapshot', () {
+    final source = note('Test #topic', tags: ['old']);
+    final persisted = source.copyWith(tags: ['old', 'topic'], updatedAt: 3);
+    expect(SmartInboxSourcePreview.sameCanonicalRevision(source, persisted),
+        isFalse);
+    expect(SmartInboxSourcePreview.sameCanonicalRevision(persisted, persisted),
+        isTrue);
+    expect(
+        SmartInboxSourcePreview.sameCanonicalRevision(
+            persisted, persisted.copyWith(body: 'External edit')),
+        isFalse);
+    expect(
+        SmartInboxSourcePreview.sameCanonicalRevision(
+            persisted, persisted.copyWith(archived: true)),
+        isFalse);
+    expect(
+        SmartInboxSourcePreview.sameEditorPayload(
+            persisted, persisted.copyWith(updatedAt: 4)),
+        isTrue);
+    expect(
+        SmartInboxSourcePreview.sameEditorPayload(
+            persisted, persisted.copyWith(tags: ['old', 'other'])),
+        isFalse);
+    expect(source.tags, ['old']);
+  });
+
   test('source change, hidden record and duplicate identity fail closed', () {
     final source = note('- [ ] Alpha');
     final result = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(

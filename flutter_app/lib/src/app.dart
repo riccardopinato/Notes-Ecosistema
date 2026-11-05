@@ -18,6 +18,7 @@ import 'domain/app_locale.dart';
 import 'domain/attachments.dart';
 import 'domain/backup.dart';
 import 'domain/diary.dart';
+import 'domain/editing.dart';
 import 'domain/disaster_recovery.dart';
 import 'domain/import_provenance.dart';
 import 'domain/intelligence.dart';
@@ -434,6 +435,45 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ),
       );
     }
+  }
+
+  /// First increment of the source-backed Smart Inbox writer flow.
+  /// Proposals are edits to the existing editor draft, not background writes.
+  Future<void> _openSmartInboxTagDraft(Note source, List<String> tags) async {
+    if (tags.isEmpty) return;
+    final state = ref.read(workspaceProvider);
+    final matches = state.notes.where((note) => note.id == source.id).toList();
+    if (matches.length != 1) return;
+    final current = matches.single;
+    if (current.isDeleted ||
+        current.archived ||
+        current.isTask ||
+        current.isVisual ||
+        current.updatedAt != source.updatedAt ||
+        current.title != source.title ||
+        current.body != source.body ||
+        current.collectionId != source.collectionId ||
+        current.tags.join('\\u0000') != source.tags.join('\\u0000')) {
+      return;
+    }
+    // Shared-space role/switch safety remains a separate #46 gate.
+    // This first writer increment only offers tag drafts for private notes.
+    final shared = ref.read(sharedSpacesProvider);
+    if (shared.spaces.any((space) => space.contentIds.contains(source.id))) {
+      await _openEditor(current);
+      return;
+    }
+    final merged = NoteTags.normalize({...current.tags, ...tags});
+    if (merged.length == current.tags.length) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => EditorScreen(
+        note: current,
+        collections: state.collections,
+        allNotes: state.notes,
+        suggestedTags: tags,
+      ),
+    ));
+    await ref.read(workspaceProvider.notifier).refresh();
   }
 
   Future<void> _openEditor([
@@ -1093,6 +1133,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           _index = 1;
         }),
         onOpenNote: _openEditor,
+        onDraftSmartInboxTags: _openSmartInboxTagDraft,
         onProjects: () => _openProjects(),
         onStudy: _openStudy,
         onGraph: _openKnowledgeGraph,
