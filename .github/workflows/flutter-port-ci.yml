@@ -208,6 +208,27 @@ jobs:
       - name: Dependencies
         run: flutter pub get
 
+      - name: Verify PDFBox crypto runtime dependency versions
+        shell: bash
+        run: |
+          mkdir -p build
+          (cd android && ./gradlew :app:dependencies --configuration releaseRuntimeClasspath --no-daemon) > build/pdfbox-gradle-runtime.txt
+          for module in bcprov-jdk15to18 bcpkix-jdk15to18 bcutil-jdk15to18; do
+            if ! grep -Eq "org\\.bouncycastle:${module}:1\\.72 -> 1\\.86|org\\.bouncycastle:${module}:1\\.86" build/pdfbox-gradle-runtime.txt; then
+              echo "::error::Runtime dependency ${module} is not pinned to version 1.86"
+              exit 1
+            fi
+          done
+          echo "PDFBox runtime Bouncy Castle dependency versions verified."
+
+      - name: Upload PDF Toolbox dependency evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-PDF-Toolbox-Gradle-deps
+          path: flutter_app/build/pdfbox-gradle-runtime.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Format check
         run: |
           dart format lib test
