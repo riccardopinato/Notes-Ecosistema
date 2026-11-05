@@ -477,7 +477,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 .map((note) => PrivacyCopySource(
                       id: note.id,
                       title: note.title.trim().isEmpty
-                          ? 'Nota senza titolo' : note.title,
+                          ? 'Nota senza titolo'
+                          : note.title,
                       text: note.body,
                       revision: note.updatedAt.toString(),
                     ))
