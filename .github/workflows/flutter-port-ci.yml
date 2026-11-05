@@ -11,6 +11,12 @@ on:
     paths:
       - "flutter_app/**"
   workflow_dispatch:
+    inputs:
+      production_signed:
+        description: 'Sign Android release with protected external keystore (main only)'
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: read
@@ -238,6 +244,9 @@ jobs:
         if: failure()
         run: git diff -- lib test
 
+      - name: Production-signing configurator unit tests
+        run: python3 -m unittest discover -s tool -p 'test_release_signing_config.py'
+
       - name: Analyze
         run: flutter analyze --no-pub
 
@@ -258,7 +267,7 @@ jobs:
       # The normal debug/release and Play builds keep PDF Toolbox hidden.
       # An explicit QA APK is generated separately for physical-device testing.
       - name: Build opt-in PDF Toolbox QA APK
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
         run: |
           # Isolate QA data and signature from any installed production Notes app.
           cp android/app/build.gradle.kts android/app/build.gradle.kts.before_pdf_qa
@@ -283,7 +292,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
 
       - name: Upload opt-in PDF Toolbox QA APK and test protocol
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
         uses: actions/upload-artifact@v4
         with:
           name: Notes-PDF-Toolbox-QA-debug
@@ -301,7 +310,158 @@ jobs:
           test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # CI artifacts remain intentionally debug-signed and NOT FOR DISTRIBUTION.
+      # Only explicit workflow_dispatch on main can use protected upload-key secrets.
+      - name: Configure protected production release signing
+        if: github.event_name == 'workflow_dispatch' && inputs.production_signed == true
+        shell: bash
+        env:
+          NOTES_KEYSTORE_B64: ${{ secrets.NOTES_ANDROID_KEYSTORE_BASE64 }}
+          NOTES_SIGNING_STORE_PASSWORD: ${{ secrets.NOTES_ANDROID_KEYSTORE_PASSWORD }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ secrets.NOTES_ANDROID_KEY_ALIAS }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ secrets.NOTES_ANDROID_KEY_PASSWORD }}
+          NOTES_EXPECTED_CERT_SHA256: ${{ secrets.NOTES_ANDROID_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Protected release signing is main-only."
+            exit 1
+          fi
+          for key in NOTES_KEYSTORE_B64 NOTES_SIGNING_STORE_PASSWORD NOTES_SIGNING_KEY_ALIAS NOTES_SIGNING_KEY_PASSWORD NOTES_EXPECTED_CERT_SHA256; do
+            if [ -z "$(printenv "$key")" ]; then
+              echo "::error::Missing protected release signing setting."
+              exit 1
+            fi
+          done
+          if ! printf '%s' "$NOTES_EXPECTED_CERT_SHA256" | grep -Eq '^[a-fA-F0-9]{64}
+
+      - name: APK size report and regression guard
+        shell: bash
+        run: |
+          echo "APK prodotti:"
+          du -h build/app/outputs/flutter-apk/*.apk | sort -h
+          ARM64="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+          test -f "$ARM64"
+          BYTES="$(stat -c%s "$ARM64")"
+          SOFT_TARGET="$((38 * 1024 * 1024))"
+          ACCIDENT_GUARD="$((80 * 1024 * 1024))"
+          echo "arm64 bytes: $BYTES / soft target: $SOFT_TARGET"
+          if [ "$BYTES" -gt "$SOFT_TARGET" ]; then
+            echo "::warning::ARM64 APK exceeds the 38 MiB soft target; review the size increase."
+          fi
+          if unzip -l "$ARM64" | grep -q 'needle3\.cact'; then
+            echo "::error::Needle model weights must never be bundled in the base APK."
+            exit 1
+          fi
+          test "$BYTES" -le "$ACCIDENT_GUARD"
+
+      - name: Materialize Needle 20L Play AI pack
+        env:
+          NEEDLE_TELEMETRY: "0"
+          DO_NOT_TRACK: "1"
+        run: |
+          mkdir -p android/notes_needle3_20l/src/main/assets
+          cp android_plus/notes_needle3_20l/build.gradle android/notes_needle3_20l/build.gradle
+          python3 tool/fetch_needle_model.py android/notes_needle3_20l/src/main/assets/needle3.cact
+          python3 - <<'PY'
+          from pathlib import Path
+
+          settings = Path("android/settings.gradle.kts")
+          ss = settings.read_text()
+          if 'include(":notes_needle3_20l")' not in ss:
+              ss += '\ninclude(":notes_needle3_20l")\n'
+          settings.write_text(ss)
+
+          app = Path("android/app/build.gradle.kts")
+          gradle = app.read_text()
+          if 'assetPacks += setOf(":notes_needle3_20l")' not in gradle:
+              gradle += '\n\nandroid {\n    assetPacks += setOf(":notes_needle3_20l")\n}\n'
+          app.write_text(gradle)
+          PY
+
+      - name: Build Play AAB with on-demand Needle pack
+        run: >-
+          flutter build appbundle --release --no-pub
+          --obfuscate --split-debug-info=build/symbols
+
+      - name: Verify Needle Play bundle
+        shell: bash
+        run: |
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+          unzip -l "$AAB" | tee build/needle-aab-contents.txt
+          grep -q 'notes_needle3_20l/assets/needle3.cact' build/needle-aab-contents.txt
+          if unzip -l "$AAB" | grep -q 'base/assets/needle3.cact'; then
+            echo "::error::Needle weights leaked into the AAB base module."
+            exit 1
+          fi
+
+      - name: Generate release evidence
+        shell: bash
+        run: |
+          mkdir -p build/release-evidence
+          ARM64="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+          test -f "$ARM64"
+          SHA256="$(sha256sum "$ARM64" | awk '{print $1}')"
+          BYTES="$(stat -c%s "$ARM64")"
+          {
+            echo "version=${{ steps.app_version.outputs.version }}"
+            echo "build_sha=$GITHUB_SHA"
+            echo "git_ref=$GITHUB_REF"
+            echo "artifact=app-arm64-v8a-release.apk"
+            echo "bytes=$BYTES"
+            echo "sha256=$SHA256"
+          } | tee build/release-evidence/arm64-release.txt
+          sha256sum build/app/outputs/flutter-apk/app-*-release.apk \
+            > build/release-evidence/all-release-sha256.txt
+
+      - name: Upload release APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-release-split
+          path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Play AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-play-aab
+          path: flutter_app/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-evidence
+          path: flutter_app/build/release-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload obfuscation symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-symbols
+          path: flutter_app/build/symbols
+          if-no-files-found: error
+          retention-days: 30
+; then
+            echo "::error::Expected certificate digest must be 64 hex characters."
+            exit 1
+          fi
+          umask 077
+          export NOTES_SIGNING_KEYSTORE_FILE="$RUNNER_TEMP/notes-release-upload.jks"
+          printf '%s' "$NOTES_KEYSTORE_B64" | base64 --decode > "$NOTES_SIGNING_KEYSTORE_FILE"
+          chmod 600 "$NOTES_SIGNING_KEYSTORE_FILE"
+          python3 tool/configure_release_signing.py android/app/build.gradle.kts
+
       - name: Build release APKs per ABI
+        env:
+          NOTES_SIGNING_KEYSTORE_FILE: ${{ runner.temp }}/notes-release-upload.jks
+          NOTES_SIGNING_STORE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEYSTORE_PASSWORD || '' }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_ALIAS || '' }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_PASSWORD || '' }}
         run: >
           flutter build apk --release --split-per-abi --no-pub
           --obfuscate --split-debug-info=build/symbols
