@@ -12,7 +12,9 @@ abstract final class ProjectDependencyActions {
     for (final item in scopedItems) {
       if (item.kind != ProjectWorkItemKind.task ||
           item.note.isDeleted ||
-          item.note.archived) continue;
+          item.note.archived) {
+        continue;
+      }
       grouped.putIfAbsent(item.note.id.toLowerCase(), () => []).add(item);
     }
     final results = <ProjectWorkItem>[];
@@ -21,7 +23,9 @@ abstract final class ProjectDependencyActions {
       final item = values.single;
       if (!item.completed &&
           item.note.id.toLowerCase() != source.id.toLowerCase() &&
-          _validTargetId(item.note.id)) results.add(item);
+          _validTargetId(item.note.id)) {
+        results.add(item);
+      }
     }
     results.sort((a, b) => a.title.compareTo(b.title));
     return List.unmodifiable(results);
@@ -55,7 +59,9 @@ abstract final class ProjectDependencyActions {
     for (final item in scopedItems) {
       if (item.kind != ProjectWorkItemKind.task ||
           item.note.isDeleted ||
-          item.note.archived) continue;
+          item.note.archived) {
+        continue;
+      }
       grouped.putIfAbsent(item.note.id.toLowerCase(), () => []).add(item);
     }
     final self = source.id.toLowerCase();
