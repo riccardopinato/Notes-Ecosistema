@@ -2079,42 +2079,50 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<Uint8List> _createRecoveryBundleBytes() async {
+    final workspace = ref.read(workspaceProvider.notifier);
+    final database = ref.read(databaseProvider);
+    final snapshot = await workspace.snapshot();
+    final revisions = await database.recoveryRevisions();
+    final blocks = await database.recoveryBlocks();
+    final properties = await ref.read(propertyStoreProvider).exportBackup();
+    final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
+    final derivatives =
+        await ref.read(derivativeStoreProvider).exportBackup();
+    final projects = await ref.read(projectStoreProvider).exportBackup();
+    final study = await ref.read(studyStoreProvider).exportBackup();
+    final documents = await ref.read(documentStoreProvider).exportBackup();
+    final importProvenance =
+        await ref.read(importProvenanceStoreProvider).exportBackup();
+    final automations =
+        await ref.read(workflowAutomationStoreProvider).exportBackup();
+    final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
+    final store = await AttachmentStore.open();
+
+    final bytes = await DisasterRecoveryBundle.encode(
+      snapshot: snapshot,
+      revisions: revisions,
+      blocks: blocks,
+      properties: properties,
+      knowledge: knowledge,
+      derivatives: derivatives,
+      projects: projects,
+      study: study,
+      documents: documents,
+      importProvenance: importProvenance,
+      automations: automations,
+      sharedSpaces: shared,
+      store: store,
+    );
+
+    // The decoded preview validates integrity, references and every asset.
+    DisasterRecoveryBundle.decode(bytes);
+    return bytes;
+  }
+
   Future<void> _exportDisasterRecovery() async {
     try {
-      final workspace = ref.read(workspaceProvider.notifier);
-      final database = ref.read(databaseProvider);
-      final snapshot = await workspace.snapshot();
-      final revisions = await database.recoveryRevisions();
-      final blocks = await database.recoveryBlocks();
-      final properties = await ref.read(propertyStoreProvider).exportBackup();
-      final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
-      final derivatives =
-          await ref.read(derivativeStoreProvider).exportBackup();
-      final projects = await ref.read(projectStoreProvider).exportBackup();
-      final study = await ref.read(studyStoreProvider).exportBackup();
-      final documents = await ref.read(documentStoreProvider).exportBackup();
-      final importProvenance =
-          await ref.read(importProvenanceStoreProvider).exportBackup();
-      final automations =
-          await ref.read(workflowAutomationStoreProvider).exportBackup();
-      final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
-      final store = await AttachmentStore.open();
-
-      final bytes = await DisasterRecoveryBundle.encode(
-        snapshot: snapshot,
-        revisions: revisions,
-        blocks: blocks,
-        properties: properties,
-        knowledge: knowledge,
-        derivatives: derivatives,
-        projects: projects,
-        study: study,
-        documents: documents,
-        importProvenance: importProvenance,
-        automations: automations,
-        sharedSpaces: shared,
-        store: store,
-      );
+      final bytes = await _createRecoveryBundleBytes();
 
       final now = DateTime.now();
       final stamp =
@@ -2173,7 +2181,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             '${recovery.snapshot.collections.length} raccolte, '
             '${recovery.assets.length} allegati e i relativi metadati. '
             'Il pacchetto migrazione/import rimane separato e continua a '
-            'creare copie. Usa Ripristino solo per disaster recovery.',
+            'creare copie. Usa Ripristino solo per disaster recovery. Prima di scrivere, sarà obbligatorio salvare una copia di sicurezza dello stato attuale.',
           ),
           actions: [
             TextButton(
@@ -2189,13 +2197,27 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       );
       if (confirmed != true) return;
 
+      // Cross-store restores are NOT one atomic transaction. Require a
+      // recoverable copy of the current state before touching any store.
+      // Cancelling this Save As operation leaves the existing data intact.
+      final safetyBytes = await _createRecoveryBundleBytes();
+      final savedSafetyCopy = await FilePicker.platform.saveFile(
+        dialogTitle: 'Salva prima il backup di sicurezza obbligatorio',
+        fileName:
+            'notes-pre-ripristino-${DateTime.now().millisecondsSinceEpoch}.zip',
+        bytes: safetyBytes,
+      );
+      if (savedSafetyCopy == null || savedSafetyCopy.trim().isEmpty) {
+        return;
+      }
+
       final noteIds = recovery.snapshot.notes.map((note) => note.id).toSet();
       final sharedIds =
           recovery.sharedSpaces.spaces.map((space) => space.id).toSet();
 
-      // Every store is replaced transactionally and with canonical IDs.
-      // The full operation is retry-safe: all stages are exact/idempotent,
-      // while assets are content-addressed.
+      // Each store has its own transaction. The saved safety copy is the
+      // recovery path after an interrupted multi-store restore; do not claim
+      // an atomic rollback across all sidecar databases.
       final store = await AttachmentStore.open();
       for (final entry in recovery.assets.entries) {
         await store.put(entry.key, entry.value);
@@ -2266,7 +2288,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             userErrorText(
               error,
               fallback:
-                  'Ripristino non completato. Puoi riprovare lo stesso backup in sicurezza.',
+                  'Ripristino non completato: conserva la copia pre-ripristino prima di riprovare, perché più archivi possono essere stati modificati.',
             ),
           ),
         ),
