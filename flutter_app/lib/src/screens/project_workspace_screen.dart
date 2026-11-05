@@ -6,6 +6,7 @@ import '../domain/contextual_work_insights.dart';
 import '../domain/project_workload_guard.dart';
 import '../domain/project_dependency_review.dart';
 import '../domain/project_dependency_actions.dart';
+import '../domain/project_goal_timeline.dart';
 import '../domain/note.dart';
 import '../domain/planner.dart';
 import '../domain/project_workspace.dart';
@@ -719,6 +720,18 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
             ),
             const SizedBox(height: 12),
           ],
+          if (project.isActive &&
+              guidanceItems.any((item) =>
+                  item.kind == ProjectWorkItemKind.task &&
+                  !item.completed)) ...[
+            OutlinedButton.icon(
+              key: const ValueKey('project-goal-backplan'),
+              onPressed: () => _previewGoalTimeline(guidanceItems),
+              icon: const Icon(Icons.route_outlined),
+              label: const Text('Simula timeline obiettivo'),
+            ),
+            const SizedBox(height: 12),
+          ],
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
@@ -841,6 +854,137 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
 
   /// Explicit, scoped two-stage selector. The source and all selected targets
   /// are reloaded before committing through the existing Task writer.
+  Future<void> _previewGoalTimeline(
+      List<ProjectWorkItem> scopedItems) async {
+    final targetDate = TextEditingController(
+      text: DateFormat('yyyy-MM-dd').format(
+          DateTime.now().add(const Duration(days: 14))),
+    );
+    final minutes = TextEditingController(text: '');
+    final capacity = TextEditingController(text: '');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pianifica a ritroso'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Simulazione locale e non vincolante: usa solo '
+                    'la durata che indichi qui, dal lunedì al venerdì. '
+                    'Non riscrive scadenze, task o calendario.'),
+                TextField(
+                  controller: targetDate,
+                  decoration: const InputDecoration(
+                      labelText: 'Milestone finale (YYYY-MM-DD)'),
+                ),
+                TextField(
+                  controller: minutes,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Minuti stimati per ogni task (obbligatorio)'),
+                ),
+                TextField(
+                  controller: capacity,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Minuti disponibili al giorno (obbligatorio)'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Visualizza piano'),
+          ),
+        ],
+      ),
+    );
+    final rawDate = targetDate.text;
+    final rawMinutes = minutes.text;
+    final rawCapacity = capacity.text;
+    targetDate.dispose();
+    minutes.dispose();
+    capacity.dispose();
+    if (confirmed != true || !mounted) return;
+    try {
+      final latestShared = ref.read(sharedSpacesProvider);
+      final latestWorkspace = ref.read(workspaceProvider);
+      final project = ref.read(projectWorkspaceProvider).byId(widget.projectId);
+      if (latestWorkspace.loading || latestShared.loading ||
+          latestShared.error != null || project == null || !project.isActive ||
+          (project.sharedSpaceId != null &&
+              latestShared.byId(project.sharedSpaceId!) == null)) {
+        throw const FormatException('Fonte del progetto non disponibile.');
+      }
+      final space = project.sharedSpaceId == null
+          ? null : latestShared.byId(project.sharedSpaceId!);
+      final links = project.sharedSpaceId == null
+          ? await ref.read(projectStoreProvider).loadLinks(project.id)
+          : _effectiveLinks(project, space);
+      final currentItems = ProjectWorkViews.project(
+        notes: latestWorkspace.notes,
+        links: links,
+      );
+      final preview = ProjectGoalTimeline.backplan(
+        currentItems,
+        deadline: rawDate,
+        minutesPerTask: int.tryParse(rawMinutes) ?? 0,
+        minutesPerDay: int.tryParse(rawCapacity) ?? 0,
+      );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Timeline simulata'),
+          content: SizedBox(
+            width: 540,
+            height: 420,
+            child: ListView(
+              children: [
+                const Text('Le date sono indicative, con capacità '
+                    'uniforme scelta da te. Nessuna scrittura eseguita.'),
+                const SizedBox(height: 8),
+                for (final entry in preview.take(80))
+                  ListTile(
+                    dense: true,
+                    title: Text(entry.title),
+                    subtitle: Text('Previsto: ${entry.date} '
+                        '· ${entry.minutes} minuti'),
+                    onTap: () {
+                      Navigator.pop(dialogContext);
+                      final task = currentItems
+                          .where((item) => item.note.id == entry.taskId)
+                          .toList();
+                      if (task.length == 1) {
+                        widget.onOpenItem(task.single.note, true);
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Chiudi'),
+            ),
+          ],
+        ),
+      );
+    } on Object catch (error) {
+      if (mounted) _message(error);
+    }
+  }
+
   Future<void> _editPrerequisites(
       ProjectWorkspace project, SharedSpace? space) async {
     if (_editingPrerequisites) return;
