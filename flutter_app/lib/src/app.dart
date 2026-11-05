@@ -453,7 +453,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         current.title != source.title ||
         current.body != source.body ||
         current.collectionId != source.collectionId ||
-        current.tags.join('\\u0000') != source.tags.join('\\u0000')) return;
+        current.tags.join('\\u0000') != source.tags.join('\\u0000')) {
+      return;
+    }
     // Shared-space role/switch safety remains a separate #46 gate.
     // This first writer increment only offers tag drafts for private notes.
     final shared = ref.read(sharedSpacesProvider);
