@@ -229,6 +229,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # The normal debug/release and Play builds keep PDF Toolbox hidden.
+      # An explicit QA APK is generated separately for physical-device testing.
+      - name: Build opt-in PDF Toolbox QA APK
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        run: |
+          flutter build apk --debug --no-pub --dart-define=NOTES_ENABLE_PDF_TOOLBOX=true
+          cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
+
+      - name: Upload opt-in PDF Toolbox QA APK and test protocol
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-PDF-Toolbox-QA-debug
+          path: |
+            flutter_app/build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
+            flutter_app/PDF_TOOLBOX_DEVICE_QA.md
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Read app version
         id: app_version
         shell: bash
