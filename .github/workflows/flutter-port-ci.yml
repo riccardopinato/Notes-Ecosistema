@@ -72,18 +72,7 @@ jobs:
           # Prefer the latest same-artifact-line security maintenance release
           # in every Gradle configuration. CI must validate the upgrade.
           if 'PDF_TOOLBOX_BOUNCY_CASTLE_PIN' not in s:
-              s += '''\n
-// PDF_TOOLBOX_BOUNCY_CASTLE_PIN: align all pdfbox transitive crypto modules.
-configurations.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.bouncycastle" &&
-            requested.name.endsWith("-jdk15to18")) {
-            useVersion("1.86")
-            because("security maintenance for the PDFBox transitive 1.72 line")
-        }
-    }
-}
-'''
+              s += "\n \n// PDF_TOOLBOX_BOUNCY_CASTLE_PIN: align PDFBox transitive crypto modules.\nconfigurations.configureEach {\n    resolutionStrategy.eachDependency {\n        if (requested.group == \"org.bouncycastle\" &&\n            requested.name.endsWith(\"-jdk15to18\")) {\n            useVersion(\"1.86\")\n            because(\"security maintenance for the PDFBox transitive 1.72 line\")\n        }\n    }\n}\n"
           p.write_text(s)
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
