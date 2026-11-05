@@ -40,6 +40,16 @@ void main() {
     expect(result!.candidates, ['Shopping']);
   });
 
+  test('selected tags require explicit source candidates and remain draft-only', () {
+    final source = note('Documento #caffè #nuovo', tags: ['esistente']);
+    final preview = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(
+      source, InboxReviewKind.explicitTags, 'EXPLICIT_HASHTAGS_NOT_APPLIED'))!;
+    expect(preview.selectedTagDraft(['nuovo']), ['esistente', 'nuovo']);
+    expect(source.tags, ['esistente']);
+    expect(() => preview.selectedTagDraft([]), throwsFormatException);
+    expect(() => preview.selectedTagDraft(['segreto']), throwsFormatException);
+  });
+
   test('source change, hidden record and duplicate identity fail closed', () {
     final source = note('- [ ] Alpha');
     final result = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(

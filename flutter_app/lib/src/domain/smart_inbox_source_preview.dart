@@ -1,4 +1,5 @@
 import 'contextual_work_insights.dart';
+import 'editing.dart';
 import 'note.dart';
 
 /// Deterministic, read-only review of source-authored candidates.
@@ -52,6 +53,19 @@ class SmartInboxSourcePreview {
     if (excerpt.length > 180) excerpt = '${excerpt.substring(0, 180)}…';
     return SmartInboxSourcePreview(
         source, suggestion.reasonCode, List.unmodifiable(candidates), excerpt);
+  }
+
+  /// Only source-authored, explicitly selected tags may enter an editor draft.
+  /// This method never writes the canonical note.
+  List<String> selectedTagDraft(Iterable<String> selected) {
+    final selection = selected.toList(growable: false);
+    final allow = candidates.toSet();
+    if (selection.isEmpty ||
+        selection.length > candidates.length ||
+        selection.any((tag) => !allow.contains(tag))) {
+      throw const FormatException('INVALID_SMART_INBOX_SELECTION');
+    }
+    return NoteTags.normalize({...source.tags, ...selection});
   }
 
   /// Reject absent, duplicate, stale, hidden or changed note snapshots.

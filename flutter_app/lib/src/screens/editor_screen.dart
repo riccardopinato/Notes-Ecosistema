@@ -55,6 +55,7 @@ class EditorScreen extends ConsumerStatefulWidget {
     this.allNotes = const [],
     this.readOnly = false,
     this.autoRecord = false,
+    this.suggestedTags = const [],
     super.key,
   });
 
@@ -63,6 +64,8 @@ class EditorScreen extends ConsumerStatefulWidget {
   final List<Note> allNotes;
   final bool readOnly;
   final bool autoRecord;
+  /// Explicit Smart Inbox tag selection. Restored drafts always take priority.
+  final List<String> suggestedTags;
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -198,6 +201,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _tags = List<String>.from(draft.tags);
           _dirty = true;
           _draftStatus = 'Bozza recuperata dal dispositivo';
+          if (widget.suggestedTags.isNotEmpty) {
+            _error = 'Bozza già presente: i tag suggeriti non sono stati aggiunti.';
+          }
           _mode = Checklist.hasMarker(draft.body)
               ? _EditorMode.checklist
               : _EditorMode.text;
@@ -205,7 +211,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         });
       } else {
         setState(() => _draftLoaded = true);
-        if (_changedBeforeDraftLoad) {
+        if (widget.suggestedTags.isNotEmpty) {
+          try {
+            final nextTags = NoteTags.normalize(
+              {..._tags, ...widget.suggestedTags},
+            );
+            setState(() {
+              _tags = nextTags;
+              _dirty = true;
+              _draftStatus = 'Tag suggeriti: salva per confermare';
+            });
+          } on Object catch (_) {
+            setState(() => _error = 'Tag suggeriti non validi.');
+          }
+        }
+        if (_changedBeforeDraftLoad ||
+            (widget.suggestedTags.isNotEmpty && _error == null)) {
           _rememberDraft(immediate: true);
         }
       }
@@ -394,6 +415,25 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         try {
           await pendingDraft;
         } catch (_) {}
+      }
+      // A Smart Inbox proposal must not overwrite a source changed after
+      // its preview, including a remote edit or account/library switch.
+      if (widget.suggestedTags.isNotEmpty) {
+        final expected = widget.note;
+        final actual = await _database.loadNote(_id);
+        final visible = ref.read(workspaceProvider).notes
+            .where((candidate) => candidate.id == _id)
+            .toList(growable: false);
+        if (expected == null || actual == null || visible.length != 1 ||
+            actual.isDeleted || actual.archived ||
+            actual.updatedAt != expected.updatedAt ||
+            actual.title != expected.title || actual.body != expected.body ||
+            actual.collectionId != expected.collectionId ||
+            actual.tags.join('\\u0000') != expected.tags.join('\\u0000') ||
+            visible.single.updatedAt != expected.updatedAt) {
+          throw const FormatException(
+              'Fonte modificata: riapri il suggerimento prima di salvare.');
+        }
       }
       final normalizedTags = NoteTags.normalize(_tags);
       final now = DateTime.now().millisecondsSinceEpoch;
