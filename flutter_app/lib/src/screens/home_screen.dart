@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -25,6 +26,8 @@ class HomeScreen extends StatefulWidget {
     required this.onCollection,
     required this.onOpenNote,
     this.onDraftSmartInboxTags,
+    this.onCreateSmartInboxChecklistTask,
+    this.onUndoSmartInboxChecklistTask,
     required this.onProjects,
     this.onStudy,
     this.onGraph,
@@ -47,6 +50,11 @@ class HomeScreen extends StatefulWidget {
   /// Opens the canonical editor with user-selected tag drafts; never saves here.
   final Future<void> Function(Note source, List<String> selectedTags)?
       onDraftSmartInboxTags;
+
+  /// A confirmed source-backed action creates exactly one canonical Task.
+  final Future<String> Function(Note source, List<String> selected)?
+      onCreateSmartInboxChecklistTask;
+  final Future<void> Function(String taskId)? onUndoSmartInboxChecklistTask;
   final VoidCallback onProjects;
   final VoidCallback? onStudy;
   final VoidCallback? onGraph;
@@ -163,6 +171,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
     };
     final selectedTags = <String>{};
+    final canCreateChecklist = suggestion.kind == InboxReviewKind.checklist &&
+        widget.onCreateSmartInboxChecklistTask != null;
+    if (canCreateChecklist) selectedTags.addAll(preview.candidates);
     final canDraftTags = suggestion.kind == InboxReviewKind.explicitTags &&
         widget.onDraftSmartInboxTags != null;
     final confirmed = await showDialog<bool>(
@@ -184,24 +195,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   Text(preview.sourceExcerpt),
                   const SizedBox(height: 12),
-                  ...preview.candidates.map((value) => canDraftTags
-                      ? CheckboxListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          value: selectedTags.contains(value),
-                          title: Text('#$value'),
-                          onChanged: (checked) => setDialogState(() {
-                            if (checked == true) {
-                              selectedTags.add(value);
-                            } else {
-                              selectedTags.remove(value);
-                            }
-                          }),
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('• $value'),
-                        )),
+                  ...preview.candidates
+                      .map((value) => (canDraftTags || canCreateChecklist)
+                          ? CheckboxListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              value: selectedTags.contains(value),
+                              title:
+                                  Text(canCreateChecklist ? value : '#$value'),
+                              onChanged: (checked) => setDialogState(() {
+                                if (checked == true) {
+                                  selectedTags.add(value);
+                                } else {
+                                  selectedTags.remove(value);
+                                }
+                              }),
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text('• $value'),
+                            )),
                   const SizedBox(height: 12),
                   Text(labels[3]),
                 ],
@@ -214,19 +227,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text(labels[1])),
             FilledButton(
               key: const ValueKey('smart-inbox-preview-open-editor'),
-              onPressed: canDraftTags && selectedTags.isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              child: Text(canDraftTags
+              onPressed:
+                  (canDraftTags || canCreateChecklist) && selectedTags.isEmpty
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
+              child: Text(canCreateChecklist
                   ? switch (code) {
-                      'it' => 'Apri bozza con tag',
-                      'es' => 'Abrir borrador con etiquetas',
-                      'fr' => 'Ouvrir le brouillon avec tags',
-                      'de' => 'Entwurf mit Tags öffnen',
-                      'pt' => 'Abrir rascunho com tags',
-                      _ => 'Open draft with tags',
+                      'it' => 'Crea attività',
+                      'es' => 'Crear tarea',
+                      'fr' => 'Créer une tâche',
+                      'de' => 'Aufgabe erstellen',
+                      'pt' => 'Criar tarefa',
+                      _ => 'Create task',
                     }
-                  : labels[2]),
+                  : canDraftTags
+                      ? switch (code) {
+                          'it' => 'Apri bozza con tag',
+                          'es' => 'Abrir borrador con etiquetas',
+                          'fr' => 'Ouvrir le brouillon avec tags',
+                          'de' => 'Entwurf mit Tags öffnen',
+                          'pt' => 'Abrir rascunho com tags',
+                          _ => 'Open draft with tags',
+                        }
+                      : labels[2]),
             ),
           ],
         ),
@@ -239,6 +262,44 @@ class _HomeScreenState extends State<HomeScreen> {
         const SnackBar(
             content: Text('Fonte non più disponibile o modificata.')),
       );
+      return;
+    }
+    if (canCreateChecklist) {
+      try {
+        final id = await widget.onCreateSmartInboxChecklistTask!(
+            current, preview.candidates.where(selectedTags.contains).toList());
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(switch (code) {
+            'it' => 'Attività creata dalla checklist',
+            'es' => 'Tarea creada desde la lista',
+            'fr' => 'Tâche créée depuis la liste',
+            'de' => 'Aufgabe aus Checkliste erstellt',
+            'pt' => 'Tarefa criada a partir da lista',
+            _ => 'Task created from checklist',
+          }),
+          action: widget.onUndoSmartInboxChecklistTask == null
+              ? null
+              : SnackBarAction(
+                  label: switch (code) {
+                    'it' => 'Annulla',
+                    'es' => 'Deshacer',
+                    'fr' => 'Annuler',
+                    'de' => 'Rückgängig',
+                    'pt' => 'Desfazer',
+                    _ => 'Undo',
+                  },
+                  onPressed: () => unawaited(_undoChecklistTask(id)),
+                ),
+        ));
+      } on Object catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text(error.toString().replaceFirst('FormatException: ', ''))),
+        );
+      }
       return;
     }
     if (canDraftTags) {
@@ -255,6 +316,19 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     widget.onOpenNote(current);
+  }
+
+  Future<void> _undoChecklistTask(String id) async {
+    try {
+      await widget.onUndoSmartInboxChecklistTask!(id);
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text(error.toString().replaceFirst('FormatException: ', ''))),
+      );
+    }
   }
 
   Future<void> _handleReview(

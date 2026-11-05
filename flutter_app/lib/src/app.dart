@@ -22,6 +22,9 @@ import 'domain/editing.dart';
 import 'domain/disaster_recovery.dart';
 import 'domain/import_provenance.dart';
 import 'domain/intelligence.dart';
+import 'domain/note_to_checklist.dart';
+import 'domain/smart_inbox_checklist_action.dart';
+import 'domain/smart_inbox_source_preview.dart';
 import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
@@ -156,6 +159,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   String? _libraryCollectionId;
   String? _plannerTaskId;
   String _reminderSignature = '';
+  bool _smartInboxTaskSaving = false;
+  final Map<String, ({Note task, String owner})> _smartInboxTaskUndo = {};
   bool _semanticSearchEnabled = true;
 
   static const _semanticSearchPreference = 'semantic_search_enabled';
@@ -474,6 +479,93 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ),
     ));
     await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  /// Source-verified private-only canonical Task writer. No implicit
+  /// background action: the Home preview requires an explicit confirmation.
+  Future<String> _createSmartInboxChecklistTask(
+      Note source, List<String> selected) async {
+    if (_smartInboxTaskSaving) {
+      throw const FormatException('Attività già in fase di creazione.');
+    }
+    _smartInboxTaskSaving = true;
+    try {
+      final sharedBefore = ref.read(sharedSpacesProvider);
+      final owner = sharedBefore.identity?.id;
+      if (sharedBefore.loading ||
+          sharedBefore.error != null ||
+          owner == null ||
+          sharedBefore.spaces
+              .any((space) => space.contentIds.contains(source.id))) {
+        throw const FormatException(
+            'Fonte non privata o permessi non verificati.');
+      }
+      final selectedItems =
+          SmartInboxChecklistAction.selectedItems(source, selected);
+      final database = ref.read(databaseProvider);
+      final live = await database.loadNote(source.id);
+      final workspace = ref.read(workspaceProvider);
+      final matching = workspace.notes
+          .where((note) => note.id == source.id)
+          .toList(growable: false);
+      final sharedNow = ref.read(sharedSpacesProvider);
+      if (workspace.loading ||
+          matching.length != 1 ||
+          live == null ||
+          sharedNow.loading ||
+          sharedNow.error != null ||
+          sharedNow.identity?.id != owner ||
+          sharedNow.spaces
+              .any((space) => space.contentIds.contains(source.id)) ||
+          !SmartInboxSourcePreview.sameCanonicalRevision(source, live) ||
+          !SmartInboxSourcePreview.sameCanonicalRevision(
+              source, matching.single)) {
+        throw const FormatException('Fonte modificata o non più accessibile.');
+      }
+      if (SmartInboxChecklistAction.alreadyCreated(
+          workspace.notes, source.id, selectedItems)) {
+        throw const FormatException('Checklist già trasformata in attività.');
+      }
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final task = NoteToChecklist.buildTask(
+        source: live,
+        selected: selectedItems,
+        taskId: const Uuid().v4(),
+        nowMilliseconds: now,
+      );
+      // No second task store: canonical writer and existing linkedNoteId.
+      await ref.read(workspaceProvider.notifier).save(task);
+      final saved = await database.loadNote(task.id);
+      if (saved != null && saved.isTask && !saved.isDeleted) {
+        _smartInboxTaskUndo[task.id] = (task: saved, owner: owner);
+        if (_smartInboxTaskUndo.length > 12) {
+          _smartInboxTaskUndo.remove(_smartInboxTaskUndo.keys.first);
+        }
+      }
+      return task.id;
+    } finally {
+      _smartInboxTaskSaving = false;
+    }
+  }
+
+  /// Explicit, bounded Undo: soft-trash the unmodified derived task only.
+  Future<void> _undoSmartInboxChecklistTask(String id) async {
+    final receipt = _smartInboxTaskUndo.remove(id);
+    if (receipt == null) {
+      throw const FormatException('Annullamento non più disponibile.');
+    }
+    final dbTask = await ref.read(databaseProvider).loadNote(id);
+    final shared = ref.read(sharedSpacesProvider);
+    if (dbTask == null ||
+        shared.error != null ||
+        shared.loading ||
+        shared.identity?.id != receipt.owner ||
+        shared.spaces.any((space) => space.contentIds.contains(id)) ||
+        !SmartInboxChecklistAction.canUndo(receipt.task, dbTask)) {
+      throw const FormatException(
+          'Attività modificata: annullamento non sicuro.');
+    }
+    await ref.read(workspaceProvider.notifier).trash(id);
   }
 
   Future<void> _openEditor([
@@ -1134,6 +1226,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         }),
         onOpenNote: _openEditor,
         onDraftSmartInboxTags: _openSmartInboxTagDraft,
+        onCreateSmartInboxChecklistTask: _createSmartInboxChecklistTask,
+        onUndoSmartInboxChecklistTask: _undoSmartInboxChecklistTask,
         onProjects: () => _openProjects(),
         onStudy: _openStudy,
         onGraph: _openKnowledgeGraph,
