@@ -46,6 +46,7 @@ abstract final class ProjectDependencyActions {
     required Note source,
     required Iterable<ProjectWorkItem> scopedItems,
     required Iterable<String> selectedTargetIds,
+    Iterable<String>? originallyVisibleIds,
     required int nowMilliseconds,
   }) {
     if (!source.isTask ||
@@ -87,9 +88,16 @@ abstract final class ProjectDependencyActions {
     final eligible = eligibleTargets(source, scopedItems)
         .map((item) => item.note.id.toLowerCase())
         .toSet();
+    // Only picker-visible edges may be replaced, even after a sync changes scope.
+    final editable = originallyVisibleIds == null
+        ? eligible
+        : originallyVisibleIds.map((id) => id.toLowerCase()).toSet();
+    if (ids.any((id) => !editable.contains(id))) {
+      throw const FormatException('DEPENDENCY_TARGET_NOT_REVIEWED');
+    }
     final preserved = source.tags.where((tag) {
       if (!tag.startsWith('dep_')) return false;
-      return !eligible.contains(tag.substring(4).toLowerCase());
+      return !editable.contains(tag.substring(4).toLowerCase());
     }).toList(growable: false);
 
     final graph = <String, Set<String>>{};
@@ -126,7 +134,10 @@ abstract final class ProjectDependencyActions {
       Map<String, Set<String>> graph, String from, String sought) {
     final visited = <String>{};
     final stack = <String>[from];
-    while (stack.isNotEmpty && visited.length <= 5000) {
+    while (stack.isNotEmpty) {
+      if (visited.length >= 5000) {
+        throw const FormatException('DEPENDENCY_GRAPH_TOO_LARGE');
+      }
       final current = stack.removeLast();
       if (current == sought) return true;
       if (!visited.add(current)) continue;

@@ -612,7 +612,10 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                   workload.unknownDurationTasks > 0 ||
                   workload.blockedTasks > 0 ||
                   workload.inProgressTasks > 0 ||
-                  dependencies.isNotEmpty)) ...[
+                  dependencies.isNotEmpty ||
+                  guidanceItems.any((item) =>
+                      item.kind == ProjectWorkItemKind.task &&
+                      !item.completed))) ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -848,6 +851,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       final active = ref.read(projectWorkspaceProvider).byId(project.id);
       if (owner == null ||
           beforeShared.loading ||
+          beforeShared.error != null ||
           active == null ||
           !active.isActive ||
           active.sharedSpaceId != project.sharedSpaceId ||
@@ -924,8 +928,13 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
         throw const FormatException('Task non disponibile nel progetto.');
       }
       final sourceNote = initial.single.note;
+      if (beforeShared.spaces.any((space) =>
+          space.contentIds.contains(sourceNote.id) && !space.canEdit(owner))) {
+        throw const FormatException('Task visibile ma non modificabile.');
+      }
       final eligible =
           ProjectDependencyActions.eligibleTargets(sourceNote, beforeItems);
+      final availableAtOpen = eligible.map((item) => item.note.id).toSet();
       final selectedIds =
           ProjectDependencyActions.existingVisibleTargets(sourceNote, eligible)
               .toSet();
@@ -991,7 +1000,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       if (confirmed == null || !mounted) return;
       final nowShared = ref.read(sharedSpacesProvider);
       final latestProject = ref.read(projectWorkspaceProvider).byId(project.id);
-      if (nowShared.loading ||
+      if (nowShared.loading || nowShared.error != null ||
           nowShared.identity?.id != owner ||
           latestProject == null ||
           !latestProject.isActive ||
@@ -1011,6 +1020,10 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
       }
       final latestItems = ProjectWorkViews.project(
           notes: latestWorkspace.notes, links: latestLinks);
+      if (nowShared.spaces.any((space) =>
+          space.contentIds.contains(sourceId) && !space.canEdit(owner))) {
+        throw const FormatException('Permessi task cambiati: riprova.');
+      }
       final latestSource = latestItems
           .where((item) => item.note.id == sourceId)
           .toList(growable: false);
@@ -1026,6 +1039,7 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
         source: sourceNote,
         scopedItems: latestItems,
         selectedTargetIds: confirmed,
+        originallyVisibleIds: availableAtOpen,
         nowMilliseconds: DateTime.now().millisecondsSinceEpoch,
       );
       if (!ProjectDependencyActions.sameTaskRevision(sourceNote, next)) {

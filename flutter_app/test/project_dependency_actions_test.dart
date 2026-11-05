@@ -111,6 +111,27 @@ void main() {
     expect(output.tags, ['dep_b', 'dep_hidden', 'work']);
   });
 
+  test('preserves newly visible prereq not shown in original picker', () {
+    final a = task('a', tags: ['dep_new', 'work']);
+    final b = task('b');
+    final appeared = task('new');
+    final saved = ProjectDependencyActions.update(
+      source: a.note,
+      scopedItems: [a, b, appeared],
+      selectedTargetIds: ['b'],
+      originallyVisibleIds: ['b'],
+      nowMilliseconds: 30,
+    );
+    expect(saved.tags, ['dep_b', 'dep_new', 'work']);
+    expect(() => ProjectDependencyActions.update(
+      source: a.note,
+      scopedItems: [a, b, appeared],
+      selectedTargetIds: ['new'],
+      originallyVisibleIds: ['b'],
+      nowMilliseconds: 30,
+    ), throwsFormatException);
+  });
+
   test('rejects stale source and duplicate identity, allows explicit clear',
       () {
     final a = task('a', tags: ['dep_b']);
