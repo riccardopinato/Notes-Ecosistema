@@ -5,6 +5,8 @@ import android.os.Handler
 import android.os.Looper
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPage
+import com.tom_roush.pdfbox.multipdf.PDFMergerUtility
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
@@ -69,6 +71,23 @@ class PdfToolkitBridge(context: Context) {
         bytes[2] == 68.toByte() && bytes[3] == 70.toByte() &&
         bytes[4] == 45.toByte()
 
+    private fun importWithResources(source: PDPage, target: PDDocument) {
+        val imported = target.importPage(source)
+        if (source.resources != null) {
+            imported.resources = source.resources
+        }
+    }
+
+    private fun outputBytes(document: PDDocument): ByteArray {
+        val output = ByteArrayOutputStream()
+        document.save(output)
+        val bytes = output.toByteArray()
+        if (bytes.size > MAX_OUTPUT || !validHeader(bytes)) {
+            throw IllegalArgumentException("INVALID_OUTPUT")
+        }
+        return bytes
+    }
+
     private fun transform(
         source: ByteArray,
         secondary: ByteArray?,
@@ -93,7 +112,7 @@ class PdfToolkitBridge(context: Context) {
                     }
                     PDDocument().also { output ->
                         for (number in first..last) {
-                            output.importPage(initial.getPage(number - 1))
+                            importWithResources(initial.getPage(number - 1), output)
                         }
                     }
                 }
@@ -108,9 +127,12 @@ class PdfToolkitBridge(context: Context) {
                             initial.numberOfPages + second.numberOfPages > MAX_PAGES) {
                             throw IllegalArgumentException("PAGE_LIMIT")
                         }
-                        PDDocument().also { output ->
-                            for (page in initial.pages) output.importPage(page)
-                            for (page in second.pages) output.importPage(page)
+                        PDDocument().use { output ->
+                            val merger = PDFMergerUtility()
+                            // Clones cross-document resources while both sources are open.
+                            merger.appendDocument(output, initial)
+                            merger.appendDocument(output, second)
+                            return outputBytes(output)
                         }
                     }
                 }
@@ -130,23 +152,17 @@ class PdfToolkitBridge(context: Context) {
                     }
                     PDDocument().also { output ->
                         for (number in order) {
-                            output.importPage(initial.getPage(number - 1))
+                            importWithResources(initial.getPage(number - 1), output)
                         }
                     }
                 }
                 else -> throw IllegalArgumentException("INVALID_ACTION")
             }
-            val out = ByteArrayOutputStream()
-            if (outputDoc === initial) {
-                initial.save(out)
+            return if (outputDoc === initial) {
+                outputBytes(initial)
             } else {
-                outputDoc.use { it.save(out) }
+                outputDoc.use { outputBytes(it) }
             }
-            val result = out.toByteArray()
-            if (result.size > MAX_OUTPUT || !validHeader(result)) {
-                throw IllegalArgumentException("INVALID_OUTPUT")
-            }
-            return result
         }
     }
 }
