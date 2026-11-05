@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/note.dart';
 import 'package:notes_ecosistema/src/domain/note_to_checklist.dart';
 import 'package:notes_ecosistema/src/domain/smart_inbox_checklist_action.dart';
+import 'package:notes_ecosistema/src/domain/smart_inbox_source_preview.dart';
+import 'package:notes_ecosistema/src/domain/contextual_work_insights.dart';
 
 void main() {
   Note source({
@@ -34,6 +36,18 @@ void main() {
           throwsFormatException);
     }
     expect(note.body, contains('- [x] Done'));
+  });
+
+  test('preview rejects checkbox rows beyond the canonical candidate cap', () {
+    final late = source(body: [
+      for (var i = 0; i < 12; i++) '- Bullet $i',
+      '- [ ] Later',
+    ].join('\\n'));
+    final preview = SmartInboxSourcePreview.inspect(InboxReviewSuggestion(
+        late, InboxReviewKind.checklist, 'EXPLICIT_UNCHECKED_LIST'));
+    expect(preview, isNull);
+    expect(() => SmartInboxChecklistAction.selectedItems(late, ['Later']),
+        throwsFormatException);
   });
 
   test('duplicate selection from same linked source is rejected', () {

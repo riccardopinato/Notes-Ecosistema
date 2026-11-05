@@ -1,6 +1,7 @@
 import 'contextual_work_insights.dart';
 import 'editing.dart';
 import 'note.dart';
+import 'note_to_checklist.dart';
 
 /// Deterministic, read-only review of source-authored candidates.
 class SmartInboxSourcePreview {
@@ -29,6 +30,11 @@ class SmartInboxSourcePreview {
     final candidates = <String>[];
     final seen = <String>{};
     final existing = source.tags.map((tag) => tag.toLowerCase()).toSet();
+    // Align every offered unchecked checkbox with the bounded canonical
+    // NoteToChecklist builder; never allow an unsaveable review selection.
+    final acceptedChecklists = suggestion.kind == InboxReviewKind.checklist
+        ? NoteToChecklist.candidates(source).toSet()
+        : const <String>{};
     var excerpt = '';
     for (final line in source.body.split('\n')) {
       final values = suggestion.kind == InboxReviewKind.checklist
@@ -37,6 +43,8 @@ class SmartInboxSourcePreview {
       for (final value in values) {
         final candidate = value?.trim() ?? '';
         if (candidate.isEmpty || candidate.length > 200) continue;
+        if (suggestion.kind == InboxReviewKind.checklist &&
+            !acceptedChecklists.contains(candidate)) continue;
         final key = candidate.toLowerCase();
         if ((suggestion.kind == InboxReviewKind.explicitTags &&
                 existing.contains(key)) ||
