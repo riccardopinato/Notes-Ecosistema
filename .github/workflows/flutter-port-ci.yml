@@ -437,9 +437,45 @@ jobs:
           PY
 
       - name: Build Play AAB with on-demand Needle pack
+        env:
+          NOTES_SIGNING_KEYSTORE_FILE: ${{ runner.temp }}/notes-release-upload.jks
+          NOTES_SIGNING_STORE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEYSTORE_PASSWORD || '' }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_ALIAS || '' }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_PASSWORD || '' }}
         run: >-
           flutter build appbundle --release --no-pub
           --obfuscate --split-debug-info=build/symbols
+
+      - name: Verify AAB signing certificate
+        shell: bash
+        env:
+          NOTES_EXPECTED_CERT_SHA256: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_CERT_SHA256 || '' }}
+        run: |
+          set -euo pipefail
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+          mkdir -p build/release-evidence
+          jarsigner -verify "$AAB" > build/release-evidence/aab-signature-verify.txt
+          grep -q 'jar verified' build/release-evidence/aab-signature-verify.txt
+          keytool -printcert -jarfile "$AAB" > build/release-evidence/aab-signing-certificate.txt
+          CERT="$(sed -n 's/^[[:space:]]*SHA256: //p' build/release-evidence/aab-signing-certificate.txt | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
+          if ! printf '%s' "$CERT" | grep -Eq '^[a-f0-9]{64}$'; then
+            echo "::error::Unreadable AAB signer certificate."
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.production_signed }}" = "true" ]; then
+            EXPECTED="$(printf '%s' "$NOTES_EXPECTED_CERT_SHA256" | tr 'A-F' 'a-f')"
+            if [ "$CERT" != "$EXPECTED" ] || grep -Fq 'CN=Android Debug' build/release-evidence/aab-signing-certificate.txt; then
+              echo "::error::AAB signing identity does not match approved production certificate."
+              exit 1
+            fi
+          else
+            if ! grep -Fq 'CN=Android Debug' build/release-evidence/aab-signing-certificate.txt; then
+              echo "::error::CI-only AAB has unexpected signing identity."
+              exit 1
+            fi
+          fi
+          printf 'aab_certificate_sha256=%s\n' "$CERT" >> build/release-evidence/SIGNING_STATUS.txt
 
       - name: Verify Needle Play bundle
         shell: bash
@@ -475,7 +511,7 @@ jobs:
       - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-release-split
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && 'SIGNED' || 'CI-ONLY-NOT-FOR-PRODUCTION' }}-release-split
           path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error
           retention-days: 14
@@ -483,7 +519,7 @@ jobs:
       - name: Upload Play AAB
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-play-aab
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && 'SIGNED' || 'CI-ONLY-NOT-FOR-PRODUCTION' }}-play-aab
           path: flutter_app/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
