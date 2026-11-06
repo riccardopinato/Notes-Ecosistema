@@ -7,11 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// A crash-resumable undo record for non-atomic multi-store restores.
+/// Crash recovery for non-atomic multi-store restores.
 ///
-/// The snapshot is written, flushed, and verified BEFORE the pending marker.
-/// No caller may modify user stores until [begin] returns successfully.
-/// The marker is removed only AFTER all store writes and checks have completed.
+/// The verified undo archive and its pending marker must both be durable
+/// before any store mutation. A fully applied restore transitions the same
+/// marker atomically to 'completed', instead of deleting an uncertain marker.
 class RecoveryJournal {
   RecoveryJournal(
     this.directory, {
@@ -20,12 +20,11 @@ class RecoveryJournal {
 
   final Directory directory;
   final Future<void> Function(Directory) _syncDirectory;
+  bool _completionBarrierUncertain = false;
 
   static const MethodChannel _durabilityChannel =
       MethodChannel('notes.ecosystem/recovery_durability');
 
-  /// A successful file flush is insufficient: persist directory entries too.
-  /// Non-Android targets fail closed until they provide an equivalent bridge.
   static Future<void> _syncNativeDirectory(Directory directory) async {
     if (!Platform.isAndroid) {
       throw UnsupportedError(
@@ -51,11 +50,38 @@ class RecoveryJournal {
   File get _snapshot => File(p.join(directory.path, _snapshotName));
   File get _marker => File(p.join(directory.path, _markerName));
 
-  Future<bool> get hasPending => _marker.exists();
+  Future<Map<String, dynamic>?> _readMarker() async {
+    if (!await _marker.exists()) return null;
+    final raw = jsonDecode(await _marker.readAsString());
+    if (raw is! Map<String, dynamic> ||
+        raw['version'] != _version ||
+        raw['length'] is! int ||
+        raw['sha256'] is! String ||
+        raw['phase'] is! String ||
+        (raw['phase'] != 'pending' && raw['phase'] != 'completed') ||
+        (raw['length'] as int) <= 0 ||
+        (raw['length'] as int) > maxSnapshotBytes ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(raw['sha256'] as String)) {
+      throw const FormatException('Marker di recupero non valido.');
+    }
+    return raw;
+  }
 
-  /// Fail closed if an earlier restore still needs recovery.
+  /// Corrupt metadata is always a pending/error condition, never success.
+  Future<bool> get hasPending async {
+    try {
+      final marker = await _readMarker();
+      return marker != null && marker['phase'] == 'pending';
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<bool> get hasUnsettled async =>
+      _completionBarrierUncertain || await hasPending;
+
   Future<void> begin(Uint8List verifiedSnapshot) async {
-    if (await hasPending) {
+    if (await hasUnsettled) {
       throw const FormatException(
         'Esiste un ripristino interrotto: recuperalo prima di continuare.',
       );
@@ -64,7 +90,25 @@ class RecoveryJournal {
         verifiedSnapshot.length > maxSnapshotBytes) {
       throw const FormatException('Snapshot di recupero fuori limite.');
     }
+
     await directory.create(recursive: true);
+    // The native bridge also fsyncs the app-support ancestor directory.
+    // The journal folder's own directory entry must survive power loss.
+    await _syncDirectory(directory);
+
+    // A durable 'completed' marker is safe to retire before a NEW restore.
+    final previous = await _readMarker();
+    if (previous != null) {
+      if (previous['phase'] != 'completed') {
+        throw const FormatException('Ripristino precedente non completato.');
+      }
+      await _marker.delete();
+      await _syncDirectory(directory);
+    }
+    if (await _snapshot.exists()) {
+      await _snapshot.delete();
+      await _syncDirectory(directory);
+    }
 
     final digest = sha256.convert(verifiedSnapshot).toString();
     final tempSnapshot = File(p.join(directory.path, 'pre_restore.tmp'));
@@ -77,18 +121,17 @@ class RecoveryJournal {
         throw const FormatException('Snapshot locale non verificabile.');
       }
       await tempSnapshot.rename(_snapshot.path);
-      // Commit the directory entry of the verified snapshot before the
-      // pending marker can authorize any destructive database mutation.
       await _syncDirectory(directory);
+
       final metadata = jsonEncode({
         'version': _version,
+        'phase': 'pending',
         'length': verifiedSnapshot.length,
         'sha256': digest,
       });
       await tempMarker.writeAsString(metadata, flush: true);
-      // Only now does the durable marker authorize destructive writes.
       await tempMarker.rename(_marker.path);
-      // Only a durable marker grants permission to enter the write phase.
+      // No caller may begin writes until the marker and parent are durable.
       await _syncDirectory(directory);
     } finally {
       if (await tempSnapshot.exists()) await tempSnapshot.delete();
@@ -96,23 +139,13 @@ class RecoveryJournal {
     }
   }
 
-  /// Null means no pending transaction. Corruption must NOT clear the marker.
   Future<Uint8List?> readPending() async {
-    if (!await hasPending) return null;
+    final marker = await _readMarker();
+    if (marker == null || marker['phase'] == 'completed') return null;
     try {
-      final raw = jsonDecode(await _marker.readAsString());
-      if (raw is! Map<String, dynamic> ||
-          raw['version'] != _version ||
-          raw['length'] is! int ||
-          raw['sha256'] is! String ||
-          (raw['length'] as int) <= 0 ||
-          (raw['length'] as int) > maxSnapshotBytes ||
-          !RegExp(r'^[a-f0-9]{64}$').hasMatch(raw['sha256'] as String)) {
-        throw const FormatException('Marker di recupero non valido.');
-      }
       final bytes = await _snapshot.readAsBytes();
-      if (bytes.length != raw['length'] ||
-          sha256.convert(bytes).toString() != raw['sha256']) {
+      if (bytes.length != marker['length'] ||
+          sha256.convert(bytes).toString() != marker['sha256']) {
         throw const FormatException('Snapshot di recupero alterato.');
       }
       return Uint8List.fromList(bytes);
@@ -123,26 +156,45 @@ class RecoveryJournal {
     }
   }
 
-  /// Call only after a fully verified commit or rollback.
+  /// Called only after *every* store write of either candidate or rollback.
+  /// Never delete the pending marker before its completed replacement is
+  /// durably synchronized: ambiguous deletion could reopen unsafe app state.
   Future<void> complete() async {
-    if (!await hasPending) {
+    final marker = await _readMarker();
+    if (marker == null || marker['phase'] != 'pending') {
       throw const FormatException('Nessuna transazione da completare.');
     }
-    // Delete the marker first: an orphaned snapshot is never a pending restore.
-    await _marker.delete();
-    await _syncDirectory(directory);
+    final temp = File(p.join(directory.path, 'completed.tmp'));
+    try {
+      await temp.writeAsString(
+        jsonEncode({...marker, 'phase': 'completed'}),
+        flush: true,
+      );
+      _completionBarrierUncertain = true;
+      await temp.rename(_marker.path);
+      await _syncDirectory(directory);
+      _completionBarrierUncertain = false;
+    } finally {
+      if (await temp.exists()) await temp.delete();
+    }
+
+    // Archive cleanup is not part of the commit barrier. An orphan is safe:
+    // the durable completed marker prevents a stale rollback after reboot.
     try {
       if (await _snapshot.exists()) await _snapshot.delete();
     } on FileSystemException {
-      // Orphaned snapshot is harmless once the pending marker is absent.
+      // Best effort only.
     }
+  }
+
+  /// Retry a failed durability barrier without replaying completed data.
+  Future<void> settleCompletionBarrier() async {
+    if (!_completionBarrierUncertain) return;
+    await _syncDirectory(directory);
+    _completionBarrierUncertain = false;
   }
 }
 
-/// Coordinates an undo snapshot with the caller's canonical store writers.
-///
-/// On a normal failure, rollback is attempted immediately. A failed rollback
-/// leaves the journal intact for startup retry; no silent success is returned.
 abstract final class RecoveryTransaction {
   static Future<void> run({
     required RecoveryJournal journal,
@@ -153,7 +205,6 @@ abstract final class RecoveryTransaction {
     await journal.begin(originalSnapshot);
     try {
       await applyCandidate();
-      await journal.complete();
     } catch (error, stack) {
       try {
         final original = await journal.readPending();
@@ -163,17 +214,21 @@ abstract final class RecoveryTransaction {
         await applyOriginal(original);
         await journal.complete();
       } catch (_) {
-        // Preserve the *original* failure and the pending marker for retry.
+        // A failed replay leaves the pending/uncertain journal for startup.
         Error.throwWithStackTrace(error, stack);
       }
       Error.throwWithStackTrace(error, stack);
     }
+    // Commit-marker errors must NOT trigger a second rollback; the candidate
+    // was fully applied. Fail closed until the marker's fsync is retried.
+    await journal.complete();
   }
 
   static Future<bool> recoverPending({
     required RecoveryJournal journal,
     required Future<void> Function(Uint8List) applyOriginal,
   }) async {
+    await journal.settleCompletionBarrier();
     final original = await journal.readPending();
     if (original == null) return false;
     await applyOriginal(original);
