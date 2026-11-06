@@ -20,6 +20,7 @@ class RecoveryJournal {
   final Directory directory;
   final Future<void> Function(Directory) _syncDirectory;
   bool _completionBarrierUncertain = false;
+  bool _completedBarrierChecked = false;
 
   static const MethodChannel _durabilityChannel =
       MethodChannel('notes.ecosystem/recovery_durability');
@@ -76,8 +77,19 @@ class RecoveryJournal {
     }
   }
 
-  Future<bool> get hasUnsettled async =>
-      _completionBarrierUncertain || await hasPending;
+  Future<bool> get hasUnsettled async {
+    final marker = await _readMarker();
+    if (marker == null) return _completionBarrierUncertain;
+    if (marker['phase'] == 'pending') return true;
+    // A fresh journal instance MUST verify the completed marker's directory
+    // fsync even if the rename is visible in the current OS page cache.
+    if (!_completedBarrierChecked || _completionBarrierUncertain) {
+      await _syncDirectory(directory);
+      _completedBarrierChecked = true;
+      _completionBarrierUncertain = false;
+    }
+    return false;
+  }
 
   Future<void> begin(Uint8List verifiedSnapshot) async {
     if (await hasUnsettled) {
@@ -173,6 +185,7 @@ class RecoveryJournal {
       await temp.rename(_marker.path);
       await _syncDirectory(directory);
       _completionBarrierUncertain = false;
+      _completedBarrierChecked = true;
     } finally {
       if (await temp.exists()) await temp.delete();
     }
@@ -188,9 +201,7 @@ class RecoveryJournal {
 
   /// Retry a failed durability barrier without replaying completed data.
   Future<void> settleCompletionBarrier() async {
-    if (!_completionBarrierUncertain) return;
-    await _syncDirectory(directory);
-    _completionBarrierUncertain = false;
+    await hasUnsettled;
   }
 }
 
