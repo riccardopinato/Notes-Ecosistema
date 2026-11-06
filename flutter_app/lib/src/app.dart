@@ -1273,7 +1273,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
                   const Icon(Icons.shield_outlined, size: 48),
                   const SizedBox(height: 16),
                   Text(
-                    _recoveryGateError ?? 'Verifica del recupero locale in corso…',
+                    _recoveryGateError ??
+                        'Verifica del recupero locale in corso…',
                     textAlign: TextAlign.center,
                   ),
                   if (_recoveryGateError != null) ...[
@@ -2345,9 +2346,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   Future<void> _restoreDisasterRecovery() async {
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(
-          'Ripristino distruttivo disponibile solo con journal locale nativo.',
-        )),
+        const SnackBar(
+          content: Text(
+            'Ripristino distruttivo disponibile solo con journal locale nativo.',
+          ),
+        ),
       );
       return;
     }
@@ -2467,7 +2470,6 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         _recoveryGateError = null;
       });
 
-
       final journal = _recoveryJournal ?? await RecoveryJournal.open();
       _recoveryJournal = journal;
       // The externally verified bytes are additionally persisted in an
@@ -2505,8 +2507,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ),
       );
     } finally {
-      final pending = _recoveryJournal != null &&
-          await _recoveryJournal!.hasPending;
+      final pending =
+          _recoveryJournal != null && await _recoveryJournal!.hasPending;
       if (!pending) await _releaseRecoveryPause();
       _restoreBusy = false;
       if (mounted) {
