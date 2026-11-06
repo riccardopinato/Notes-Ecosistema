@@ -374,11 +374,15 @@ jobs:
             REPORT="$("$APK_SIGNER" verify --print-certs "$APK")"
             # apksigner output can differ in whitespace and colon-delimited
             # fingerprint formatting across Android build-tools versions.
-            CERT_LINES="$(printf '%s\n' "$REPORT" | grep -Ei 'Signer #[0-9]+ certificate SHA-256 digest:' || true)"
-            CERT_COUNT="$(printf '%s\n' "$CERT_LINES" | grep -Eic 'certificate SHA-256 digest:' || true)"
-            CERT="$(printf '%s\n' "$CERT_LINES" | head -1 | sed -E 's/^.*certificate SHA-256 digest:[[:space:]]*//I' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
+            # Build Tools output may vary by release. Extract only digest-shaped
+            # fields while remaining strict about ambiguous/different signers.
+            CERT_LINES="$(printf '%s\n' "$REPORT" | grep -Ei 'certificate.*SHA.?256.*digest:' || true)"
+            CERT_COUNT="$(printf '%s\n' "$CERT_LINES" | grep -Eic 'digest:' || true)"
+            CERT="$(printf '%s\n' "$CERT_LINES" | head -1 | sed -nE 's/^.*[Dd]igest:[[:space:]]*([[:xdigit:]:[:space:]]+).*$/\1/p' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
             if [ "$CERT_COUNT" != "1" ] || ! printf '%s' "$CERT" | grep -Eq '^[a-f0-9]{64}$'; then
-              echo "::error::Missing or ambiguous APK signing certificate digest."
+              echo "::error::Missing or ambiguous APK signer digest (fields=$CERT_COUNT; hexchars=${#CERT})."
+              # Only print public metadata labels; never signing credentials.
+              printf '%s\n' "$REPORT" | sed -nE 's/^(Signer #[0-9]+ certificate [^:]+):.*$/Signer field: \1/p' | head -15
               exit 1
             fi
             if [ -n "$EXPECTED" ]; then
