@@ -231,4 +231,25 @@ void main() {
     expect(await flaky.hasUnsettled, isFalse);
     expect(await flaky.readPending(), isNull);
   });
+
+  test('fresh process must re-fsync completed marker before opening UI',
+      () async {
+    await journal.begin(Uint8List.fromList([4, 4, 4]));
+    await journal.complete();
+    var attempts = 0;
+    final reopened = RecoveryJournal(
+      temp,
+      syncDirectory: (_) async {
+        attempts++;
+        if (attempts == 1) {
+          throw FileSystemException('New process cannot verify barrier');
+        }
+      },
+    );
+
+    await expectLater(reopened.hasUnsettled, throwsA(isA<FileSystemException>()));
+    expect(await reopened.hasPending, isFalse);
+    expect(await reopened.hasUnsettled, isFalse);
+    expect(attempts, 2);
+  });
 }
