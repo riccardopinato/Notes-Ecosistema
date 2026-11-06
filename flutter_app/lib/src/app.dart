@@ -2459,6 +2459,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         generated: safetyBytes,
         readBack: externalCopy.files.single.bytes,
       );
+      // Hide all interactive app surfaces while the multi-store transaction
+      // runs. The existing picker/confirmation dialogs have already closed.
+      if (!mounted) return;
+      setState(() {
+        _recoveryGateOpen = false;
+        _recoveryGateError = null;
+      });
+
 
       final journal = _recoveryJournal ?? await RecoveryJournal.open();
       _recoveryJournal = journal;
@@ -2501,12 +2509,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           await _recoveryJournal!.hasPending;
       if (!pending) await _releaseRecoveryPause();
       _restoreBusy = false;
-      if (pending && mounted) {
+      if (mounted) {
         setState(() {
-          _recoveryGateOpen = false;
-          _recoveryGateError =
-              'Ripristino interrotto. È necessario completare il recupero '
-              'prima di usare Notes.';
+          _recoveryGateOpen = !pending;
+          _recoveryGateError = pending
+              ? 'Ripristino interrotto. È necessario completare il recupero '
+                  'prima di usare Notes.'
+              : null;
         });
       }
     }
