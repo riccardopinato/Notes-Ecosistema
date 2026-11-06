@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -12,9 +13,30 @@ import 'package:path_provider/path_provider.dart';
 /// No caller may modify user stores until [begin] returns successfully.
 /// The marker is removed only AFTER all store writes and checks have completed.
 class RecoveryJournal {
-  RecoveryJournal(this.directory);
+  RecoveryJournal(
+    this.directory, {
+    Future<void> Function(Directory)? syncDirectory,
+  }) : _syncDirectory = syncDirectory ?? _syncNativeDirectory;
 
   final Directory directory;
+  final Future<void> Function(Directory) _syncDirectory;
+
+  static const MethodChannel _durabilityChannel =
+      MethodChannel('notes.ecosystem/recovery_durability');
+
+  /// A successful file flush is insufficient: persist directory entries too.
+  /// Non-Android targets fail closed until they provide an equivalent bridge.
+  static Future<void> _syncNativeDirectory(Directory directory) async {
+    if (!Platform.isAndroid) {
+      throw const UnsupportedError(
+        'Ripristino distruttivo senza fsync della directory non supportato.',
+      );
+    }
+    await _durabilityChannel.invokeMethod<void>(
+      'fsyncDirectory',
+      <String, String>{'path': directory.path},
+    );
+  }
 
   static const int maxSnapshotBytes = 96 * 1024 * 1024;
   static const int _version = 1;
@@ -55,6 +77,9 @@ class RecoveryJournal {
         throw const FormatException('Snapshot locale non verificabile.');
       }
       await tempSnapshot.rename(_snapshot.path);
+      // Commit the directory entry of the verified snapshot before the
+      // pending marker can authorize any destructive database mutation.
+      await _syncDirectory(directory);
       final metadata = jsonEncode({
         'version': _version,
         'length': verifiedSnapshot.length,
@@ -63,6 +88,8 @@ class RecoveryJournal {
       await tempMarker.writeAsString(metadata, flush: true);
       // Only now does the durable marker authorize destructive writes.
       await tempMarker.rename(_marker.path);
+      // Only a durable marker grants permission to enter the write phase.
+      await _syncDirectory(directory);
     } finally {
       if (await tempSnapshot.exists()) await tempSnapshot.delete();
       if (await tempMarker.exists()) await tempMarker.delete();
@@ -103,6 +130,7 @@ class RecoveryJournal {
     }
     // Delete the marker first: an orphaned snapshot is never a pending restore.
     await _marker.delete();
+    await _syncDirectory(directory);
     try {
       if (await _snapshot.exists()) await _snapshot.delete();
     } on FileSystemException {
