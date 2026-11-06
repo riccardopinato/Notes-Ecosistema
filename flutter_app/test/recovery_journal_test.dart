@@ -1,0 +1,139 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:notes_ecosistema/src/domain/recovery_journal.dart';
+
+void main() {
+  late Directory temp;
+  late RecoveryJournal journal;
+
+  setUp(() async {
+    temp = await Directory.systemTemp.createTemp('notes_restore_');
+    journal = RecoveryJournal(temp);
+  });
+
+  tearDown(() async {
+    if (await temp.exists()) await temp.delete(recursive: true);
+  });
+
+  test('durable snapshot survives reopening and marker is explicit', () async {
+    final before = Uint8List.fromList([10, 20, 30, 40]);
+    await journal.begin(before);
+    expect(await journal.hasPending, isTrue);
+    final reopened = RecoveryJournal(temp);
+    expect(await reopened.readPending(), orderedEquals(before));
+    await reopened.complete();
+    expect(await reopened.hasPending, isFalse);
+    expect(await reopened.readPending(), isNull);
+  });
+
+  test('cannot overwrite a pending pre-restore snapshot', () async {
+    final before = Uint8List.fromList([1, 2, 3]);
+    await journal.begin(before);
+    await expectLater(
+      journal.begin(Uint8List.fromList([9, 9, 9])),
+      throwsFormatException,
+    );
+    expect(await journal.readPending(), orderedEquals(before));
+  });
+
+  test('corrupt or absent pre-restore bytes fail closed', () async {
+    await journal.begin(Uint8List.fromList([1, 2, 3]));
+    await File('${temp.path}/pre_restore.zip').writeAsBytes([1, 2, 4]);
+    await expectLater(journal.readPending(), throwsFormatException);
+    expect(await journal.hasPending, isTrue);
+    await File('${temp.path}/pre_restore.zip').delete();
+    await expectLater(journal.readPending(), throwsFormatException);
+    expect(await journal.hasPending, isTrue);
+  });
+
+  test('invalid pending metadata blocks restore without deletion', () async {
+    await journal.begin(Uint8List.fromList([1, 2, 3]));
+    await File('${temp.path}/pending.json').writeAsString('truncated');
+    await expectLater(journal.readPending(), throwsFormatException);
+    expect(await journal.hasPending, isTrue);
+  });
+
+  test('fault injection rolls back every interrupted store phase', () async {
+    final before = Uint8List.fromList([3, 4, 5]);
+    for (var failedStep = 0; failedStep < 11; failedStep++) {
+      final state = List<int>.filled(11, 0);
+      await expectLater(
+        RecoveryTransaction.run(
+          journal: journal,
+          originalSnapshot: before,
+          applyCandidate: () async {
+            for (var step = 0; step < 11; step++) {
+              state[step] = 1;
+              if (step == failedStep) throw StateError('injected $step');
+            }
+          },
+          applyOriginal: (snapshot) async {
+            expect(snapshot, orderedEquals(before));
+            for (var step = 0; step < 11; step++) {
+              state[step] = 0;
+            }
+          },
+        ),
+        throwsStateError,
+      );
+      expect(state, everyElement(0));
+      expect(await journal.hasPending, isFalse);
+    }
+  });
+
+  test('failed rollback stays pending and can resume after restart', () async {
+    final before = Uint8List.fromList([7, 8, 9]);
+    var firstAttempt = true;
+    final data = <int>[1, 2, 3];
+    await expectLater(
+      RecoveryTransaction.run(
+        journal: journal,
+        originalSnapshot: before,
+        applyCandidate: () async {
+          data[0] = 99;
+          throw StateError('crash');
+        },
+        applyOriginal: (_) async {
+          if (firstAttempt) throw StateError('no storage');
+          data[0] = 1;
+        },
+      ),
+      throwsStateError,
+    );
+    expect(await journal.hasPending, isTrue);
+    firstAttempt = false;
+    expect(
+      await RecoveryTransaction.recoverPending(
+        journal: RecoveryJournal(temp),
+        applyOriginal: (snapshot) async {
+          expect(snapshot, orderedEquals(before));
+          data[0] = 1;
+        },
+      ),
+      isTrue,
+    );
+    expect(data, [1, 2, 3]);
+    expect(await journal.hasPending, isFalse);
+  });
+
+  test('completed transaction does not roll back on restart', () async {
+    var value = 0;
+    await RecoveryTransaction.run(
+      journal: journal,
+      originalSnapshot: Uint8List.fromList([0]),
+      applyCandidate: () async => value = 1,
+      applyOriginal: (_) async => value = 0,
+    );
+    expect(value, 1);
+    expect(
+      await RecoveryTransaction.recoverPending(
+        journal: RecoveryJournal(temp),
+        applyOriginal: (_) async => value = -1,
+      ),
+      isFalse,
+    );
+    expect(value, 1);
+  });
+}
