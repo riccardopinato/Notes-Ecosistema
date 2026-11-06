@@ -473,9 +473,15 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     if (state.busy || _restorePause.isPaused) return;
     if (!kIsWeb) {
       try {
-        if (await (await RecoveryJournal.open()).hasUnsettled) return;
+        if (await (await RecoveryJournal.open()).hasUnsettled) {
+          if (state.enabled && !state.busy) _schedule(_busyRetry);
+          return;
+        }
       } catch (_) {
-        return; // Local recovery state unreadable: fail closed.
+        // A one-shot timer must not silently stop forever when a transient
+        // journal verification error interrupts its scheduled attempt.
+        if (state.enabled && !state.busy) _schedule(_busyRetry);
+        return;
       }
     }
     // Another sync may acquire ownership while this call awaits journal I/O.
