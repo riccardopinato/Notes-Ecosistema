@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -224,12 +225,33 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         'Sincronizzazione in corso: riprova dopo la conclusione.',
       );
     }
-    _heldRecoveryPause = sync;
+    try {
+      // A native background worker is independent of Flutter's pause gate.
+      if (!kIsWeb && Platform.isAndroid) {
+        await SharedBackgroundBridge.setEnabled(false);
+      }
+      _heldRecoveryPause = sync;
+    } catch (_) {
+      sync.endRestorePause();
+      rethrow;
+    }
   }
 
-  void _releaseRecoveryPause() {
-    _heldRecoveryPause?.endRestorePause();
+  Future<void> _releaseRecoveryPause() async {
+    final sync = _heldRecoveryPause;
+    if (sync == null) return;
     _heldRecoveryPause = null;
+    sync.endRestorePause();
+    if (!kIsWeb && Platform.isAndroid) {
+      // Restore background scheduling only AFTER journal completion.
+      try {
+        await SharedBackgroundBridge.setEnabled(
+          ref.read(sharedLiveSyncProvider).enabled,
+        );
+      } catch (_) {
+        // An unavailable scheduler must not invalidate completed local data.
+      }
+    }
   }
 
   void _activatePlatformBridges() {
@@ -247,6 +269,16 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     if (_recoveryGateBusy || !mounted) return;
     _recoveryGateBusy = true;
     try {
+      if (kIsWeb) {
+        // Web has no private native file journal; keep browsing available but
+        // refuse destructive multi-store restore in this target.
+        setState(() {
+          _recoveryGateOpen = true;
+          _recoveryGateError = null;
+        });
+        _activatePlatformBridges();
+        return;
+      }
       final journal = _recoveryJournal ?? await RecoveryJournal.open();
       _recoveryJournal = journal;
       if (await journal.hasPending) {
@@ -260,7 +292,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         );
       }
       if (!mounted) return;
-      _releaseRecoveryPause();
+      await _releaseRecoveryPause();
       setState(() {
         _recoveryGateOpen = true;
         _recoveryGateError = null;
@@ -2311,6 +2343,14 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _restoreDisasterRecovery() async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(
+          'Ripristino distruttivo disponibile solo con journal locale nativo.',
+        )),
+      );
+      return;
+    }
     if (!_recoveryGateOpen || _restoreBusy) return;
     _restoreBusy = true;
     try {
@@ -2459,7 +2499,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     } finally {
       final pending = _recoveryJournal != null &&
           await _recoveryJournal!.hasPending;
-      if (!pending) _releaseRecoveryPause();
+      if (!pending) await _releaseRecoveryPause();
       _restoreBusy = false;
       if (pending && mounted) {
         setState(() {
