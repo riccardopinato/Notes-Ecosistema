@@ -11,6 +11,12 @@ on:
     paths:
       - "flutter_app/**"
   workflow_dispatch:
+    inputs:
+      production_signed:
+        description: 'Sign Android release with externally managed key (main only)'
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: read
@@ -238,6 +244,9 @@ jobs:
         if: failure()
         run: git diff -- lib test
 
+      - name: Production-signing configurator unit tests
+        run: python3 -m unittest discover -s tool -p 'test_release_signing_config.py'
+
       - name: Analyze
         run: flutter analyze --no-pub
 
@@ -258,7 +267,7 @@ jobs:
       # The normal debug/release and Play builds keep PDF Toolbox hidden.
       # An explicit QA APK is generated separately for physical-device testing.
       - name: Build opt-in PDF Toolbox QA APK
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
         run: |
           # Isolate QA data and signature from any installed production Notes app.
           cp android/app/build.gradle.kts android/app/build.gradle.kts.before_pdf_qa
@@ -283,7 +292,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/notes-pdf-toolbox-qa-debug.apk
 
       - name: Upload opt-in PDF Toolbox QA APK and test protocol
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && github.event.pull_request.number == 69)
         uses: actions/upload-artifact@v4
         with:
           name: Notes-PDF-Toolbox-QA-debug
@@ -301,10 +310,91 @@ jobs:
           test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # Push/PR builds are never distributable. Manual signing is main-only.
+      - name: Configure protected production signing
+        if: github.event_name == 'workflow_dispatch' && inputs.production_signed == true
+        shell: bash
+        env:
+          NOTES_KEYSTORE_B64: ${{ secrets.NOTES_ANDROID_KEYSTORE_BASE64 }}
+          NOTES_SIGNING_STORE_PASSWORD: ${{ secrets.NOTES_ANDROID_KEYSTORE_PASSWORD }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ secrets.NOTES_ANDROID_KEY_ALIAS }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ secrets.NOTES_ANDROID_KEY_PASSWORD }}
+          NOTES_EXPECTED_CERT_SHA256: ${{ secrets.NOTES_ANDROID_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          for key in NOTES_KEYSTORE_B64 NOTES_SIGNING_STORE_PASSWORD NOTES_SIGNING_KEY_ALIAS NOTES_SIGNING_KEY_PASSWORD NOTES_EXPECTED_CERT_SHA256; do
+            if [ -z "$(printenv "$key")" ]; then
+              echo "::error::Missing protected release signer setting."
+              exit 1
+            fi
+          done
+          if ! printf '%s' "$NOTES_EXPECTED_CERT_SHA256" | grep -Eq '^[a-fA-F0-9]{64}$'; then
+            echo "::error::Approved cert digest must be 64 hex characters."
+            exit 1
+          fi
+          umask 077
+          export NOTES_SIGNING_KEYSTORE_FILE="$RUNNER_TEMP/notes-release-upload.jks"
+          printf '%s' "$NOTES_KEYSTORE_B64" | base64 --decode > "$NOTES_SIGNING_KEYSTORE_FILE"
+          chmod 600 "$NOTES_SIGNING_KEYSTORE_FILE"
+          python3 tool/configure_release_signing.py android/app/build.gradle.kts
+
       - name: Build release APKs per ABI
+        env:
+          NOTES_SIGNING_KEYSTORE_FILE: ${{ runner.temp }}/notes-release-upload.jks
+          NOTES_SIGNING_STORE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEYSTORE_PASSWORD || '' }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_ALIAS || '' }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_PASSWORD || '' }}
         run: >
           flutter build apk --release --split-per-abi --no-pub
           --obfuscate --split-debug-info=build/symbols
+
+      - name: Verify and classify APK signing identity
+        shell: bash
+        env:
+          NOTES_EXPECTED_CERT_SHA256: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_CERT_SHA256 || '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/release-evidence
+          APK_SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          test -n "$APK_SIGNER"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.production_signed }}" = "true" ]; then
+            EXPECTED="$(printf '%s' "$NOTES_EXPECTED_CERT_SHA256" | tr 'A-F' 'a-f')"
+            if ! printf '%s' "$EXPECTED" | grep -Eq '^[a-f0-9]{64}$'; then
+              echo "::error::Missing trusted production signer digest."
+              exit 1
+            fi
+            CLASSIFICATION="PRODUCTION_SIGNED_CERT_VERIFIED"
+          else
+            EXPECTED=""
+            CLASSIFICATION="CI_ONLY_DEBUG_SIGNED_NOT_FOR_DISTRIBUTION"
+          fi
+          for APK in build/app/outputs/flutter-apk/app-*-release.apk; do
+            test -f "$APK"
+            REPORT="$("$APK_SIGNER" verify --print-certs "$APK")"
+            # apksigner output can differ in whitespace and colon-delimited
+            # fingerprint formatting across Android build-tools versions.
+            CERT_LINES="$(printf '%s\n' "$REPORT" | grep -Ei 'Signer #[0-9]+ certificate SHA-256 digest:' || true)"
+            CERT_COUNT="$(printf '%s\n' "$CERT_LINES" | grep -Eic 'certificate SHA-256 digest:' || true)"
+            CERT="$(printf '%s\n' "$CERT_LINES" | head -1 | sed -E 's/^.*certificate SHA-256 digest:[[:space:]]*//I' | tr -d ':[:space:]' | tr 'A-F' 'a-f')"
+            if [ "$CERT_COUNT" != "1" ] || ! printf '%s' "$CERT" | grep -Eq '^[a-f0-9]{64}$'; then
+              echo "::error::Missing or ambiguous APK signing certificate digest."
+              exit 1
+            fi
+            if [ -n "$EXPECTED" ]; then
+              if [ "$CERT" != "$EXPECTED" ] || printf '%s\n' "$REPORT" | grep -Fq 'CN=Android Debug'; then
+                echo "::error::APK signing certificate does not match approved production certificate."
+                exit 1
+              fi
+            else
+              if ! printf '%s\n' "$REPORT" | grep -Fq 'CN=Android Debug'; then
+                echo "::error::CI-only release signed by unexpected identity."
+                exit 1
+              fi
+            fi
+            printf '%s %s\n' "$(basename "$APK")" "$CERT" >> build/release-evidence/apk-signers.txt
+          done
+          printf 'signing_classification=%s\n' "$CLASSIFICATION" > build/release-evidence/SIGNING_STATUS.txt
 
       - name: APK size report and regression guard
         shell: bash
@@ -351,9 +441,45 @@ jobs:
           PY
 
       - name: Build Play AAB with on-demand Needle pack
+        env:
+          NOTES_SIGNING_KEYSTORE_FILE: ${{ runner.temp }}/notes-release-upload.jks
+          NOTES_SIGNING_STORE_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEYSTORE_PASSWORD || '' }}
+          NOTES_SIGNING_KEY_ALIAS: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_ALIAS || '' }}
+          NOTES_SIGNING_KEY_PASSWORD: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_KEY_PASSWORD || '' }}
         run: >-
           flutter build appbundle --release --no-pub
           --obfuscate --split-debug-info=build/symbols
+
+      - name: Verify AAB signing certificate
+        shell: bash
+        env:
+          NOTES_EXPECTED_CERT_SHA256: ${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && secrets.NOTES_ANDROID_CERT_SHA256 || '' }}
+        run: |
+          set -euo pipefail
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+          mkdir -p build/release-evidence
+          jarsigner -verify "$AAB" > build/release-evidence/aab-signature-verify.txt
+          grep -q 'jar verified' build/release-evidence/aab-signature-verify.txt
+          keytool -printcert -jarfile "$AAB" > build/release-evidence/aab-signing-certificate.txt
+          CERT="$(sed -n 's/^[[:space:]]*SHA256: //p' build/release-evidence/aab-signing-certificate.txt | head -1 | tr -d ':' | tr 'A-F' 'a-f')"
+          if ! printf '%s' "$CERT" | grep -Eq '^[a-f0-9]{64}$'; then
+            echo "::error::Unreadable AAB signer certificate."
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.production_signed }}" = "true" ]; then
+            EXPECTED="$(printf '%s' "$NOTES_EXPECTED_CERT_SHA256" | tr 'A-F' 'a-f')"
+            if [ "$CERT" != "$EXPECTED" ] || grep -Fq 'CN=Android Debug' build/release-evidence/aab-signing-certificate.txt; then
+              echo "::error::AAB signing identity does not match approved production certificate."
+              exit 1
+            fi
+          else
+            if ! grep -Fq 'CN=Android Debug' build/release-evidence/aab-signing-certificate.txt; then
+              echo "::error::CI-only AAB has unexpected signing identity."
+              exit 1
+            fi
+          fi
+          printf 'aab_certificate_sha256=%s\n' "$CERT" >> build/release-evidence/SIGNING_STATUS.txt
 
       - name: Verify Needle Play bundle
         shell: bash
@@ -389,7 +515,7 @@ jobs:
       - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-release-split
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && 'SIGNED' || 'CI-ONLY-NOT-FOR-PRODUCTION' }}-release-split
           path: flutter_app/build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error
           retention-days: 14
@@ -397,7 +523,7 @@ jobs:
       - name: Upload Play AAB
         uses: actions/upload-artifact@v4
         with:
-          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-play-aab
+          name: Notes-Ecosistema-Flutter-${{ steps.app_version.outputs.version }}-${{ (github.event_name == 'workflow_dispatch' && inputs.production_signed == true) && 'SIGNED' || 'CI-ONLY-NOT-FOR-PRODUCTION' }}-play-aab
           path: flutter_app/build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
