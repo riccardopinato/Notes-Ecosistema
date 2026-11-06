@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../domain/recovery_journal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/shared_activity.dart';
@@ -242,8 +245,17 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       }
     }
 
+    var restorePending = false;
+    if (!kIsWeb) {
+      try {
+        restorePending = await (await RecoveryJournal.open()).hasPending;
+      } catch (_) {
+        // When storage cannot be inspected, do not start automatic sync.
+        restorePending = true;
+      }
+    }
     try {
-      await SharedBackgroundBridge.setEnabled(enabled);
+      await SharedBackgroundBridge.setEnabled(enabled && !restorePending);
     } catch (_) {
       // Background worker is Android-only; foreground sync remains available.
     }
@@ -259,7 +271,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       clearNextRetry: true,
     );
     unawaited(refreshBackgroundStatus());
-    if (enabled) {
+    if (enabled && !restorePending) {
       unawaited(syncNow(silent: true));
     }
   }
@@ -459,6 +471,14 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
 
   Future<void> syncNow({bool silent = false}) async {
     if (state.busy || _restorePause.isPaused) return;
+    if (!kIsWeb) {
+      try {
+        if (await (await RecoveryJournal.open()).hasPending) return;
+      } catch (_) {
+        return; // Local recovery state unreadable: fail closed.
+      }
+    }
+    if (_restorePause.isPaused) return;
 
     _timer?.cancel();
     _timer = null;
