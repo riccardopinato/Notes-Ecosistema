@@ -2519,8 +2519,15 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ),
       );
     } finally {
-      final pending =
-          _recoveryJournal != null && await _recoveryJournal!.hasUnsettled;
+      var pending = false;
+      try {
+        pending =
+            _recoveryJournal != null && await _recoveryJournal!.hasUnsettled;
+      } catch (_) {
+        // A failed durability check is unresolved recovery, not success.
+        // Keep the sync pause and always expose the retry affordance.
+        pending = true;
+      }
       if (!pending) await _releaseRecoveryPause();
       _restoreBusy = false;
       if (mounted) {
