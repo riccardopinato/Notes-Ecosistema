@@ -155,6 +155,7 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
     return SharedSpacesSnapshot(
       identity: identity,
       spaces: List.unmodifiable(state.spaces),
+      inviteHistory: List.unmodifiable(state.inviteHistory),
     );
   }
 
