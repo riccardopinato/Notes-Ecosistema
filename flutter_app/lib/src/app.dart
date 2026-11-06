@@ -20,6 +20,7 @@ import 'domain/backup.dart';
 import 'domain/diary.dart';
 import 'domain/editing.dart';
 import 'domain/disaster_recovery.dart';
+import 'domain/recovery_safety.dart';
 import 'domain/import_provenance.dart';
 import 'domain/intelligence.dart';
 import 'domain/note_to_checklist.dart';
@@ -2079,51 +2080,59 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<Uint8List> _createRecoveryBundleBytes() async {
+    final workspace = ref.read(workspaceProvider.notifier);
+    final database = ref.read(databaseProvider);
+    final snapshot = await workspace.snapshot();
+    final revisions = await database.recoveryRevisions();
+    final blocks = await database.recoveryBlocks();
+    final properties = await ref.read(propertyStoreProvider).exportBackup();
+    final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
+    final derivatives = await ref.read(derivativeStoreProvider).exportBackup();
+    final projects = await ref.read(projectStoreProvider).exportBackup();
+    final study = await ref.read(studyStoreProvider).exportBackup();
+    final documents = await ref.read(documentStoreProvider).exportBackup();
+    final importProvenance =
+        await ref.read(importProvenanceStoreProvider).exportBackup();
+    final automations =
+        await ref.read(workflowAutomationStoreProvider).exportBackup();
+    final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
+    final store = await AttachmentStore.open();
+
+    final bytes = await DisasterRecoveryBundle.encode(
+      snapshot: snapshot,
+      revisions: revisions,
+      blocks: blocks,
+      properties: properties,
+      knowledge: knowledge,
+      derivatives: derivatives,
+      projects: projects,
+      study: study,
+      documents: documents,
+      importProvenance: importProvenance,
+      automations: automations,
+      sharedSpaces: shared,
+      store: store,
+    );
+
+    // The decoded preview validates integrity, references and every asset.
+    DisasterRecoveryBundle.decode(bytes);
+    return bytes;
+  }
+
   Future<void> _exportDisasterRecovery() async {
     try {
-      final workspace = ref.read(workspaceProvider.notifier);
-      final database = ref.read(databaseProvider);
-      final snapshot = await workspace.snapshot();
-      final revisions = await database.recoveryRevisions();
-      final blocks = await database.recoveryBlocks();
-      final properties = await ref.read(propertyStoreProvider).exportBackup();
-      final knowledge = await ref.read(knowledgeStoreProvider).exportBackup();
-      final derivatives =
-          await ref.read(derivativeStoreProvider).exportBackup();
-      final projects = await ref.read(projectStoreProvider).exportBackup();
-      final study = await ref.read(studyStoreProvider).exportBackup();
-      final documents = await ref.read(documentStoreProvider).exportBackup();
-      final importProvenance =
-          await ref.read(importProvenanceStoreProvider).exportBackup();
-      final automations =
-          await ref.read(workflowAutomationStoreProvider).exportBackup();
-      final shared = ref.read(sharedSpacesProvider.notifier).snapshot();
-      final store = await AttachmentStore.open();
-
-      final bytes = await DisasterRecoveryBundle.encode(
-        snapshot: snapshot,
-        revisions: revisions,
-        blocks: blocks,
-        properties: properties,
-        knowledge: knowledge,
-        derivatives: derivatives,
-        projects: projects,
-        study: study,
-        documents: documents,
-        importProvenance: importProvenance,
-        automations: automations,
-        sharedSpaces: shared,
-        store: store,
-      );
+      final bytes = await _createRecoveryBundleBytes();
 
       final now = DateTime.now();
       final stamp =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      await FilePicker.platform.saveFile(
+      final savedBackup = await FilePicker.platform.saveFile(
         dialogTitle: 'Crea backup di ripristino Notes',
         fileName: 'notes-recovery-$stamp.zip',
         bytes: bytes,
       );
+      if (savedBackup == null || savedBackup.trim().isEmpty) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2141,6 +2150,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _restoreDisasterRecovery() async {
+    SharedLiveSyncController? pausedLiveSync;
+    var hasRestorePause = false;
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
@@ -2173,7 +2184,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             '${recovery.snapshot.collections.length} raccolte, '
             '${recovery.assets.length} allegati e i relativi metadati. '
             'Il pacchetto migrazione/import rimane separato e continua a '
-            'creare copie. Usa Ripristino solo per disaster recovery.',
+            'creare copie. Usa Ripristino solo per disaster recovery. '
+            'Prima di scrivere è obbligatorio salvare una copia di '
+            'sicurezza dello stato attuale.',
           ),
           actions: [
             TextButton(
@@ -2189,13 +2202,77 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       );
       if (confirmed != true) return;
 
+      // Refuse destructive restore while Shared Live Sync is writing.
+      // The pause prevents foreground, delayed and periodic sync from starting
+      // while the external safety ZIP is being saved, checked and restored.
+      final liveSync = ref.read(sharedLiveSyncProvider.notifier);
+      if (!liveSync.tryBeginRestorePause()) {
+        throw const FormatException(
+          'Sincronizzazione in corso: riprova il ripristino dopo la fine.',
+        );
+      }
+      pausedLiveSync = liveSync;
+      hasRestorePause = true;
+
+      // Cross-store restores are NOT one atomic transaction. Require a
+      // recoverable copy of the current state before touching any store.
+      // Cancelling this Save As operation leaves the existing data intact.
+      final safetyBytes = await _createRecoveryBundleBytes();
+      final savedSafetyCopy = await FilePicker.platform.saveFile(
+        dialogTitle: 'Salva prima il backup di sicurezza obbligatorio',
+        fileName:
+            'notes-pre-ripristino-${DateTime.now().millisecondsSinceEpoch}.zip',
+        bytes: safetyBytes,
+      );
+      if (savedSafetyCopy == null || savedSafetyCopy.trim().isEmpty) {
+        return;
+      }
+
+      // Saving is not sufficient evidence for Android SAF or external
+      // document providers. The user must re-open the externally stored copy.
+      // All persistent restore writes are below this gate.
+      if (!mounted) return;
+      final verifyReadback = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Verifica il backup di sicurezza'),
+          content: const Text(
+            'Prima di ripristinare, seleziona il file ZIP appena salvato. '
+            'Notes confronterà tutti i byte del file con il backup creato. '
+            'Puoi annullare senza modificare alcun dato.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annulla ripristino'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Seleziona copia salvata'),
+            ),
+          ],
+        ),
+      );
+      if (verifyReadback != true) return;
+      final externalCopy = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (externalCopy == null || externalCopy.files.isEmpty) return;
+      RecoverySafety.requireVerifiedExternalCopy(
+        generated: safetyBytes,
+        readBack: externalCopy.files.single.bytes,
+      );
+
       final noteIds = recovery.snapshot.notes.map((note) => note.id).toSet();
       final sharedIds =
           recovery.sharedSpaces.spaces.map((space) => space.id).toSet();
 
-      // Every store is replaced transactionally and with canonical IDs.
-      // The full operation is retry-safe: all stages are exact/idempotent,
-      // while assets are content-addressed.
+      // Each store has its own transaction. The saved safety copy is the
+      // recovery path after an interrupted multi-store restore; do not claim
+      // an atomic rollback across all sidecar databases.
       final store = await AttachmentStore.open();
       for (final entry in recovery.assets.entries) {
         await store.put(entry.key, entry.value);
@@ -2266,11 +2343,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             userErrorText(
               error,
               fallback:
-                  'Ripristino non completato. Puoi riprovare lo stesso backup in sicurezza.',
+                  'Ripristino non completato: conserva la copia pre-ripristino prima di riprovare, perché più archivi possono essere stati modificati.',
             ),
           ),
         ),
       );
+    } finally {
+      if (hasRestorePause) pausedLiveSync?.endRestorePause();
     }
   }
 
