@@ -28,7 +28,7 @@ class RecoveryJournal {
   /// Non-Android targets fail closed until they provide an equivalent bridge.
   static Future<void> _syncNativeDirectory(Directory directory) async {
     if (!Platform.isAndroid) {
-      throw const UnsupportedError(
+      throw UnsupportedError(
         'Ripristino distruttivo senza fsync della directory non supportato.',
       );
     }
