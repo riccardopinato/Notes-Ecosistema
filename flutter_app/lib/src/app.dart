@@ -283,7 +283,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       }
       final journal = _recoveryJournal ?? await RecoveryJournal.open();
       _recoveryJournal = journal;
-      if (await journal.hasPending) {
+      if (await journal.hasUnsettled) {
         await _acquireRecoveryPause();
         await RecoveryTransaction.recoverPending(
           journal: journal,
@@ -2520,7 +2520,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       );
     } finally {
       final pending =
-          _recoveryJournal != null && await _recoveryJournal!.hasPending;
+          _recoveryJournal != null && await _recoveryJournal!.hasUnsettled;
       if (!pending) await _releaseRecoveryPause();
       _restoreBusy = false;
       if (mounted) {
