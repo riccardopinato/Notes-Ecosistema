@@ -5,12 +5,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/domain/recovery_journal.dart';
 
 void main() {
+  // Production requires native directory fsync. Unit fixtures provide an
+  // explicit durability adapter; never silently skip it in the app.
+  RecoveryJournal testJournal(Directory directory) => RecoveryJournal(
+        directory,
+        syncDirectory: (_) async {},
+      );
+
   late Directory temp;
   late RecoveryJournal journal;
 
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('notes_restore_');
-    journal = RecoveryJournal(temp);
+    journal = testJournal(temp);
   });
 
   tearDown(() async {
@@ -21,7 +28,7 @@ void main() {
     final before = Uint8List.fromList([10, 20, 30, 40]);
     await journal.begin(before);
     expect(await journal.hasPending, isTrue);
-    final reopened = RecoveryJournal(temp);
+    final reopened = testJournal(temp);
     expect(await reopened.readPending(), orderedEquals(before));
     await reopened.complete();
     expect(await reopened.hasPending, isFalse);
@@ -106,7 +113,7 @@ void main() {
     firstAttempt = false;
     expect(
       await RecoveryTransaction.recoverPending(
-        journal: RecoveryJournal(temp),
+        journal: testJournal(temp),
         applyOriginal: (snapshot) async {
           expect(snapshot, orderedEquals(before));
           data[0] = 1;
@@ -129,7 +136,7 @@ void main() {
     expect(value, 1);
     expect(
       await RecoveryTransaction.recoverPending(
-        journal: RecoveryJournal(temp),
+        journal: testJournal(temp),
         applyOriginal: (_) async => value = -1,
       ),
       isFalse,
@@ -142,7 +149,7 @@ void main() {
     await journal.begin(before);
     // Simulate process death after one of several store writes.
     final active = <int>[99, 2, 3];
-    final reopened = RecoveryJournal(temp);
+    final reopened = testJournal(temp);
     expect(
       await RecoveryTransaction.recoverPending(
         journal: reopened,
@@ -156,4 +163,39 @@ void main() {
     expect(active, [1, 2, 3]);
     expect(await reopened.hasPending, isFalse);
   });
+  test('a failed directory sync refuses to authorize any store writes',
+      () async {
+    final unsafe = RecoveryJournal(
+      temp,
+      syncDirectory: (_) async {
+        throw FileSystemException('Directory fsync failure');
+      },
+    );
+    await expectLater(
+      unsafe.begin(Uint8List.fromList([1, 2, 3])),
+      throwsFileSystemException,
+    );
+    expect(await unsafe.hasPending, isFalse);
+  });
+
+  test('failed marker durability leaves a detectable pending transaction',
+      () async {
+    var barriers = 0;
+    final unsafe = RecoveryJournal(
+      temp,
+      syncDirectory: (_) async {
+        barriers++;
+        if (barriers == 2) {
+          throw FileSystemException('Marker fsync failure');
+        }
+      },
+    );
+    final before = Uint8List.fromList([4, 5, 6]);
+    await expectLater(unsafe.begin(before), throwsFileSystemException);
+    expect(await unsafe.hasPending, isTrue);
+    final reopened = testJournal(temp);
+    expect(await reopened.readPending(), orderedEquals(before));
+    await reopened.complete();
+  });
+
 }
