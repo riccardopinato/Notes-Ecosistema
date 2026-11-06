@@ -53,8 +53,10 @@ class SharedSpacesState {
 
 class SharedSpacesController extends StateNotifier<SharedSpacesState> {
   SharedSpacesController() : super(const SharedSpacesState()) {
-    load();
+    _initialLoad = load();
   }
+
+  late final Future<void> _initialLoad;
 
   static const _key = 'shared_spaces_v1';
 
@@ -157,6 +159,9 @@ class SharedSpacesController extends StateNotifier<SharedSpacesState> {
   }
 
   Future<void> restoreExact(SharedSpacesSnapshot snapshot) async {
+    // Prevent constructor's initial preferences load from overwriting
+    // a crash-recovery replay that completed later.
+    await _initialLoad;
     SharedSpacesCodec.encode(snapshot);
     state = SharedSpacesState(
       identity: snapshot.identity,
