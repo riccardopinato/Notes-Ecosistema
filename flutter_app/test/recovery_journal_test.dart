@@ -185,7 +185,7 @@ void main() {
       temp,
       syncDirectory: (_) async {
         barriers++;
-        if (barriers == 2) {
+        if (barriers == 3) {
           throw FileSystemException('Marker fsync failure');
         }
       },
@@ -196,5 +196,39 @@ void main() {
     final reopened = testJournal(temp);
     expect(await reopened.readPending(), orderedEquals(before));
     await reopened.complete();
+  });
+
+  test('uncertain completion barrier blocks reuse without rolling back data',
+      () async {
+    var barriers = 0;
+    final flaky = RecoveryJournal(
+      temp,
+      syncDirectory: (_) async {
+        barriers++;
+        if (barriers == 4) {
+          throw FileSystemException('Completed marker fsync failed');
+        }
+      },
+    );
+    await flaky.begin(Uint8List.fromList([8, 8, 8]));
+    await expectLater(flaky.complete(), throwsFileSystemException);
+
+    // A committed marker exists but cannot be trusted for new local edits
+    // until the failed directory barrier has been retried.
+    expect(await flaky.hasPending, isFalse);
+    expect(await flaky.hasUnsettled, isTrue);
+    var rollbackCalled = false;
+    expect(
+      await RecoveryTransaction.recoverPending(
+        journal: flaky,
+        applyOriginal: (_) async {
+          rollbackCalled = true;
+        },
+      ),
+      isFalse,
+    );
+    expect(rollbackCalled, isFalse);
+    expect(await flaky.hasUnsettled, isFalse);
+    expect(await flaky.readPending(), isNull);
   });
 }
