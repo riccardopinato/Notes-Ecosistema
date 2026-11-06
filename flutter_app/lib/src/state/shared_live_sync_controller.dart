@@ -271,7 +271,11 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       clearNextRetry: true,
     );
     unawaited(refreshBackgroundStatus());
-    if (enabled && !restorePending) {
+    if (enabled && restorePending) {
+      // Startup verification can fail transiently even after the shell is
+      // ready. Keep writes disabled but preserve the automatic retry loop.
+      _schedule(_busyRetry);
+    } else if (enabled) {
       unawaited(syncNow(silent: true));
     }
   }
