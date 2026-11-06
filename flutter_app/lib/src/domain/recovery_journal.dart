@@ -103,7 +103,11 @@ class RecoveryJournal {
     }
     // Delete the marker first: an orphaned snapshot is never a pending restore.
     await _marker.delete();
-    if (await _snapshot.exists()) await _snapshot.delete();
+    try {
+      if (await _snapshot.exists()) await _snapshot.delete();
+    } on FileSystemException {
+      // Orphaned snapshot is harmless once the pending marker is absent.
+    }
   }
 }
 
