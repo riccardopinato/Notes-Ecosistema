@@ -205,7 +205,9 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed ||
         !_recoveryGateOpen ||
-        _restoreBusy) return;
+        _restoreBusy) {
+      return;
+    }
     unawaited(
       ref.read(sharedLiveSyncProvider.notifier).syncOnForeground(),
     );
