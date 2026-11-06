@@ -136,4 +136,24 @@ void main() {
     );
     expect(value, 1);
   });
+  test('startup recovery replays a pending crash even without prior exception', () async {
+    final before = Uint8List.fromList([11, 22, 33]);
+    await journal.begin(before);
+    // Simulate process death after one of several store writes.
+    final active = <int>[99, 2, 3];
+    final reopened = RecoveryJournal(temp);
+    expect(
+      await RecoveryTransaction.recoverPending(
+        journal: reopened,
+        applyOriginal: (snapshot) async {
+          expect(snapshot, orderedEquals(before));
+          active[0] = 1;
+        },
+      ),
+      isTrue,
+    );
+    expect(active, [1, 2, 3]);
+    expect(await reopened.hasPending, isFalse);
+  });
+
 }
