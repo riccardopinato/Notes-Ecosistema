@@ -320,6 +320,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleDeepLink(String raw) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     final target = StableLinks.parse(raw);
     if (target == null || !mounted) return;
     switch (target.kind) {
@@ -375,6 +377,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleSharedBackgroundSpace(String spaceId) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
     setState(() => _index = 4);
 
@@ -403,6 +407,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleReminderAction(ReminderAction action) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
 
     if (action.action == 'open') {
@@ -448,6 +454,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleQuickSync() async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
     final service = GitHubSyncService(ref.read(databaseProvider));
     try {
@@ -485,6 +493,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleIncomingCapture(IncomingCapture capture) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
 
     if (capture.error != null && capture.error!.trim().isNotEmpty) {
