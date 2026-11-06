@@ -191,7 +191,8 @@ void main() {
       },
     );
     final before = Uint8List.fromList([4, 5, 6]);
-    await expectLater(unsafe.begin(before), throwsA(isA<FileSystemException>()));
+    await expectLater(
+        unsafe.begin(before), throwsA(isA<FileSystemException>()));
     expect(await unsafe.hasPending, isTrue);
     final reopened = testJournal(temp);
     expect(await reopened.readPending(), orderedEquals(before));
@@ -247,7 +248,8 @@ void main() {
       },
     );
 
-    await expectLater(reopened.hasUnsettled, throwsA(isA<FileSystemException>()));
+    await expectLater(
+        reopened.hasUnsettled, throwsA(isA<FileSystemException>()));
     expect(await reopened.hasPending, isFalse);
     expect(await reopened.hasUnsettled, isFalse);
     expect(attempts, 2);
