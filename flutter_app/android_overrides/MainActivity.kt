@@ -21,6 +21,8 @@ import android.provider.OpenableColumns
 import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.system.Os
+import android.system.OsConstants
 import android.util.Base64
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -47,6 +49,8 @@ class MainActivity : FlutterActivity() {
         private const val REMINDER_CHANNEL = "notes.ecosystem/reminders"
         private const val REMINDER_ACTION_CHANNEL = "notes.ecosystem/reminder_actions"
         private const val SECURE_CHANNEL = "notes.ecosystem/secure"
+        private const val RECOVERY_DURABILITY_CHANNEL =
+            "notes.ecosystem/recovery_durability"
         private const val ATTACHMENT_CHANNEL = "notes.ecosystem/attachments"
         private const val VISUAL_SHARE_CHANNEL = "notes.ecosystem/visual_share"
         private const val QUICK_SYNC_CHANNEL = "notes.ecosystem/quick_sync"
@@ -97,9 +101,65 @@ class MainActivity : FlutterActivity() {
         SharedBackgroundContract.syncWithFlutterPreference(this)
     }
 
+    /**
+     * Durable directory metadata barrier for the private recovery journal.
+     * The caller may fsync ONLY the app's canonical restore_journal directory;
+     * arbitrary paths and symlinks escaping the app data directory are refused.
+     */
+    private fun fsyncRecoveryJournalDirectory(rawPath: String) {
+        val appRoot = filesDir.canonicalFile
+        val directory = File(rawPath).canonicalFile
+        val parent = directory.parentFile?.canonicalFile
+        val insideSupportRoot = parent == appRoot ||
+            (
+                parent?.name == "app_flutter" &&
+                    parent.parentFile?.canonicalFile == appRoot
+            )
+        if (directory.name != "restore_journal" ||
+            !insideSupportRoot ||
+            !directory.isDirectory
+        ) {
+            throw SecurityException("Invalid recovery journal directory.")
+        }
+        val fd = Os.open(
+            directory.absolutePath,
+            OsConstants.O_RDONLY or OsConstants.O_DIRECTORY,
+            0,
+        )
+        try {
+            Os.fsync(fd)
+        } finally {
+            Os.close(fd)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         pdfToolboxBridge.register(flutterEngine.dartExecutor.binaryMessenger)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            RECOVERY_DURABILITY_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "fsyncDirectory") {
+                result.notImplemented()
+            } else {
+                val path = call.argument<String>("path")
+                if (path.isNullOrBlank()) {
+                    result.error("RECOVERY_FSYNC_INVALID", "Missing journal path.", null)
+                } else {
+                    try {
+                        fsyncRecoveryJournalDirectory(path)
+                        result.success(null)
+                    } catch (_: Exception) {
+                        result.error(
+                            "RECOVERY_FSYNC_FAILED",
+                            "Could not durably commit recovery metadata.",
+                            null,
+                        )
+                    }
+                }
+            }
+        }
         channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL,
