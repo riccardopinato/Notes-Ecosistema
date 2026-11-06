@@ -478,7 +478,8 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         return; // Local recovery state unreadable: fail closed.
       }
     }
-    if (_restorePause.isPaused) return;
+    // Another sync may acquire ownership while this call awaits journal I/O.
+    if (state.busy || _restorePause.isPaused) return;
 
     _timer?.cancel();
     _timer = null;
