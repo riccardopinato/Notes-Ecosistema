@@ -102,9 +102,8 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * Durable directory metadata barrier for the private recovery journal.
-     * The caller may fsync ONLY the app's canonical restore_journal directory;
-     * arbitrary paths and symlinks escaping the app data directory are refused.
+     * Durable journal barrier: parent entries are part of the transaction.
+     * Verify the canonical app-private path before any fsync operation.
      */
     private fun fsyncRecoveryJournalDirectory(rawPath: String) {
         val appRoot = filesDir.canonicalFile
@@ -117,20 +116,30 @@ class MainActivity : FlutterActivity() {
             )
         if (directory.name != "restore_journal" ||
             !insideSupportRoot ||
-            !directory.isDirectory
+            !directory.isDirectory ||
+            parent == null
         ) {
             throw SecurityException("Invalid recovery journal directory.")
         }
-        val fd = Os.open(
-            directory.absolutePath,
-            OsConstants.O_RDONLY or OsConstants.O_DIRECTORY,
-            0,
-        )
-        try {
-            Os.fsync(fd)
-        } finally {
-            Os.close(fd)
+
+        fun syncOne(candidate: File) {
+            val fd = Os.open(
+                candidate.absolutePath,
+                OsConstants.O_RDONLY or OsConstants.O_DIRECTORY,
+                0,
+            )
+            try {
+                Os.fsync(fd)
+            } finally {
+                Os.close(fd)
+            }
         }
+
+        // A newly created journal is unreachable after power loss unless the
+        // directory entries of *its parents* are also committed.
+        if (parent != appRoot) syncOne(appRoot)
+        syncOne(parent)
+        syncOne(directory)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
