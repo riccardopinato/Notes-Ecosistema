@@ -173,7 +173,7 @@ void main() {
     );
     await expectLater(
       unsafe.begin(Uint8List.fromList([1, 2, 3])),
-      throwsFileSystemException,
+      throwsA(isA<FileSystemException>()),
     );
     expect(await unsafe.hasPending, isFalse);
   });
@@ -191,7 +191,7 @@ void main() {
       },
     );
     final before = Uint8List.fromList([4, 5, 6]);
-    await expectLater(unsafe.begin(before), throwsFileSystemException);
+    await expectLater(unsafe.begin(before), throwsA(isA<FileSystemException>()));
     expect(await unsafe.hasPending, isTrue);
     final reopened = testJournal(temp);
     expect(await reopened.readPending(), orderedEquals(before));
@@ -211,7 +211,7 @@ void main() {
       },
     );
     await flaky.begin(Uint8List.fromList([8, 8, 8]));
-    await expectLater(flaky.complete(), throwsFileSystemException);
+    await expectLater(flaky.complete(), throwsA(isA<FileSystemException>()));
 
     // A committed marker exists but cannot be trusted for new local edits
     // until the failed directory barrier has been retried.
