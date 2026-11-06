@@ -248,7 +248,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     var restorePending = false;
     if (!kIsWeb) {
       try {
-        restorePending = await (await RecoveryJournal.open()).hasPending;
+        restorePending = await (await RecoveryJournal.open()).hasUnsettled;
       } catch (_) {
         // When storage cannot be inspected, do not start automatic sync.
         restorePending = true;
@@ -473,7 +473,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     if (state.busy || _restorePause.isPaused) return;
     if (!kIsWeb) {
       try {
-        if (await (await RecoveryJournal.open()).hasPending) return;
+        if (await (await RecoveryJournal.open()).hasUnsettled) return;
       } catch (_) {
         return; // Local recovery state unreadable: fail closed.
       }
