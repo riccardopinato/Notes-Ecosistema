@@ -202,11 +202,12 @@ void main() {
   test('uncertain completion barrier blocks reuse without rolling back data',
       () async {
     var barriers = 0;
+    var allowRetry = false;
     final flaky = RecoveryJournal(
       temp,
       syncDirectory: (_) async {
         barriers++;
-        if (barriers == 4) {
+        if (barriers >= 4 && !allowRetry) {
           throw FileSystemException('Completed marker fsync failed');
         }
       },
@@ -217,7 +218,9 @@ void main() {
     // A committed marker exists but cannot be trusted for new local edits
     // until the failed directory barrier has been retried.
     expect(await flaky.hasPending, isFalse);
-    expect(await flaky.hasUnsettled, isTrue);
+    await expectLater(
+        flaky.hasUnsettled, throwsA(isA<FileSystemException>()));
+    allowRetry = true;
     var rollbackCalled = false;
     expect(
       await RecoveryTransaction.recoverPending(
