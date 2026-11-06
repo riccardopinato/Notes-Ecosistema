@@ -196,6 +196,4 @@ void main() {
     final reopened = testJournal(temp);
     expect(await reopened.readPending(), orderedEquals(before));
     await reopened.complete();
-  });
-
-}
+  });}
