@@ -218,8 +218,7 @@ void main() {
     // A committed marker exists but cannot be trusted for new local edits
     // until the failed directory barrier has been retried.
     expect(await flaky.hasPending, isFalse);
-    await expectLater(
-        flaky.hasUnsettled, throwsA(isA<FileSystemException>()));
+    await expectLater(flaky.hasUnsettled, throwsA(isA<FileSystemException>()));
     allowRetry = true;
     var rollbackCalled = false;
     expect(
