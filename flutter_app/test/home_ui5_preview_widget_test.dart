@@ -47,7 +47,7 @@ void main() {
     expect(find.text('Today, your space.'), findsOneWidget);
     expect(find.text('Recent page'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('ui5-new-note')));
-    await tester.tap(find.byKey(const ValueKey('ui5-new-task')));
+    await tester.tap(find.byKey(const ValueKey('ui5-open-tasks')));
     expect(newNotes, 1);
     expect(tasksOpened, 1);
 
