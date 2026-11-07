@@ -27,6 +27,7 @@ import 'domain/import_provenance.dart';
 import 'domain/intelligence.dart';
 import 'domain/note_to_checklist.dart';
 import 'domain/smart_inbox_checklist_action.dart';
+import 'domain/smart_inbox_project_action.dart';
 import 'domain/smart_inbox_source_preview.dart';
 import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
@@ -163,7 +164,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   String? _plannerTaskId;
   String _reminderSignature = '';
   bool _smartInboxTaskSaving = false;
+  bool _smartInboxProjectSaving = false;
   final Map<String, ({Note task, String owner})> _smartInboxTaskUndo = {};
+  final Map<String, ({ProjectItemLink link, String owner})>
+      _smartInboxProjectUndo = {};
   bool _semanticSearchEnabled = true;
   bool _recoveryGateOpen = false;
   bool _recoveryGateBusy = false;
@@ -594,6 +598,134 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       ),
     ));
     await ref.read(workspaceProvider.notifier).refresh();
+  }
+
+  /// Explicit source-backed link to the existing project_items store.
+  /// Fails closed on shared roles, account switches and stale source/target.
+  Future<String> _linkSmartInboxProject(
+      Note source, String projectId) async {
+    if (_smartInboxProjectSaving || _restoreBusy || !_recoveryGateOpen) {
+      throw const FormatException('Operazione Smart Inbox non disponibile.');
+    }
+    _smartInboxProjectSaving = true;
+    try {
+      final before = ref.read(sharedSpacesProvider);
+      final owner = before.identity?.id;
+      if (before.loading ||
+          before.error != null ||
+          owner == null ||
+          before.spaces.any((space) => space.contentIds.contains(source.id))) {
+        throw const FormatException('Fonte non privata o ruolo incerto.');
+      }
+
+      final candidateProjects = SmartInboxProjectAction.privateTargets(
+        ref.read(projectWorkspaceProvider).projects,
+      );
+      SmartInboxProjectAction.validateTarget(projectId, candidateProjects);
+
+      final database = ref.read(databaseProvider);
+      final canonical = await database.loadNote(source.id);
+      final state = ref.read(workspaceProvider);
+      final sharedNow = ref.read(sharedSpacesProvider);
+      if (canonical == null ||
+          state.loading ||
+          state.error != null ||
+          !SmartInboxProjectAction.validSource(source, state.notes) ||
+          !SmartInboxSourcePreview.sameCanonicalRevision(source, canonical) ||
+          sharedNow.loading ||
+          sharedNow.error != null ||
+          sharedNow.identity?.id != owner ||
+          sharedNow.spaces.any(
+              (space) => space.contentIds.contains(source.id))) {
+        throw const FormatException('Fonte modificata o non più accessibile.');
+      }
+
+      final store = ref.read(projectStoreProvider);
+      final liveProject = await store.loadProject(projectId);
+      final allowed = SmartInboxProjectAction.privateTargets(
+        ref.read(projectWorkspaceProvider).projects,
+      );
+      if (liveProject == null ||
+          !liveProject.isActive ||
+          liveProject.sharedSpaceId != null ||
+          !allowed.any((project) => project.id == liveProject.id)) {
+        throw const FormatException('Progetto non più disponibile.');
+      }
+      if ((await store.loadLinks(projectId))
+          .any((link) => link.noteId == source.id)) {
+        throw const FormatException('Nota già collegata a questo progetto.');
+      }
+
+      // Final live-source check immediately ahead of the canonical writer.
+      final liveAtCommit = await database.loadNote(source.id);
+      final sharedAtCommit = ref.read(sharedSpacesProvider);
+      if (liveAtCommit == null ||
+          !SmartInboxSourcePreview.sameCanonicalRevision(
+              source, liveAtCommit) ||
+          sharedAtCommit.identity?.id != owner ||
+          sharedAtCommit.loading ||
+          sharedAtCommit.error != null ||
+          sharedAtCommit.spaces.any(
+              (space) => space.contentIds.contains(source.id))) {
+        throw const FormatException('Fonte o permessi cambiati prima del link.');
+      }
+
+      // Existing project writer; no separate Smart Inbox/project database.
+      await ref.read(projectWorkspaceProvider.notifier).attach(
+            projectId,
+            source.id,
+          );
+      final written = (await store.loadLinks(projectId))
+          .where((link) => link.noteId == source.id)
+          .toList(growable: false);
+      if (written.length != 1) {
+        throw const FormatException(
+            'Link salvato ma non verificabile: verifica il progetto.');
+      }
+      final receiptId = const Uuid().v4();
+      _smartInboxProjectUndo[receiptId] =
+          (link: written.single, owner: owner);
+      if (_smartInboxProjectUndo.length > 12) {
+        _smartInboxProjectUndo.remove(_smartInboxProjectUndo.keys.first);
+      }
+      return receiptId;
+    } finally {
+      _smartInboxProjectSaving = false;
+    }
+  }
+
+  Future<void> _undoSmartInboxProjectLink(String receiptId) async {
+    final receipt = _smartInboxProjectUndo.remove(receiptId);
+    if (receipt == null) {
+      throw const FormatException('Annullamento non più disponibile.');
+    }
+    final shared = ref.read(sharedSpacesProvider);
+    final store = ref.read(projectStoreProvider);
+    final project = await store.loadProject(receipt.link.projectId);
+    if (_restoreBusy ||
+        !_recoveryGateOpen ||
+        shared.loading ||
+        shared.error != null ||
+        shared.identity?.id != receipt.owner ||
+        shared.spaces.any((space) =>
+            space.contentIds.contains(receipt.link.noteId)) ||
+        project == null ||
+        !project.isActive ||
+        project.sharedSpaceId != null) {
+      throw const FormatException('Annullamento progetto non sicuro.');
+    }
+    final current = (await store.loadLinks(receipt.link.projectId))
+        .where((link) => link.noteId == receipt.link.noteId)
+        .toList(growable: false);
+    if (current.length != 1 ||
+        !SmartInboxProjectAction.canUndo(
+            receipt.link, current.single)) {
+      throw const FormatException('Link modificato: annullamento non sicuro.');
+    }
+    await ref.read(projectWorkspaceProvider.notifier).detach(
+          receipt.link.projectId,
+          receipt.link.noteId,
+        );
   }
 
   /// Source-verified private-only canonical Task writer. No implicit
@@ -1373,6 +1505,11 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         onDraftSmartInboxTags: _openSmartInboxTagDraft,
         onCreateSmartInboxChecklistTask: _createSmartInboxChecklistTask,
         onUndoSmartInboxChecklistTask: _undoSmartInboxChecklistTask,
+        privateProjectTargets: SmartInboxProjectAction.privateTargets(
+          projects.projects,
+        ),
+        onLinkSmartInboxProject: _linkSmartInboxProject,
+        onUndoSmartInboxProjectLink: _undoSmartInboxProjectLink,
         onProjects: () => _openProjects(),
         onStudy: _openStudy,
         onGraph: _openKnowledgeGraph,
