@@ -602,8 +602,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
   /// Explicit source-backed link to the existing project_items store.
   /// Fails closed on shared roles, account switches and stale source/target.
-  Future<String> _linkSmartInboxProject(
-      Note source, String projectId) async {
+  Future<String> _linkSmartInboxProject(Note source, String projectId) async {
     if (_smartInboxProjectSaving || _restoreBusy || !_recoveryGateOpen) {
       throw const FormatException('Operazione Smart Inbox non disponibile.');
     }
@@ -635,8 +634,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           sharedNow.loading ||
           sharedNow.error != null ||
           sharedNow.identity?.id != owner ||
-          sharedNow.spaces.any(
-              (space) => space.contentIds.contains(source.id))) {
+          sharedNow.spaces
+              .any((space) => space.contentIds.contains(source.id))) {
         throw const FormatException('Fonte modificata o non più accessibile.');
       }
 
@@ -665,9 +664,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           sharedAtCommit.identity?.id != owner ||
           sharedAtCommit.loading ||
           sharedAtCommit.error != null ||
-          sharedAtCommit.spaces.any(
-              (space) => space.contentIds.contains(source.id))) {
-        throw const FormatException('Fonte o permessi cambiati prima del link.');
+          sharedAtCommit.spaces
+              .any((space) => space.contentIds.contains(source.id))) {
+        throw const FormatException(
+            'Fonte o permessi cambiati prima del link.');
       }
 
       // Existing project writer; no separate Smart Inbox/project database.
@@ -683,8 +683,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             'Link salvato ma non verificabile: verifica il progetto.');
       }
       final receiptId = const Uuid().v4();
-      _smartInboxProjectUndo[receiptId] =
-          (link: written.single, owner: owner);
+      _smartInboxProjectUndo[receiptId] = (link: written.single, owner: owner);
       if (_smartInboxProjectUndo.length > 12) {
         _smartInboxProjectUndo.remove(_smartInboxProjectUndo.keys.first);
       }
@@ -707,8 +706,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         shared.loading ||
         shared.error != null ||
         shared.identity?.id != receipt.owner ||
-        shared.spaces.any((space) =>
-            space.contentIds.contains(receipt.link.noteId)) ||
+        shared.spaces
+            .any((space) => space.contentIds.contains(receipt.link.noteId)) ||
         project == null ||
         !project.isActive ||
         project.sharedSpaceId != null) {
@@ -718,8 +717,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         .where((link) => link.noteId == receipt.link.noteId)
         .toList(growable: false);
     if (current.length != 1 ||
-        !SmartInboxProjectAction.canUndo(
-            receipt.link, current.single)) {
+        !SmartInboxProjectAction.canUndo(receipt.link, current.single)) {
       throw const FormatException('Link modificato: annullamento non sicuro.');
     }
     await ref.read(projectWorkspaceProvider.notifier).detach(
