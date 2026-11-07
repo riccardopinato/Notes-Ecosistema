@@ -16,8 +16,7 @@ void main() {
     );
   });
 
-  test('five labels preserve six supported locales without hidden buttons',
-      () {
+  test('five labels preserve six supported locales without hidden buttons', () {
     expect(MobileNavigationUi5.hasAllLocales, isTrue);
     expect(MobileNavigationUi5.title('it', 2), 'Attività');
     expect(MobileNavigationUi5.title('de', 4), 'Räume');
