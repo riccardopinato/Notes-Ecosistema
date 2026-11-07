@@ -51,7 +51,8 @@ abstract final class HomeUi5Strings {
       'noRecent': 'Ancora nessuna pagina recente',
       'untitled': 'Pagina senza titolo',
       'review': 'Da rivedere',
-      'reviewDetail': 'Suggerimenti dalle tue note. Nessuna modifica automatica.',
+      'reviewDetail':
+          'Suggerimenti dalle tue note. Nessuna modifica automatica.',
       'more': 'Mostra altre',
       'less': 'Mostra meno',
       'tools': 'I tuoi strumenti',
@@ -115,7 +116,8 @@ abstract final class HomeUi5Strings {
       'noRecent': 'Aucune page récente',
       'untitled': 'Page sans titre',
       'review': 'À vérifier',
-      'reviewDetail': 'Suggestions de vos notes. Aucune modification automatique.',
+      'reviewDetail':
+          'Suggestions de vos notes. Aucune modification automatique.',
       'more': 'Voir plus',
       'less': 'Voir moins',
       'tools': 'Vos outils',
@@ -147,7 +149,8 @@ abstract final class HomeUi5Strings {
       'noRecent': 'Noch keine letzten Seiten',
       'untitled': 'Unbenannte Seite',
       'review': 'Zu prüfen',
-      'reviewDetail': 'Vorschläge aus deinen Notizen. Keine automatischen Änderungen.',
+      'reviewDetail':
+          'Vorschläge aus deinen Notizen. Keine automatischen Änderungen.',
       'more': 'Mehr anzeigen',
       'less': 'Weniger anzeigen',
       'tools': 'Deine Werkzeuge',
