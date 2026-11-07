@@ -10,6 +10,7 @@ import '../domain/app_locale.dart';
 import '../domain/contextual_work_insights.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
+import '../domain/project_workspace.dart';
 import '../domain/smart_inbox_source_preview.dart';
 import '../domain/workday.dart';
 import '../widgets/editorial.dart';
@@ -32,6 +33,9 @@ class HomeScreen extends StatefulWidget {
     this.onDraftSmartInboxTags,
     this.onCreateSmartInboxChecklistTask,
     this.onUndoSmartInboxChecklistTask,
+    this.privateProjectTargets = const [],
+    this.onLinkSmartInboxProject,
+    this.onUndoSmartInboxProjectLink,
     required this.onProjects,
     this.onStudy,
     this.onGraph,
@@ -59,6 +63,10 @@ class HomeScreen extends StatefulWidget {
   final Future<String> Function(Note source, List<String> selected)?
       onCreateSmartInboxChecklistTask;
   final Future<void> Function(String taskId)? onUndoSmartInboxChecklistTask;
+  final List<ProjectWorkspace> privateProjectTargets;
+  final Future<String> Function(Note source, String projectId)?
+      onLinkSmartInboxProject;
+  final Future<void> Function(String receiptId)? onUndoSmartInboxProjectLink;
   final VoidCallback onProjects;
   final VoidCallback? onStudy;
   final VoidCallback? onGraph;
@@ -175,12 +183,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
     };
     final selectedTags = <String>{};
+    String? selectedProjectId;
+    final canLinkProject = widget.onLinkSmartInboxProject != null &&
+        widget.privateProjectTargets.isNotEmpty;
     final canCreateChecklist = suggestion.kind == InboxReviewKind.checklist &&
         widget.onCreateSmartInboxChecklistTask != null;
     if (canCreateChecklist) selectedTags.addAll(preview.candidates);
     final canDraftTags = suggestion.kind == InboxReviewKind.explicitTags &&
         widget.onDraftSmartInboxTags != null;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
@@ -221,20 +232,60 @@ class _HomeScreenState extends State<HomeScreen> {
                             )),
                   const SizedBox(height: 12),
                   Text(labels[3]),
+                  if (canLinkProject) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    DropdownButtonFormField<String>(
+                      value: selectedProjectId,
+                      decoration: InputDecoration(
+                        labelText: switch (code) {
+                          'it' => 'Collega a un progetto',
+                          'es' => 'Vincular a un proyecto',
+                          'fr' => 'Associer à un projet',
+                          'de' => 'Mit Projekt verknüpfen',
+                          'pt' => 'Vincular a um projeto',
+                          _ => 'Link to a project',
+                        },
+                      ),
+                      items: widget.privateProjectTargets
+                          .map((project) => DropdownMenuItem(
+                                value: project.id,
+                                child: Text(project.name),
+                              ))
+                          .toList(growable: false),
+                      onChanged: (value) =>
+                          setDialogState(() => selectedProjectId = value),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: Text(labels[1])),
+            if (canLinkProject)
+              OutlinedButton(
+                key: const ValueKey('smart-inbox-confirm-project-link'),
+                onPressed: selectedProjectId == null
+                    ? null
+                    : () => Navigator.pop(dialogContext, 'project'),
+                child: Text(switch (code) {
+                  'it' => 'Collega',
+                  'es' => 'Vincular',
+                  'fr' => 'Associer',
+                  'de' => 'Verknüpfen',
+                  'pt' => 'Vincular',
+                  _ => 'Link',
+                }),
+              ),
             FilledButton(
               key: const ValueKey('smart-inbox-preview-open-editor'),
               onPressed:
                   (canDraftTags || canCreateChecklist) && selectedTags.isEmpty
                       ? null
-                      : () => Navigator.pop(dialogContext, true),
+                      : () => Navigator.pop(dialogContext, 'primary'),
               child: Text(canCreateChecklist
                   ? switch (code) {
                       'it' => 'Crea attività',
@@ -259,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-    if (!mounted || confirmed != true) return;
+    if (!mounted || confirmed == null) return;
     final current = preview.current(widget.notes);
     if (current == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -268,6 +319,49 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
+    if (confirmed == 'project' && canLinkProject) {
+      try {
+        final receipt = await widget.onLinkSmartInboxProject!(
+          current,
+          selectedProjectId!,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(switch (code) {
+              'it' => 'Nota collegata al progetto',
+              'es' => 'Nota vinculada al proyecto',
+              'fr' => 'Note associée au projet',
+              'de' => 'Notiz mit Projekt verknüpft',
+              'pt' => 'Nota vinculada ao projeto',
+              _ => 'Note linked to project',
+            }),
+            action: widget.onUndoSmartInboxProjectLink == null
+                ? null
+                : SnackBarAction(
+                    label: switch (code) {
+                      'it' => 'Annulla',
+                      'es' => 'Deshacer',
+                      'fr' => 'Annuler',
+                      'de' => 'Rückgängig',
+                      'pt' => 'Desfazer',
+                      _ => 'Undo',
+                    },
+                    onPressed: () => unawaited(_undoProjectLink(receipt)),
+                  ),
+          ),
+        );
+      } on Object catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString().replaceFirst('FormatException: ', '')),
+          ),
+        );
+      }
+      return;
+    }
+    if (confirmed != 'primary') return;
     if (canCreateChecklist) {
       try {
         final id = await widget.onCreateSmartInboxChecklistTask!(
@@ -320,6 +414,19 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     widget.onOpenNote(current);
+  }
+
+  Future<void> _undoProjectLink(String receiptId) async {
+    try {
+      await widget.onUndoSmartInboxProjectLink!(receiptId);
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('FormatException: ', '')),
+        ),
+      );
+    }
   }
 
   Future<void> _undoChecklistTask(String id) async {
