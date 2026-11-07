@@ -10,10 +10,12 @@ import '../domain/app_locale.dart';
 import '../domain/contextual_work_insights.dart';
 import '../domain/focus.dart';
 import '../domain/note.dart';
+import '../domain/home_ui5_projection.dart';
 import '../domain/project_workspace.dart';
 import '../domain/smart_inbox_source_preview.dart';
 import '../domain/workday.dart';
 import '../widgets/editorial.dart';
+import '../widgets/home_ui5_strings.dart';
 import '../domain/privacy_copy.dart';
 import 'privacy_copy_screen.dart';
 import 'document_delta_screen.dart';
@@ -42,6 +44,10 @@ class HomeScreen extends StatefulWidget {
     this.onAutomations,
     required this.projectCount,
     this.sharedUnread = 0,
+    this.ui5Preview = const bool.fromEnvironment(
+      'NOTES_UI5_HOME_PREVIEW',
+      defaultValue: false,
+    ),
     super.key,
   });
 
@@ -74,6 +80,9 @@ class HomeScreen extends StatefulWidget {
   final int projectCount;
   final int sharedUnread;
 
+  /// Visual-only preview: no new storage or write paths.
+  final bool ui5Preview;
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -81,6 +90,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final Future<FocusClock?> _focus;
   bool _reviewsReady = false;
+  bool _ui5ShowAllReviews = false;
   final Set<String> _dismissed = {};
   final Set<String> _mutedCategories = {};
   final Map<String, int> _snoozed = {};
@@ -523,6 +533,9 @@ class _HomeScreenState extends State<HomeScreen> {
       sharedUnread: widget.sharedUnread,
     );
 
+    if (widget.ui5Preview) {
+      return _buildUi5(context, now, briefing, reviewSuggestions);
+    }
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 104),
       children: [
@@ -573,29 +586,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
         OutlinedButton.icon(
           key: const ValueKey('document-delta-open'),
-          onPressed: () {
-            final sources = widget.notes
-                .where((note) =>
-                    !note.isDeleted &&
-                    !note.archived &&
-                    !note.isTask &&
-                    !note.isVisual &&
-                    note.body.trim().isNotEmpty)
-                .take(500)
-                .map((note) => DocumentDeltaSource(
-                      id: note.id,
-                      title: note.title.trim().isEmpty
-                          ? 'Nota senza titolo'
-                          : note.title,
-                      text: note.body,
-                      revision: note.updatedAt.toString(),
-                      provenance: 'Nota locale · revisione ${note.updatedAt}',
-                    ))
-                .toList(growable: false);
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => DocumentDeltaScreen(sources: sources),
-            ));
-          },
+          onPressed: _openDocumentDelta,
           icon: const Icon(Icons.difference_outlined),
           label: const Text('Confronta due note'),
         ),
@@ -604,28 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 16),
         OutlinedButton.icon(
           key: const ValueKey('privacy-shield-open'),
-          onPressed: () {
-            final sources = widget.notes
-                .where((note) =>
-                    !note.isDeleted &&
-                    !note.archived &&
-                    !note.isVisual &&
-                    !note.isTask &&
-                    note.body.trim().isNotEmpty)
-                .take(500)
-                .map((note) => PrivacyCopySource(
-                      id: note.id,
-                      title: note.title.trim().isEmpty
-                          ? 'Nota senza titolo'
-                          : note.title,
-                      text: note.body,
-                      revision: note.updatedAt.toString(),
-                    ))
-                .toList(growable: false);
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => PrivacyCopyScreen(sources: sources),
-            ));
-          },
+          onPressed: _openPrivacyShield,
           icon: const Icon(Icons.shield_outlined),
           label: const Text('Privacy Shield · copia testo'),
         ),
@@ -660,6 +630,310 @@ class _HomeScreenState extends State<HomeScreen> {
             detail: 'Note, idee e progetti da ritrovare.'),
       ],
     );
+  }
+
+  /// B2/B3 UI5: read-only view composition. Legacy Home stays available
+  /// when the preview flag is off. No editor, storage or sync behavior changes.
+  Widget _buildUi5(
+    BuildContext context,
+    DateTime now,
+    WorkdayBriefing briefing,
+    List<InboxReviewSuggestion> reviewSuggestions,
+  ) {
+    final localeCode = AppLocale.effectiveCode(Localizations.localeOf(context));
+    String l(String key) => HomeUi5Strings.label(localeCode, key);
+    final projection = HomeUi5Projection.fromNotes(widget.notes);
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
+    return ListView(
+      key: const ValueKey('ui5-home-root'),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+      children: [
+        EditorialEyebrow(
+          MaterialLocalizations.of(context).formatMediumDate(now),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          l('headline'),
+          style: text.headlineLarge,
+        ),
+        const SizedBox(height: 20),
+        _SurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: colors.primaryContainer,
+                    foregroundColor: colors.onPrimaryContainer,
+                    child: const Icon(Icons.today_outlined),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      l('today'),
+                      style: text.titleLarge,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (briefing.dueToday == 0 && briefing.overdue == 0)
+                Text(l('nothingDue'))
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    if (briefing.dueToday > 0)
+                      Chip(
+                        avatar: const Icon(Icons.event_available_outlined),
+                        label: Text('${briefing.dueToday} ${l('due')}'),
+                      ),
+                    if (briefing.overdue > 0)
+                      Chip(
+                        avatar: const Icon(Icons.warning_amber_outlined),
+                        label: Text('${briefing.overdue} ${l('overdue')}'),
+                      ),
+                  ],
+                ),
+              if (briefing.sharedUnread > 0) ...[
+                const SizedBox(height: 8),
+                Text('${briefing.sharedUnread} ${l('unread')}'),
+              ],
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: widget.onAgenda,
+                    icon: const Icon(Icons.arrow_forward_outlined),
+                    label: Text(l('agenda')),
+                  ),
+                  Text(
+                    '${projection.pageCount} ${l('pages')} · '
+                    '${projection.pendingTasks} ${l('tasks')}',
+                    style: text.labelMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              key: const ValueKey('ui5-new-note'),
+              onPressed: widget.onCreate,
+              icon: const Icon(Icons.edit_note_outlined),
+              label: Text(l('newNote')),
+            ),
+            OutlinedButton.icon(
+              key: const ValueKey('ui5-open-tasks'),
+              onPressed: widget.onTasks,
+              icon: const Icon(Icons.check_circle_outline),
+              label: Text(l('openTasks')),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        EditorialSection(l('continue'), detail: l('continueDetail')),
+        _SurfaceCard(
+          child: projection.recentPages.isEmpty
+              ? Text(l('noRecent'))
+              : Column(
+                  children: [
+                    for (final note in projection.recentPages)
+                      ListTile(
+                        key: ValueKey('ui5-recent-${note.id}'),
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(note.isVisual
+                            ? Icons.draw_outlined
+                            : Icons.description_outlined),
+                        title: Text(
+                          note.title.trim().isEmpty
+                              ? l('untitled')
+                              : note.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          MaterialLocalizations.of(context).formatMediumDate(
+                            DateTime.fromMillisecondsSinceEpoch(note.updatedAt),
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => widget.onOpenNote(note),
+                      ),
+                  ],
+                ),
+        ),
+        if (reviewSuggestions.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          EditorialSection(l('review'), detail: l('reviewDetail')),
+          ...reviewSuggestions
+              .take(_ui5ShowAllReviews ? 3 : 2)
+              .map((suggestion) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _SmartInboxCard(
+                      suggestion: suggestion,
+                      onOpenNote: (_) => _previewSmartInbox(suggestion),
+                      onAction: (action) => _handleReview(suggestion, action),
+                    ),
+                  )),
+          if (reviewSuggestions.length > 2)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                key: const ValueKey('ui5-more-reviews'),
+                onPressed: () => setState(
+                  () => _ui5ShowAllReviews = !_ui5ShowAllReviews,
+                ),
+                icon: Icon(
+                  _ui5ShowAllReviews ? Icons.expand_less : Icons.expand_more,
+                ),
+                label: Text(
+                  _ui5ShowAllReviews ? l('less') : l('more'),
+                ),
+              ),
+            ),
+        ],
+        const SizedBox(height: 20),
+        _SurfaceCard(
+          child: ExpansionTile(
+            key: const ValueKey('ui5-tools'),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            leading:
+                Icon(Icons.dashboard_customize_outlined, color: colors.primary),
+            title: Text(l('tools'), style: text.titleMedium),
+            subtitle: Text(l('toolsDetail')),
+            children: [
+              ListTile(
+                leading: const Icon(Icons.work_outline),
+                title: Text(l('projects')),
+                onTap: widget.onProjects,
+              ),
+              ListTile(
+                leading: const Icon(Icons.draw_outlined),
+                title: Text(l('sketch')),
+                onTap: widget.onSketch,
+              ),
+              if (widget.onStudy != null)
+                ListTile(
+                  leading: const Icon(Icons.school_outlined),
+                  title: Text(l('study')),
+                  onTap: widget.onStudy,
+                ),
+              if (widget.onGraph != null)
+                ListTile(
+                  leading: const Icon(Icons.hub_outlined),
+                  title: Text(l('graph')),
+                  onTap: widget.onGraph,
+                ),
+              if (widget.onAutomations != null)
+                ListTile(
+                  leading: const Icon(Icons.auto_mode_outlined),
+                  title: Text(l('automations')),
+                  onTap: widget.onAutomations,
+                ),
+              ListTile(
+                key: const ValueKey('document-delta-open'),
+                leading: const Icon(Icons.difference_outlined),
+                title: Text(l('compare')),
+                onTap: _openDocumentDelta,
+              ),
+              ListTile(
+                key: const ValueKey('privacy-shield-open'),
+                leading: const Icon(Icons.shield_outlined),
+                title: Text(l('privacy')),
+                onTap: _openPrivacyShield,
+              ),
+              ListTile(
+                leading: const Icon(Icons.timer_outlined),
+                title: Text(l('focus')),
+                onTap: widget.onTasks,
+              ),
+            ],
+          ),
+        ),
+        if (widget.collections.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          EditorialSection(l('collections')),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final collection in widget.collections.take(12))
+                ActionChip(
+                  avatar: const Icon(Icons.folder_outlined, size: 18),
+                  label: Text(collection.name),
+                  onPressed: () => widget.onCollection(collection.id),
+                ),
+              if (widget.collections.length > 12)
+                ActionChip(
+                  label: Text(l('pages')),
+                  onPressed: widget.onNotes,
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _openDocumentDelta() {
+    final sources = widget.notes
+        .where((note) =>
+            !note.isDeleted &&
+            !note.archived &&
+            !note.isTask &&
+            !note.isVisual &&
+            note.body.trim().isNotEmpty)
+        .take(500)
+        .map((note) => DocumentDeltaSource(
+              id: note.id,
+              title:
+                  note.title.trim().isEmpty ? 'Nota senza titolo' : note.title,
+              text: note.body,
+              revision: note.updatedAt.toString(),
+              provenance: 'Nota locale · revisione ${note.updatedAt}',
+            ))
+        .toList(growable: false);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => DocumentDeltaScreen(sources: sources),
+    ));
+  }
+
+  void _openPrivacyShield() {
+    final sources = widget.notes
+        .where((note) =>
+            !note.isDeleted &&
+            !note.archived &&
+            !note.isVisual &&
+            !note.isTask &&
+            note.body.trim().isNotEmpty)
+        .take(500)
+        .map((note) => PrivacyCopySource(
+              id: note.id,
+              title:
+                  note.title.trim().isEmpty ? 'Nota senza titolo' : note.title,
+              text: note.body,
+              revision: note.updatedAt.toString(),
+            ))
+        .toList(growable: false);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PrivacyCopyScreen(sources: sources),
+    ));
   }
 
   Future<FocusClock?> _activeFocus() async {
