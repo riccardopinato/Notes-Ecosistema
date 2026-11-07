@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +22,7 @@ import 'domain/diary.dart';
 import 'domain/editing.dart';
 import 'domain/disaster_recovery.dart';
 import 'domain/recovery_safety.dart';
+import 'domain/recovery_journal.dart';
 import 'domain/import_provenance.dart';
 import 'domain/intelligence.dart';
 import 'domain/note_to_checklist.dart';
@@ -163,6 +165,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   bool _smartInboxTaskSaving = false;
   final Map<String, ({Note task, String owner})> _smartInboxTaskUndo = {};
   bool _semanticSearchEnabled = true;
+  bool _recoveryGateOpen = false;
+  bool _recoveryGateBusy = false;
+  bool _restoreBusy = false;
+  bool _bridgesInitialized = false;
+  String? _recoveryGateError;
+  RecoveryJournal? _recoveryJournal;
+  SharedLiveSyncController? _heldRecoveryPause;
 
   static const _semanticSearchPreference = 'semantic_search_enabled';
 
@@ -186,18 +195,19 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
             prefs.getBool(_semanticSearchPreference) ?? true;
       });
     });
+    // No platform callbacks, user editors or Live Sync before crash recovery.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      QuickCaptureBridge.initialize(_handleIncomingCapture);
-      DeepLinkBridge.initialize(_handleDeepLink);
-      QuickSyncBridge.initialize(_handleQuickSync);
-      SharedBackgroundBridge.initialize(_handleSharedBackgroundSpace);
-      ReminderActionBridge.initialize(_handleReminderAction);
+      unawaited(_openRecoveryGate());
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
+    if (state != AppLifecycleState.resumed ||
+        !_recoveryGateOpen ||
+        _restoreBusy) {
+      return;
+    }
     unawaited(
       ref.read(sharedLiveSyncProvider.notifier).syncOnForeground(),
     );
@@ -209,6 +219,100 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     super.dispose();
   }
 
+  Future<void> _acquireRecoveryPause() async {
+    if (_heldRecoveryPause != null) return;
+    final sync = ref.read(sharedLiveSyncProvider.notifier);
+    if (!sync.tryBeginRestorePause()) {
+      throw const FormatException(
+        'Sincronizzazione in corso: riprova dopo la conclusione.',
+      );
+    }
+    try {
+      // A native background worker is independent of Flutter's pause gate.
+      if (!kIsWeb && Platform.isAndroid) {
+        await SharedBackgroundBridge.setEnabled(false);
+      }
+      _heldRecoveryPause = sync;
+    } catch (_) {
+      sync.endRestorePause();
+      rethrow;
+    }
+  }
+
+  Future<void> _releaseRecoveryPause() async {
+    final sync = _heldRecoveryPause;
+    if (sync == null) return;
+    _heldRecoveryPause = null;
+    sync.endRestorePause();
+    if (!kIsWeb && Platform.isAndroid) {
+      // Restore background scheduling only AFTER journal completion.
+      try {
+        await SharedBackgroundBridge.setEnabled(
+          ref.read(sharedLiveSyncProvider).enabled,
+        );
+      } catch (_) {
+        // An unavailable scheduler must not invalidate completed local data.
+      }
+    }
+  }
+
+  void _activatePlatformBridges() {
+    if (_bridgesInitialized) return;
+    _bridgesInitialized = true;
+    QuickCaptureBridge.initialize(_handleIncomingCapture);
+    DeepLinkBridge.initialize(_handleDeepLink);
+    QuickSyncBridge.initialize(_handleQuickSync);
+    SharedBackgroundBridge.initialize(_handleSharedBackgroundSpace);
+    ReminderActionBridge.initialize(_handleReminderAction);
+  }
+
+  /// Fail closed on startup when a previous multi-store restore is pending.
+  Future<void> _openRecoveryGate() async {
+    if (_recoveryGateBusy || !mounted) return;
+    _recoveryGateBusy = true;
+    try {
+      if (kIsWeb) {
+        // Web has no private native file journal; keep browsing available but
+        // refuse destructive multi-store restore in this target.
+        setState(() {
+          _recoveryGateOpen = true;
+          _recoveryGateError = null;
+        });
+        _activatePlatformBridges();
+        return;
+      }
+      final journal = _recoveryJournal ?? await RecoveryJournal.open();
+      _recoveryJournal = journal;
+      if (await journal.hasUnsettled) {
+        await _acquireRecoveryPause();
+        await RecoveryTransaction.recoverPending(
+          journal: journal,
+          applyOriginal: (bytes) async {
+            final original = DisasterRecoveryBundle.decode(bytes);
+            await _applyDisasterRecovery(original);
+          },
+        );
+      }
+      if (!mounted) return;
+      await _releaseRecoveryPause();
+      setState(() {
+        _recoveryGateOpen = true;
+        _recoveryGateError = null;
+      });
+      _activatePlatformBridges();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _recoveryGateOpen = false;
+        _recoveryGateError =
+            'Recupero dello stato interrotto non completato: $error. '
+            'Conserva il backup esterno. Nessuna altra scrittura è consentita.';
+      });
+    } finally {
+      _recoveryGateBusy = false;
+    }
+  }
+
   void _selectSection(int value) {
     setState(() {
       if (value == 1) _libraryCollectionId = null;
@@ -218,6 +322,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleDeepLink(String raw) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     final target = StableLinks.parse(raw);
     if (target == null || !mounted) return;
     switch (target.kind) {
@@ -273,6 +379,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleSharedBackgroundSpace(String spaceId) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
     setState(() => _index = 4);
 
@@ -301,6 +409,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleReminderAction(ReminderAction action) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
 
     if (action.action == 'open') {
@@ -346,6 +456,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleQuickSync() async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
     final service = GitHubSyncService(ref.read(databaseProvider));
     try {
@@ -383,6 +495,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
   }
 
   Future<void> _handleIncomingCapture(IncomingCapture capture) async {
+    // Native callbacks may arrive while a cross-store restore is suspended.
+    if (!_recoveryGateOpen || _restoreBusy) return;
     if (!mounted) return;
 
     if (capture.error != null && capture.error!.trim().isNotEmpty) {
@@ -1159,6 +1273,36 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
 
   @override
   Widget build(BuildContext context) {
+    if (!_recoveryGateOpen) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.shield_outlined, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    _recoveryGateError ??
+                        'Verifica del recupero locale in corso…',
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_recoveryGateError != null) ...[
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _recoveryGateBusy ? null : _openRecoveryGate,
+                      child: const Text('Riprova recupero'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final live = ref.watch(sharedLiveSyncProvider);
     final workspace = ref.watch(workspaceProvider);
     final shared = ref.watch(sharedSpacesProvider);
@@ -2149,9 +2293,85 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     }
   }
 
+  Future<void> _applyDisasterRecovery(
+    DisasterRecoveryPreview recovery,
+  ) async {
+    final noteIds = recovery.snapshot.notes.map((note) => note.id).toSet();
+    final sharedIds =
+        recovery.sharedSpaces.spaces.map((space) => space.id).toSet();
+    // Content-addressed originals must survive until the journal is cleared.
+    final store = await AttachmentStore.open();
+    for (final entry in recovery.assets.entries) {
+      await store.put(entry.key, entry.value);
+    }
+
+    // put() flushes file content but its atomic rename needs a directory
+    // barrier. Failing here keeps the transaction pending for safe rollback.
+    await RecoveryJournal.persistAttachmentDirectory(store.root);
+
+    await ref.read(databaseProvider).restoreExact(
+          snapshot: recovery.snapshot,
+          revisions: recovery.revisions,
+          blocks: recovery.blocks,
+        );
+    await ref.read(propertyStoreProvider).restoreBackupExact(
+          recovery.properties,
+          noteIds: noteIds,
+        );
+    await ref.read(knowledgeStoreProvider).restoreBackupExact(
+          recovery.knowledge,
+          noteIds: noteIds,
+        );
+    await ref.read(derivativeStoreProvider).restoreBackupExact(
+          recovery.derivatives,
+          noteIds: noteIds,
+        );
+    await ref.read(sharedSpacesProvider.notifier).restoreExact(
+          recovery.sharedSpaces,
+        );
+    await ref.read(projectStoreProvider).restoreBackupExact(
+          recovery.projects,
+          noteIds: noteIds,
+          sharedSpaceIds: sharedIds,
+        );
+    await ref.read(studyStoreProvider).restoreBackupExact(
+          recovery.study,
+          noteIds: noteIds,
+        );
+    await ref.read(documentStoreProvider).restoreBackupExact(
+          recovery.documents,
+          noteIds: noteIds,
+          assetKeys: recovery.assets.keys.toSet(),
+        );
+    await ref.read(importProvenanceStoreProvider).restoreBackupExact(
+          recovery.importProvenance,
+          noteIds: noteIds,
+        );
+    await ref.read(workflowAutomationStoreProvider).restoreBackupExact(
+          recovery.automations,
+          noteIds: noteIds,
+        );
+
+    await ref.read(workspaceProvider.notifier).refresh();
+    await ref.read(workflowAutomationProvider.notifier).refresh();
+    await ref.read(studyProvider.notifier).refresh();
+    await ref.read(projectWorkspaceProvider.notifier).refresh();
+    // Never GC original assets inside an uncommitted cross-store restore.
+  }
+
   Future<void> _restoreDisasterRecovery() async {
-    SharedLiveSyncController? pausedLiveSync;
-    var hasRestorePause = false;
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ripristino distruttivo disponibile solo con journal locale nativo.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!_recoveryGateOpen || _restoreBusy) return;
+    _restoreBusy = true;
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
@@ -2205,14 +2425,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       // Refuse destructive restore while Shared Live Sync is writing.
       // The pause prevents foreground, delayed and periodic sync from starting
       // while the external safety ZIP is being saved, checked and restored.
-      final liveSync = ref.read(sharedLiveSyncProvider.notifier);
-      if (!liveSync.tryBeginRestorePause()) {
-        throw const FormatException(
-          'Sincronizzazione in corso: riprova il ripristino dopo la fine.',
-        );
-      }
-      pausedLiveSync = liveSync;
-      hasRestorePause = true;
+      await _acquireRecoveryPause();
 
       // Cross-store restores are NOT one atomic transaction. Require a
       // recoverable copy of the current state before touching any store.
@@ -2265,67 +2478,28 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         generated: safetyBytes,
         readBack: externalCopy.files.single.bytes,
       );
+      // Hide all interactive app surfaces while the multi-store transaction
+      // runs. The existing picker/confirmation dialogs have already closed.
+      if (!mounted) return;
+      setState(() {
+        _recoveryGateOpen = false;
+        _recoveryGateError = null;
+      });
 
-      final noteIds = recovery.snapshot.notes.map((note) => note.id).toSet();
-      final sharedIds =
-          recovery.sharedSpaces.spaces.map((space) => space.id).toSet();
-
-      // Each store has its own transaction. The saved safety copy is the
-      // recovery path after an interrupted multi-store restore; do not claim
-      // an atomic rollback across all sidecar databases.
-      final store = await AttachmentStore.open();
-      for (final entry in recovery.assets.entries) {
-        await store.put(entry.key, entry.value);
-      }
-
-      await ref.read(databaseProvider).restoreExact(
-            snapshot: recovery.snapshot,
-            revisions: recovery.revisions,
-            blocks: recovery.blocks,
-          );
-      await ref.read(propertyStoreProvider).restoreBackupExact(
-            recovery.properties,
-            noteIds: noteIds,
-          );
-      await ref.read(knowledgeStoreProvider).restoreBackupExact(
-            recovery.knowledge,
-            noteIds: noteIds,
-          );
-      await ref.read(derivativeStoreProvider).restoreBackupExact(
-            recovery.derivatives,
-            noteIds: noteIds,
-          );
-      await ref.read(sharedSpacesProvider.notifier).restoreExact(
-            recovery.sharedSpaces,
-          );
-      await ref.read(projectStoreProvider).restoreBackupExact(
-            recovery.projects,
-            noteIds: noteIds,
-            sharedSpaceIds: sharedIds,
-          );
-      await ref.read(studyStoreProvider).restoreBackupExact(
-            recovery.study,
-            noteIds: noteIds,
-          );
-      await ref.read(documentStoreProvider).restoreBackupExact(
-            recovery.documents,
-            noteIds: noteIds,
-            assetKeys: recovery.assets.keys.toSet(),
-          );
-      await ref.read(importProvenanceStoreProvider).restoreBackupExact(
-            recovery.importProvenance,
-            noteIds: noteIds,
-          );
-      await ref.read(workflowAutomationStoreProvider).restoreBackupExact(
-            recovery.automations,
-            noteIds: noteIds,
-          );
-
-      await ref.read(workspaceProvider.notifier).refresh();
-      await ref.read(workflowAutomationProvider.notifier).refresh();
-      await ref.read(studyProvider.notifier).refresh();
-      await ref.read(projectWorkspaceProvider.notifier).refresh();
-      await _cleanupAttachments(silent: true);
+      final journal = _recoveryJournal ?? await RecoveryJournal.open();
+      _recoveryJournal = journal;
+      // The externally verified bytes are additionally persisted in an
+      // integrity-checked private undo journal BEFORE the first store write.
+      await RecoveryTransaction.run(
+        journal: journal,
+        originalSnapshot: safetyBytes,
+        applyCandidate: () => _applyDisasterRecovery(recovery),
+        applyOriginal: (bytes) =>
+            _applyDisasterRecovery(DisasterRecoveryBundle.decode(bytes)),
+      );
+      // Do not garbage-collect pre-restore CAS originals automatically.
+      // The journal can no longer require them, but device backup is safer
+      // when cleanup is an explicit later operation.
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2349,7 +2523,26 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         ),
       );
     } finally {
-      if (hasRestorePause) pausedLiveSync?.endRestorePause();
+      var pending = false;
+      try {
+        pending =
+            _recoveryJournal != null && await _recoveryJournal!.hasUnsettled;
+      } catch (_) {
+        // A failed durability check is unresolved recovery, not success.
+        // Keep the sync pause and always expose the retry affordance.
+        pending = true;
+      }
+      if (!pending) await _releaseRecoveryPause();
+      _restoreBusy = false;
+      if (mounted) {
+        setState(() {
+          _recoveryGateOpen = !pending;
+          _recoveryGateError = pending
+              ? 'Ripristino interrotto. È necessario completare il recupero '
+                  'prima di usare Notes.'
+              : null;
+        });
+      }
     }
   }
 
