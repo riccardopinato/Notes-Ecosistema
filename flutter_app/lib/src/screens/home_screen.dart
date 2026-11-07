@@ -738,10 +738,10 @@ class _HomeScreenState extends State<HomeScreen> {
               label: Text(l('newNote')),
             ),
             OutlinedButton.icon(
-              key: const ValueKey('ui5-new-task'),
+              key: const ValueKey('ui5-open-tasks'),
               onPressed: widget.onTasks,
-              icon: const Icon(Icons.add_task_outlined),
-              label: Text(l('newTask')),
+              icon: const Icon(Icons.check_circle_outline),
+              label: Text(l('openTasks')),
             ),
           ],
         ),
