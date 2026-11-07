@@ -197,6 +197,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   final Ref ref;
   Timer? _timer;
   final SharedLiveRestorePauseGate _restorePause = SharedLiveRestorePauseGate();
+  bool _nativeSchedulingSuppressedForJournal = false;
   int _failureStreak = 0;
   int? _lastIdentityVerificationAt;
   int? _lastIdentityConfigFingerprint;
@@ -254,6 +255,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
         restorePending = true;
       }
     }
+    _nativeSchedulingSuppressedForJournal = enabled && restorePending;
     try {
       await SharedBackgroundBridge.setEnabled(enabled && !restorePending);
     } catch (_) {
@@ -366,6 +368,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
   Future<void> setEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_enabledKey, enabled);
+    _nativeSchedulingSuppressedForJournal = false;
     try {
       await SharedBackgroundBridge.setEnabled(enabled);
     } catch (_) {
@@ -507,6 +510,19 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
     );
 
     try {
+      // A transient journal failure during _load() cancels Android WorkManager
+      // scheduling. Restore it only AFTER journal verification and AFTER
+      // acquiring sync ownership, so no destructive restore may overlap it.
+      if (!kIsWeb &&
+          state.enabled &&
+          _nativeSchedulingSuppressedForJournal) {
+        try {
+          await SharedBackgroundBridge.setEnabled(true);
+          _nativeSchedulingSuppressedForJournal = false;
+        } catch (_) {
+          // Foreground sync can continue. Retry native scheduling next time.
+        }
+      }
       final identity = await _ensureGitHubIdentity(force: !silent);
       final shared = ref.read(sharedSpacesProvider);
 
