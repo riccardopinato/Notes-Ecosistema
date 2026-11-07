@@ -2,6 +2,11 @@
 
 **Baseline:** `abbcab3b59bb67462238ad047fd619935a9acc0b` · **Scope:** increment 2 of issue #46 / CAP-0148. The previously shipped checklist→Task writer + Undo and tag→canonical-editor-draft remain unchanged.
 
+## Status / production safety
+**DEFAULT OFF.** The new Project link button is exposed only when BOTH `kDebugMode` and `--dart-define=NOTES_QA_SMART_INBOX_PROJECT_LINK=true` are set. Standard debug, profile, release, CI-only APK and Play AAB never expose it. This is a **QA-only experiment**, not completed CAP-0148 or a production writer. The core pre-checks still have an unclosed cross-store source/SharedSpaces mutation race (Codex review P2); deliberate default-off until a reliable serialization/atomic policy is implemented and tested.
+
+The project SQLite writer now returns the exact link actually inserted inside its transaction. A duplicate/no-op returns no receipt; Undo conditionally deletes only the unchanged original link inside a project SQLite transaction. This fixes the receipt-adoption issue **within the project store** but does not solve cross-store ACL races. GitHub connect/disconnect increments a monotonic epoch bound into the in-memory receipt.
+
 ## Workflow shipped by this branch
 1. Read up to three source-backed suggestions from canonical, currently-visible private notes (already present).
 2. Show original source excerpt, coded reason and explicit checklist/tag selections (already present), plus a list of **active private** Project Workspaces.
