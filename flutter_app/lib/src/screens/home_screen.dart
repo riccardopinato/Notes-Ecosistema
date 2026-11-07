@@ -79,6 +79,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onAutomations;
   final int projectCount;
   final int sharedUnread;
+
   /// Visual-only preview: no new storage or write paths.
   final bool ui5Preview;
 
@@ -639,8 +640,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WorkdayBriefing briefing,
     List<InboxReviewSuggestion> reviewSuggestions,
   ) {
-    final localeCode =
-        AppLocale.effectiveCode(Localizations.localeOf(context));
+    final localeCode = AppLocale.effectiveCode(Localizations.localeOf(context));
     String l(String key) => HomeUi5Strings.label(localeCode, key);
     final projection = HomeUi5Projection.fromNotes(widget.notes);
     final colors = Theme.of(context).colorScheme;
@@ -799,9 +799,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   () => _ui5ShowAllReviews = !_ui5ShowAllReviews,
                 ),
                 icon: Icon(
-                  _ui5ShowAllReviews
-                      ? Icons.expand_less
-                      : Icons.expand_more,
+                  _ui5ShowAllReviews ? Icons.expand_less : Icons.expand_more,
                 ),
                 label: Text(
                   _ui5ShowAllReviews ? l('less') : l('more'),
@@ -815,8 +813,8 @@ class _HomeScreenState extends State<HomeScreen> {
             key: const ValueKey('ui5-tools'),
             tilePadding: EdgeInsets.zero,
             childrenPadding: EdgeInsets.zero,
-            leading: Icon(Icons.dashboard_customize_outlined,
-                color: colors.primary),
+            leading:
+                Icon(Icons.dashboard_customize_outlined, color: colors.primary),
             title: Text(l('tools'), style: text.titleMedium),
             subtitle: Text(l('toolsDetail')),
             children: [
@@ -904,9 +902,8 @@ class _HomeScreenState extends State<HomeScreen> {
         .take(500)
         .map((note) => DocumentDeltaSource(
               id: note.id,
-              title: note.title.trim().isEmpty
-                  ? 'Nota senza titolo'
-                  : note.title,
+              title:
+                  note.title.trim().isEmpty ? 'Nota senza titolo' : note.title,
               text: note.body,
               revision: note.updatedAt.toString(),
               provenance: 'Nota locale · revisione ${note.updatedAt}',
