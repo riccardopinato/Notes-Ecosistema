@@ -2305,6 +2305,10 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       await store.put(entry.key, entry.value);
     }
 
+    // put() flushes file content but its atomic rename needs a directory
+    // barrier. Failing here keeps the transaction pending for safe rollback.
+    await RecoveryJournal.persistAttachmentDirectory(store.root);
+
     await ref.read(databaseProvider).restoreExact(
           snapshot: recovery.snapshot,
           revisions: recovery.revisions,
