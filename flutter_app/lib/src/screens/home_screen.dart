@@ -355,7 +355,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(error.toString().replaceFirst('FormatException: ', '')),
+            content:
+                Text(error.toString().replaceFirst('FormatException: ', '')),
           ),
         );
       }
