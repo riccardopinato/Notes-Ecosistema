@@ -252,6 +252,75 @@ class ProjectStore {
     });
   }
 
+  /// Experimental Smart Inbox writer: returns ONLY the exact link inserted
+  /// by this transaction. A pre-existing or concurrently inserted link is
+  /// never adopted as an Undo receipt. The caller must separately enforce
+  /// source ACL and revision; cross-store serialization is NOT provided here.
+  Future<ProjectItemLink?> attachIfAbsentForSmartInbox(
+    String projectId,
+    String noteId,
+  ) async {
+    final cleanId = noteId.trim();
+    if (cleanId.isEmpty) {
+      throw const FormatException('Elemento progetto non valido.');
+    }
+    final db = await database;
+    return db.transaction((txn) async {
+      final projects = await txn.query(
+        'projects',
+        where: 'id = ? AND archivedAt IS NULL AND deletedAt IS NULL '
+            'AND sharedSpaceId IS NULL',
+        whereArgs: [projectId],
+        limit: 1,
+      );
+      if (projects.length != 1) {
+        throw const FormatException('Progetto privato non disponibile.');
+      }
+      final alreadyLinked = await txn.query(
+        'project_items',
+        where: 'projectId = ? AND noteId = ?',
+        whereArgs: [projectId, cleanId],
+        limit: 1,
+      );
+      if (alreadyLinked.isNotEmpty) return null;
+      final count = Sqflite.firstIntValue(await txn.rawQuery(
+            'SELECT COUNT(*) FROM project_items WHERE projectId = ?',
+            [projectId],
+          )) ??
+          0;
+      if (count >= ProjectWorkspaceRules.maxItemsPerProject) {
+        throw const FormatException('Il progetto contiene troppi elementi.');
+      }
+      final previousPosition = Sqflite.firstIntValue(await txn.rawQuery(
+            'SELECT MAX(position) FROM project_items WHERE projectId = ?',
+            [projectId],
+          )) ??
+          -1;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final inserted = ProjectItemLink(
+        projectId: projectId,
+        noteId: cleanId,
+        position: previousPosition + 1,
+        addedAt: now,
+        updatedAt: now,
+      );
+      ProjectWorkspaceRules.validateLink(inserted);
+      // Must abort, never REPLACE a row that another action created.
+      await txn.insert(
+        'project_items',
+        inserted.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+      await txn.update(
+        'projects',
+        {'updatedAt': now},
+        where: 'id = ?',
+        whereArgs: [projectId],
+      );
+      return inserted;
+    });
+  }
+
   Future<void> detach(String projectId, String noteId) async {
     final project = await _requireProject(projectId);
     if (project.isDeleted) {
