@@ -11,9 +11,9 @@
 2. Confirm destructive restore; acquire the Flutter Shared Live Sync pause and disable its Android native scheduler.
 3. Create a complete safety ZIP from existing Notes state, export it, require explicit external re-selection and byte-for-byte readback.
 4. Persist the same safety ZIP in private application-support storage using a flushed temporary file and an integrity-checkable SHA-256 marker. On Android, call a restricted native `fsyncDirectory` bridge (including the application-support parent directory) **after the folder creation, snapshot rename and marker rename**; writes begin **only after both native directory barriers succeed**. Unsupported targets fail closed.
-5. Apply imported CAS assets, main SQLite, Properties, Knowledge, Derivatives, Shared Spaces (including private invitation history), Projects, Study, Documents, Import Provenance and Automations through the existing canonical exact-restore APIs.
+5. Apply imported CAS assets and **fsync the attachments directory and its ancestors** through the Android native barrier before any SQLite/sidecar writes (failed barrier fails closed). Then apply main SQLite, Properties, Knowledge, Derivatives, Shared Spaces (including private invitation history), Projects, Study, Documents, Import Provenance and Automations through the existing canonical exact-restore APIs.
 6. On candidate-store exception, attempt immediate replay of the original archive; if that replay also fails, leave the marker and snapshot intact. Once every store is committed, atomically replace the pending marker with a durable `phase=completed` marker, **never an uncertain delete**. If that durability barrier fails, block the app and retry the barrier without rolling back a completed candidate.
-7. At next launch, keep all app controls and platform callbacks unavailable until pending transactions can be safely replayed or an uncertain durability barrier is settled. An already durable completed marker must NOT replay the old snapshot. The Dart Live Sync entry point refuses to run while any unsettled journal exists.
+7. At next launch, keep all app controls and platform callbacks unavailable until pending transactions can be safely replayed or an uncertain durability barrier is settled. When a transient journal-read failure temporarily suspends native Android Live Sync scheduling, re-enable WorkManager only after the retry succeeds and sync ownership has been acquired. An already durable completed marker must NOT replay the old snapshot. The Dart Live Sync entry point refuses to run while any unsettled journal exists.
 8. Never delete pre-restore CAS assets inside the transaction. Automatic attachment garbage collection is deliberately excluded from the restore commit.
 
 The explicit local journal is a *redoable rollback*, not a cross-SQLite atomic transaction. Writes are idempotent only insofar as each store's exact restore implementation remains repeatable. Native background jobs scheduled outside the running Flutter process remain a hardware/instrumentation acceptance concern.
@@ -37,7 +37,7 @@ The fault-injection test above validates the **coordinator**, not the actual SQL
 - [ ] Flutter exact-head analyze/tests/build Web and APK/AAB CI.
 - [ ] Real SQLite/SharedPreferences/asset store fault injection after every concrete store step.
 - [ ] Android SAF: physical saved ZIP readback, low storage, process kill/power loss, restart, account switch, sync race and deferred native worker.
-- [ ] Real-device Android durability validation of `Os.fsync` on the app-support `restore_journal` directory; unsupported OEM/filesystems must fail closed.
+- [ ] Real-device Android durability validation of `Os.fsync` on the app-support `restore_journal` **and `attachments`** directories and ancestor entries; unsupported OEM/filesystems must fail closed.
 - [ ] End-to-end parity evidence for IDs, revisions, tombstones, permissions, media hashes, project/study/document sidecars.
 - [ ] Real-device signoff with synthetic data. Only then consider closing #75.
 
