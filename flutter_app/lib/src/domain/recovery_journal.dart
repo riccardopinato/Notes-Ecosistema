@@ -37,6 +37,12 @@ class RecoveryJournal {
     );
   }
 
+  /// Flushes restored content-addressed attachment directory entries after
+  /// AttachmentStore.put() renames and BEFORE the transaction may commit.
+  /// The Android bridge rejects any path outside approved app-private stores.
+  static Future<void> persistAttachmentDirectory(Directory directory) =>
+      _syncNativeDirectory(directory);
+
   static const int maxSnapshotBytes = 96 * 1024 * 1024;
   static const int _version = 1;
   static const String _snapshotName = 'pre_restore.zip';
