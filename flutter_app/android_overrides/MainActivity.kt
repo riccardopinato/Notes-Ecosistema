@@ -102,10 +102,10 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * Durable journal barrier: parent entries are part of the transaction.
+     * Durable private-store barrier: parent entries are part of the transaction.
      * Verify the canonical app-private path before any fsync operation.
      */
-    private fun fsyncRecoveryJournalDirectory(rawPath: String) {
+    private fun fsyncPrivateStoreDirectory(rawPath: String) {
         val appRoot = filesDir.canonicalFile
         val directory = File(rawPath).canonicalFile
         val parent = directory.parentFile?.canonicalFile
@@ -114,7 +114,7 @@ class MainActivity : FlutterActivity() {
                 parent?.name == "app_flutter" &&
                     parent.parentFile?.canonicalFile == appRoot
             )
-        if (directory.name != "restore_journal" ||
+        if ((directory.name != "restore_journal" && directory.name != "attachments") ||
             !insideSupportRoot ||
             !directory.isDirectory ||
             parent == null
@@ -157,7 +157,7 @@ class MainActivity : FlutterActivity() {
                     result.error("RECOVERY_FSYNC_INVALID", "Missing journal path.", null)
                 } else {
                     try {
-                        fsyncRecoveryJournalDirectory(path)
+                        fsyncPrivateStoreDirectory(path)
                         result.success(null)
                     } catch (_: Exception) {
                         result.error(
