@@ -51,8 +51,10 @@ jobs:
           rm -rf web
           cp -R /tmp/notes_web/web ./web
 
-      - name: Resolve dependencies
-        run: flutter pub get
+      - name: Resolve dependencies (locked)
+        run: |
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
 
       - name: Build web preview
         run: >
