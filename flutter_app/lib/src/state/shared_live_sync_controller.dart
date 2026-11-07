@@ -513,9 +513,7 @@ class SharedLiveSyncController extends StateNotifier<SharedLiveSyncState> {
       // A transient journal failure during _load() cancels Android WorkManager
       // scheduling. Restore it only AFTER journal verification and AFTER
       // acquiring sync ownership, so no destructive restore may overlap it.
-      if (!kIsWeb &&
-          state.enabled &&
-          _nativeSchedulingSuppressedForJournal) {
+      if (!kIsWeb && state.enabled && _nativeSchedulingSuppressedForJournal) {
         try {
           await SharedBackgroundBridge.setEnabled(true);
           _nativeSchedulingSuppressedForJournal = false;
