@@ -236,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                     const Divider(),
                     DropdownButtonFormField<String>(
-                      value: selectedProjectId,
+                      initialValue: selectedProjectId,
                       decoration: InputDecoration(
                         labelText: switch (code) {
                           'it' => 'Collega a un progetto',
