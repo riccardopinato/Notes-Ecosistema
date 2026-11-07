@@ -745,8 +745,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     if (shared.loading ||
         shared.error != null ||
         shared.identity?.id != receipt.owner ||
-        shared.spaces.any((space) =>
-            space.contentIds.contains(receipt.link.noteId)) ||
+        shared.spaces
+            .any((space) => space.contentIds.contains(receipt.link.noteId)) ||
         await _smartInboxConnectionScope() != receipt.connection) {
       throw const FormatException('Permessi o account cambiati: Undo negato.');
     }
