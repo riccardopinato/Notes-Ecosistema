@@ -692,21 +692,17 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       if (await _smartInboxConnectionScope() != connection) {
         throw const FormatException('Account GitHub cambiato.');
       }
-      // Existing project writer; no separate Smart Inbox/project database.
-      await ref.read(projectWorkspaceProvider.notifier).attach(
-            projectId,
-            source.id,
-          );
-      final written = (await store.loadLinks(projectId))
-          .where((link) => link.noteId == source.id)
-          .toList(growable: false);
-      if (written.length != 1) {
-        throw const FormatException(
-            'Link salvato ma non verificabile: verifica il progetto.');
+      // Existing canonical project store, now with an exact insertion
+      // receipt created inside a single project SQLite transaction.
+      final inserted = await ref
+          .read(projectWorkspaceProvider.notifier)
+          .attachIfAbsentForSmartInbox(projectId, source.id);
+      if (inserted == null) {
+        throw const FormatException('Nota già collegata a questo progetto.');
       }
       final receiptId = const Uuid().v4();
       _smartInboxProjectUndo[receiptId] =
-          (link: written.single, owner: owner, connection: connection);
+          (link: inserted, owner: owner, connection: connection);
       if (_smartInboxProjectUndo.length > 12) {
         _smartInboxProjectUndo.remove(_smartInboxProjectUndo.keys.first);
       }
@@ -1536,11 +1532,29 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         onDraftSmartInboxTags: _openSmartInboxTagDraft,
         onCreateSmartInboxChecklistTask: _createSmartInboxChecklistTask,
         onUndoSmartInboxChecklistTask: _undoSmartInboxChecklistTask,
-        privateProjectTargets: SmartInboxProjectAction.privateTargets(
-          projects.projects,
-        ),
-        onLinkSmartInboxProject: _linkSmartInboxProject,
-        onUndoSmartInboxProjectLink: _undoSmartInboxProjectLink,
+        // Unresolved cross-store source/SharedSpaces race: experimental
+        // project link is debug-only opt-in, never enabled in release.
+        privateProjectTargets: kDebugMode &&
+                const bool.fromEnvironment(
+                  'NOTES_QA_SMART_INBOX_PROJECT_LINK',
+                  defaultValue: false,
+                )
+            ? SmartInboxProjectAction.privateTargets(projects.projects)
+            : const [],
+        onLinkSmartInboxProject: kDebugMode &&
+                const bool.fromEnvironment(
+                  'NOTES_QA_SMART_INBOX_PROJECT_LINK',
+                  defaultValue: false,
+                )
+            ? _linkSmartInboxProject
+            : null,
+        onUndoSmartInboxProjectLink: kDebugMode &&
+                const bool.fromEnvironment(
+                  'NOTES_QA_SMART_INBOX_PROJECT_LINK',
+                  defaultValue: false,
+                )
+            ? _undoSmartInboxProjectLink
+            : null,
         onProjects: () => _openProjects(),
         onStudy: _openStudy,
         onGraph: _openKnowledgeGraph,
