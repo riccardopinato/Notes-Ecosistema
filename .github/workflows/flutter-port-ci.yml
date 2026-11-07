@@ -40,7 +40,20 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.47.9'
           cache: true
+
+      # Identical JDK for Gradle/AGP each run; no release key changes.
+      - name: Set up pinned JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Verify Flutter version pin
+        run: |
+          flutter --version
+          flutter --version --machine | python3 -c 'import json,sys; assert json.load(sys.stdin)["frameworkVersion"] == "3.47.9", "Unexpected Flutter SDK"'
 
       - name: Generate Android platform shell
         shell: bash
@@ -213,6 +226,26 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+
+      # Bootstrap step: emit GitHub-visible generated lockfile and hash.
+      # A separate follow-up commit will track it and enable --enforce-lockfile.
+      # Never treat generated/printed lock as an already locked build.
+      - name: Bootstrap resolved Flutter dependency lock evidence
+        shell: bash
+        run: |
+          test -s pubspec.lock
+          sha256sum pubspec.lock
+          echo 'NOTES_PUBSPEC_LOCK_BEGIN'
+          cat pubspec.lock
+          echo 'NOTES_PUBSPEC_LOCK_END'
+
+      - name: Upload generated pubspec.lock for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-Toolchain-PubspecLock-BOOTSTRAP
+          path: flutter_app/pubspec.lock
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Verify PDFBox crypto runtime dependency versions
         shell: bash
