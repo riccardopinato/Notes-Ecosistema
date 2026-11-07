@@ -36,7 +36,13 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.47.9'
           cache: true
+
+      - name: Verify Flutter version pin
+        run: |
+          flutter --version
+          flutter --version --machine | python3 -c 'import json,sys; assert json.load(sys.stdin)["frameworkVersion"] == "3.47.9", "Unexpected Flutter SDK"'
 
       - name: Create web shell
         run: |
@@ -45,8 +51,10 @@ jobs:
           rm -rf web
           cp -R /tmp/notes_web/web ./web
 
-      - name: Resolve dependencies
-        run: flutter pub get
+      - name: Resolve dependencies (locked)
+        run: |
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
 
       - name: Build web preview
         run: >

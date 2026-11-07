@@ -40,7 +40,20 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.47.9'
           cache: true
+
+      # Identical JDK for Gradle/AGP each run; no release key changes.
+      - name: Set up pinned JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Verify Flutter version pin
+        run: |
+          flutter --version
+          flutter --version --machine | python3 -c 'import json,sys; assert json.load(sys.stdin)["frameworkVersion"] == "3.47.9", "Unexpected Flutter SDK"'
 
       - name: Generate Android platform shell
         shell: bash
@@ -211,8 +224,15 @@ jobs:
           python3 tool/fetch_needle_android_runtime.py
           android/app/src/main/cpp/needle_vendor/arm64-v8a/libneedle.a
 
-      - name: Dependencies
-        run: flutter pub get
+      - name: Dependencies (locked)
+        run: |
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
+          sha256sum pubspec.lock
+          mkdir -p build/toolchain-evidence
+          flutter --version > build/toolchain-evidence/flutter-version.txt
+          sha256sum android/gradle/wrapper/gradle-wrapper.properties android/settings.gradle.kts > build/toolchain-evidence/android-template-sha256.txt
+
 
       - name: Verify PDFBox crypto runtime dependency versions
         shell: bash
