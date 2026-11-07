@@ -35,8 +35,7 @@ class HomeUi5Projection {
       if (recentLimit == 0) continue;
       final index = recent.indexWhere((item) =>
           note.updatedAt > item.updatedAt ||
-          (note.updatedAt == item.updatedAt &&
-              note.id.compareTo(item.id) < 0));
+          (note.updatedAt == item.updatedAt && note.id.compareTo(item.id) < 0));
       if (index >= 0) {
         recent.insert(index, note);
       } else if (recent.length < recentLimit) {
