@@ -115,6 +115,12 @@ class ProjectWorkspaceController extends StateNotifier<ProjectWorkspaceState> {
     await refresh();
   }
 
+  Future<bool> detachIfUnchanged(ProjectItemLink expected) async {
+    final removed = await _store.detachIfUnchanged(expected);
+    if (removed) await refresh();
+    return removed;
+  }
+
   Future<void> detach(String projectId, String noteId) async {
     await _store.detach(projectId, noteId);
     await refresh();
