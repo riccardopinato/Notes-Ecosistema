@@ -125,7 +125,7 @@ class MainActivity : FlutterActivity() {
         fun syncOne(candidate: File) {
             val fd = Os.open(
                 candidate.absolutePath,
-                OsConstants.O_RDONLY or OsConstants.O_DIRECTORY,
+                OsConstants.O_RDONLY,
                 0,
             )
             try {
