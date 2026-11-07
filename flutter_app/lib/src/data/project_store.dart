@@ -276,6 +276,60 @@ class ProjectStore {
     });
   }
 
+  /// Compare-and-delete inside the canonical project SQLite transaction.
+  /// A background process changing a link after preview must not be undone.
+  Future<bool> detachIfUnchanged(ProjectItemLink expected) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final projectRows = await txn.query(
+        'projects',
+        where: 'id = ? AND archivedAt IS NULL AND deletedAt IS NULL '
+            'AND sharedSpaceId IS NULL',
+        whereArgs: [expected.projectId],
+        limit: 1,
+      );
+      if (projectRows.length != 1) return false;
+
+      final links = await txn.query(
+        'project_items',
+        where: 'projectId = ? AND noteId = ?',
+        whereArgs: [expected.projectId, expected.noteId],
+        limit: 2,
+      );
+      if (links.length != 1) return false;
+      final current = ProjectItemLink.fromMap(links.single);
+      if (current.projectId != expected.projectId ||
+          current.noteId != expected.noteId ||
+          current.position != expected.position ||
+          current.addedAt != expected.addedAt ||
+          current.updatedAt != expected.updatedAt) {
+        return false;
+      }
+      final count = await txn.delete(
+        'project_items',
+        where: 'projectId = ? AND noteId = ? AND position = ? '
+            'AND addedAt = ? AND updatedAt = ?',
+        whereArgs: [
+          expected.projectId,
+          expected.noteId,
+          expected.position,
+          expected.addedAt,
+          expected.updatedAt,
+        ],
+      );
+      if (count != 1) {
+        throw const FormatException('SMART_INBOX_LINK_CHANGED_DURING_UNDO');
+      }
+      await txn.update(
+        'projects',
+        {'updatedAt': DateTime.now().millisecondsSinceEpoch},
+        where: 'id = ?',
+        whereArgs: [expected.projectId],
+      );
+      return true;
+    });
+  }
+
   Future<void> deleteLinksForNote(String noteId) async {
     if (noteId.trim().isEmpty) return;
     final db = await database;
