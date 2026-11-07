@@ -42,9 +42,8 @@ abstract final class SmartInboxProjectAction {
 
   /// Source in the current user's private Note list must be unchanged.
   static bool validSource(Note original, Iterable<Note> visible) {
-    final matches = visible
-        .where((note) => note.id == original.id)
-        .toList(growable: false);
+    final matches =
+        visible.where((note) => note.id == original.id).toList(growable: false);
     return matches.length == 1 &&
         SmartInboxSourcePreview.sameCanonicalRevision(
           original,
