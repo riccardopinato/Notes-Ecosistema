@@ -115,6 +115,25 @@ class ProjectWorkspaceController extends StateNotifier<ProjectWorkspaceState> {
     await refresh();
   }
 
+  /// A missing receipt means this operation did not insert the link.
+  Future<ProjectItemLink?> attachIfAbsentForSmartInbox(
+    String projectId,
+    String noteId,
+  ) async {
+    final inserted = await _store.attachIfAbsentForSmartInbox(
+      projectId,
+      noteId,
+    );
+    if (inserted != null) await refresh();
+    return inserted;
+  }
+
+  Future<bool> detachIfUnchanged(ProjectItemLink expected) async {
+    final removed = await _store.detachIfUnchanged(expected);
+    if (removed) await refresh();
+    return removed;
+  }
+
   Future<void> detach(String projectId, String noteId) async {
     await _store.detach(projectId, noteId);
     await refresh();

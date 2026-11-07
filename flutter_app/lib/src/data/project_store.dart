@@ -252,6 +252,75 @@ class ProjectStore {
     });
   }
 
+  /// Experimental Smart Inbox writer: returns ONLY the exact link inserted
+  /// by this transaction. A pre-existing or concurrently inserted link is
+  /// never adopted as an Undo receipt. The caller must separately enforce
+  /// source ACL and revision; cross-store serialization is NOT provided here.
+  Future<ProjectItemLink?> attachIfAbsentForSmartInbox(
+    String projectId,
+    String noteId,
+  ) async {
+    final cleanId = noteId.trim();
+    if (cleanId.isEmpty) {
+      throw const FormatException('Elemento progetto non valido.');
+    }
+    final db = await database;
+    return db.transaction((txn) async {
+      final projects = await txn.query(
+        'projects',
+        where: 'id = ? AND archivedAt IS NULL AND deletedAt IS NULL '
+            'AND sharedSpaceId IS NULL',
+        whereArgs: [projectId],
+        limit: 1,
+      );
+      if (projects.length != 1) {
+        throw const FormatException('Progetto privato non disponibile.');
+      }
+      final alreadyLinked = await txn.query(
+        'project_items',
+        where: 'projectId = ? AND noteId = ?',
+        whereArgs: [projectId, cleanId],
+        limit: 1,
+      );
+      if (alreadyLinked.isNotEmpty) return null;
+      final count = Sqflite.firstIntValue(await txn.rawQuery(
+            'SELECT COUNT(*) FROM project_items WHERE projectId = ?',
+            [projectId],
+          )) ??
+          0;
+      if (count >= ProjectWorkspaceRules.maxItemsPerProject) {
+        throw const FormatException('Il progetto contiene troppi elementi.');
+      }
+      final previousPosition = Sqflite.firstIntValue(await txn.rawQuery(
+            'SELECT MAX(position) FROM project_items WHERE projectId = ?',
+            [projectId],
+          )) ??
+          -1;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final inserted = ProjectItemLink(
+        projectId: projectId,
+        noteId: cleanId,
+        position: previousPosition + 1,
+        addedAt: now,
+        updatedAt: now,
+      );
+      ProjectWorkspaceRules.validateLink(inserted);
+      // Must abort, never REPLACE a row that another action created.
+      await txn.insert(
+        'project_items',
+        inserted.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+      await txn.update(
+        'projects',
+        {'updatedAt': now},
+        where: 'id = ?',
+        whereArgs: [projectId],
+      );
+      return inserted;
+    });
+  }
+
   Future<void> detach(String projectId, String noteId) async {
     final project = await _requireProject(projectId);
     if (project.isDeleted) {
@@ -273,6 +342,60 @@ class ProjectStore {
         where: 'id = ?',
         whereArgs: [projectId],
       );
+    });
+  }
+
+  /// Compare-and-delete inside the canonical project SQLite transaction.
+  /// A background process changing a link after preview must not be undone.
+  Future<bool> detachIfUnchanged(ProjectItemLink expected) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final projectRows = await txn.query(
+        'projects',
+        where: 'id = ? AND archivedAt IS NULL AND deletedAt IS NULL '
+            'AND sharedSpaceId IS NULL',
+        whereArgs: [expected.projectId],
+        limit: 1,
+      );
+      if (projectRows.length != 1) return false;
+
+      final links = await txn.query(
+        'project_items',
+        where: 'projectId = ? AND noteId = ?',
+        whereArgs: [expected.projectId, expected.noteId],
+        limit: 2,
+      );
+      if (links.length != 1) return false;
+      final current = ProjectItemLink.fromMap(links.single);
+      if (current.projectId != expected.projectId ||
+          current.noteId != expected.noteId ||
+          current.position != expected.position ||
+          current.addedAt != expected.addedAt ||
+          current.updatedAt != expected.updatedAt) {
+        return false;
+      }
+      final count = await txn.delete(
+        'project_items',
+        where: 'projectId = ? AND noteId = ? AND position = ? '
+            'AND addedAt = ? AND updatedAt = ?',
+        whereArgs: [
+          expected.projectId,
+          expected.noteId,
+          expected.position,
+          expected.addedAt,
+          expected.updatedAt,
+        ],
+      );
+      if (count != 1) {
+        throw const FormatException('SMART_INBOX_LINK_CHANGED_DURING_UNDO');
+      }
+      await txn.update(
+        'projects',
+        {'updatedAt': DateTime.now().millisecondsSinceEpoch},
+        where: 'id = ?',
+        whereArgs: [expected.projectId],
+      );
+      return true;
     });
   }
 
