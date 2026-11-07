@@ -224,28 +224,15 @@ jobs:
           python3 tool/fetch_needle_android_runtime.py
           android/app/src/main/cpp/needle_vendor/arm64-v8a/libneedle.a
 
-      - name: Dependencies
-        run: flutter pub get
-
-      # Bootstrap step: emit GitHub-visible generated lockfile and hash.
-      # A separate follow-up commit will track it and enable --enforce-lockfile.
-      # Never treat generated/printed lock as an already locked build.
-      - name: Bootstrap resolved Flutter dependency lock evidence
-        shell: bash
+      - name: Dependencies (locked)
         run: |
-          test -s pubspec.lock
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
           sha256sum pubspec.lock
-          echo 'NOTES_PUBSPEC_LOCK_BEGIN'
-          cat pubspec.lock
-          echo 'NOTES_PUBSPEC_LOCK_END'
+          mkdir -p build/toolchain-evidence
+          flutter --version > build/toolchain-evidence/flutter-version.txt
+          sha256sum android/gradle/wrapper/gradle-wrapper.properties android/settings.gradle.kts > build/toolchain-evidence/android-template-sha256.txt
 
-      - name: Upload generated pubspec.lock for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: Notes-Toolchain-PubspecLock-BOOTSTRAP
-          path: flutter_app/pubspec.lock
-          if-no-files-found: error
-          retention-days: 7
 
       - name: Verify PDFBox crypto runtime dependency versions
         shell: bash
