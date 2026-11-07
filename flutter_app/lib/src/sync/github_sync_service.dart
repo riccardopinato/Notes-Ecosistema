@@ -478,6 +478,9 @@ class GitHubSyncService {
   final LegacyNotesDatabase database;
   GitHubSyncStatus status = const GitHubSyncStatus();
 
+  /// Monotonic local generation; switches are detectable even if a user
+  /// reconnects the same repository or rotates its secure token.
+  static const connectionEpochKey = 'github_connection_epoch_v1';
   static const _ownerKey = 'github_owner';
   static const _repoKey = 'github_repo';
   static const _branchKey = 'github_branch';
@@ -531,6 +534,10 @@ class GitHubSyncService {
     await prefs.setString(_branchKey, value.branch);
     await prefs.setString(_folderKey, value.folder);
     await prefs.setBool(_publicKey, value.allowPublic);
+    await prefs.setInt(
+      connectionEpochKey,
+      (prefs.getInt(connectionEpochKey) ?? 0) + 1,
+    );
     status = GitHubSyncStatus(
       connection: value.label,
       message: 'Collegato. Sincronizzazione pronta.',
@@ -546,6 +553,10 @@ class GitHubSyncService {
     await prefs.remove(_folderKey);
     await prefs.remove(_publicKey);
     await SecureTokenBridge.deleteGitHubToken();
+    await prefs.setInt(
+      connectionEpochKey,
+      (prefs.getInt(connectionEpochKey) ?? 0) + 1,
+    );
     if (current != null) {
       final file = await _stateFile(current);
       if (await file.exists()) await file.delete();
