@@ -34,6 +34,7 @@ import 'domain/media_bundle.dart';
 import 'domain/markdown_interop.dart';
 import 'domain/markdown_folder_mirror.dart';
 import 'domain/note.dart';
+import 'domain/mobile_navigation_ui5.dart';
 import 'domain/obsidian_migration.dart';
 import 'domain/open_export.dart';
 import 'domain/planner.dart';
@@ -1650,6 +1651,13 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
         child: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 900;
+            final ui5MobilePreview = !wide &&
+                const bool.fromEnvironment(
+                  'NOTES_UI5_NAV_PREVIEW',
+                  defaultValue: false,
+                );
+            final localeCode =
+                AppLocale.effectiveCode(Localizations.localeOf(context));
             const destinations = [
               NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
               NavigationDestination(
@@ -1697,11 +1705,53 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               ),
             ];
 
+            final ui5Destinations = <NavigationDestination>[
+              NavigationDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home),
+                label: MobileNavigationUi5.title(localeCode, 0),
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.description_outlined),
+                selectedIcon: const Icon(Icons.description),
+                label: MobileNavigationUi5.title(localeCode, 1),
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.check_circle_outline),
+                selectedIcon: const Icon(Icons.check_circle),
+                label: MobileNavigationUi5.title(localeCode, 2),
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.calendar_month_outlined),
+                selectedIcon: const Icon(Icons.calendar_month),
+                label: MobileNavigationUi5.title(localeCode, 3),
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.group_work_outlined),
+                selectedIcon: const Icon(Icons.group_work),
+                label: MobileNavigationUi5.title(localeCode, 4),
+              ),
+            ];
+
             return Scaffold(
               appBar: AppBar(
                 title: EditorialAppTitle(
                     section == 'Home' ? 'Il tuo spazio' : section),
                 actions: [
+                  if (ui5MobilePreview)
+                    IconButton(
+                      key: const ValueKey('ui5-mobile-search'),
+                      tooltip: switch (localeCode) {
+                        'it' => 'Cerca nelle note',
+                        'es' => 'Buscar notas',
+                        'fr' => 'Rechercher des notes',
+                        'de' => 'Notizen suchen',
+                        'pt' => 'Pesquisar notas',
+                        _ => 'Search notes',
+                      },
+                      onPressed: () => _selectSection(5),
+                      icon: const Icon(Icons.search),
+                    ),
                   IconButton(
                     tooltip: 'Knowledge Search',
                     onPressed: () => _knowledgeSearch(personalNotes),
@@ -1744,9 +1794,18 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               bottomNavigationBar: wide
                   ? null
                   : NavigationBar(
-                      selectedIndex: _index,
-                      onDestinationSelected: _selectSection,
-                      destinations: destinations,
+                      selectedIndex: ui5MobilePreview
+                          ? MobileNavigationUi5.destinationForSection(_index)
+                          : _index,
+                      onDestinationSelected: ui5MobilePreview
+                          ? (destination) => _selectSection(
+                                MobileNavigationUi5.sectionForDestination(
+                                  destination,
+                                ),
+                              )
+                          : _selectSection,
+                      destinations:
+                          ui5MobilePreview ? ui5Destinations : destinations,
                     ),
             );
           },
