@@ -322,6 +322,45 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # UI5 QA is a side-by-side DEBUG application, never the user's Notes
+      # package. No keystore or install/update operation is involved.
+      - name: Build isolated UI5 QA debug APK
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'maxi1-ui5-device-qa-'))
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp android/app/build.gradle.kts android/app/build.gradle.kts.before_ui5_qa
+          cp android/app/src/main/AndroidManifest.xml android/app/src/main/AndroidManifest.xml.before_ui5_qa
+          trap 'mv android/app/build.gradle.kts.before_ui5_qa android/app/build.gradle.kts; mv android/app/src/main/AndroidManifest.xml.before_ui5_qa android/app/src/main/AndroidManifest.xml' EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path("android/app/build.gradle.kts")
+          source = gradle.read_text()
+          current = 'applicationId = "it.notes.ecosystem.lymlyc"'
+          assert source.count(current) == 1, "QA appId replacement must be unambiguous"
+          gradle.write_text(source.replace(current, 'applicationId = "it.notes.ecosystem.lymlyc.ui5qa"'))
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          old = 'android:label="notes_ecosistema"'
+          assert source.count(old) == 1, "QA app label replacement must be unambiguous"
+          manifest.write_text(source.replace(old, 'android:label="Notes UI5 QA"'))
+          PY
+          flutter build apk --debug --no-pub --dart-define=NOTES_UI5_HOME_PREVIEW=true --dart-define=NOTES_UI5_NAV_PREVIEW=true
+          cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/notes-ui5-qa-debug.apk
+          sha256sum build/app/outputs/flutter-apk/notes-ui5-qa-debug.apk > build/app/outputs/flutter-apk/notes-ui5-qa-debug.sha256
+
+      - name: Upload isolated UI5 QA APK and acceptance protocol
+        if: (github.event_name == 'workflow_dispatch' && inputs.production_signed != true) || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'maxi1-ui5-device-qa-'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notes-UI5-QA-debug-NOT-FOR-PRODUCTION
+          path: |
+            flutter_app/build/app/outputs/flutter-apk/notes-ui5-qa-debug.apk
+            flutter_app/build/app/outputs/flutter-apk/notes-ui5-qa-debug.sha256
+            flutter_app/UI5_DEVICE_QA_PROTOCOL_2026_11_08.md
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Read app version
         id: app_version
         shell: bash

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../domain/contextual_work_insights.dart';
 import '../domain/project_workload_guard.dart';
 import '../domain/project_dependency_review.dart';
+import '../domain/project_dependency_impact.dart';
 import '../domain/project_dependency_actions.dart';
 import '../domain/project_goal_timeline.dart';
 import '../domain/project_task_readiness.dart';
@@ -494,6 +495,8 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
     final dependencyDetails =
         ProjectDependencyReview.details(guidanceItems, limit: 8);
     final readiness = ProjectTaskReadiness.inspect(guidanceItems, limit: 8);
+    final blockerImpact =
+        ProjectDependencyImpactReview.inspect(guidanceItems, limit: 5);
     final workload = ProjectWorkloadGuard.evaluate(
       guidanceItems,
       civilDay: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -608,6 +611,49 @@ class _ProjectDetailScreenState extends ConsumerState<_ProjectDetailScreen> {
                               .toList();
                           if (matches.length == 1) {
                             widget.onOpenItem(matches.single.note, !canEdit);
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (project.isActive && blockerImpact.isNotEmpty) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Prerequisiti più citati · solo lettura'),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Questi task sono prerequisiti espliciti per altre '
+                      'attività visibili. Completarli non garantisce lo '
+                      'sblocco: possono esistere altri vincoli.',
+                    ),
+                    for (final impact in blockerImpact)
+                      ListTile(
+                        key: ValueKey('project-impact-${impact.taskId}'),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.account_tree_outlined),
+                        title: Text(impact.title),
+                        subtitle: Text(
+                          'Citato da ${impact.directDependents} task. '
+                          '${impact.visibleDependentTitles.join(', ')}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          final matching = guidanceItems
+                              .where((item) => item.note.id == impact.taskId)
+                              .toList(growable: false);
+                          if (matching.length == 1) {
+                            widget.onOpenItem(matching.single.note, !canEdit);
                           }
                         },
                       ),

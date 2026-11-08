@@ -211,6 +211,43 @@ class RecoveryJournal {
   }
 }
 
+/// A single named sequence for the actual cross-store restore writes.
+///
+/// The outer RecoveryTransaction owns the durable journal/rollback. This
+/// sequence makes every store phase explicit and test-injectable without
+/// altering the real release's persistence or retry behavior.
+abstract final class RecoveryWriteSequence {
+  static const stages = <String>[
+    'assets',
+    'notes',
+    'properties',
+    'knowledge',
+    'derivatives',
+    'shared',
+    'projects',
+    'study',
+    'documents',
+    'imports',
+    'automations',
+  ];
+
+  static Future<void> run(
+    Map<String, Future<void> Function()> writes, {
+    Future<void> Function(String stage)? afterStage,
+  }) async {
+    // Do not silently skip an archive or import sidecar during refactors.
+    if (writes.length != stages.length ||
+        stages.any((stage) => !writes.containsKey(stage))) {
+      throw const FormatException('RECOVERY_WRITE_SEQUENCE_INCOMPLETE');
+    }
+    for (final stage in stages) {
+      await writes[stage]!();
+      // Only tests provide a failure hook; the production caller omits it.
+      if (afterStage != null) await afterStage(stage);
+    }
+  }
+}
+
 abstract final class RecoveryTransaction {
   static Future<void> run({
     required RecoveryJournal journal,
