@@ -1,0 +1,257 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../domain/note.dart';
+import '../domain/workflow_automation.dart';
+
+/// Local-only Web snapshot of the canonical Note/Task/Visual objects.
+///
+/// This is intentionally not a second Android database or a remote sync engine.
+/// Browser local storage is origin/device specific and can be cleared by users.
+/// Large media attachments and native integrations remain outside this v1 scope.
+class WebWorkspaceSnapshot {
+  const WebWorkspaceSnapshot({
+    required this.notes,
+    required this.collections,
+    required this.rules,
+    required this.runs,
+  });
+
+  factory WebWorkspaceSnapshot.empty() => const WebWorkspaceSnapshot(
+        notes: [],
+        collections: [],
+        rules: [],
+        runs: [],
+      );
+
+  final List<Note> notes;
+  final List<NoteCollection> collections;
+  final List<WorkflowRule> rules;
+  final List<WorkflowRun> runs;
+
+  WebWorkspaceSnapshot copyWith({
+    List<Note>? notes,
+    List<NoteCollection>? collections,
+    List<WorkflowRule>? rules,
+    List<WorkflowRun>? runs,
+  }) =>
+      WebWorkspaceSnapshot(
+        notes: notes ?? this.notes,
+        collections: collections ?? this.collections,
+        rules: rules ?? this.rules,
+        runs: runs ?? this.runs,
+      );
+
+  Map<String, Object?> toMap() => {
+        'notes': [for (final note in notes) note.toMap()],
+        'collections': [
+          for (final collection in collections)
+            {'id': collection.id, 'name': collection.name},
+        ],
+        'rules': [for (final rule in rules) rule.toMap()],
+        'runs': [for (final run in runs) run.toMap()],
+      };
+
+  static WebWorkspaceSnapshot fromMap(Map<String, Object?> data) {
+    List<T> readRows<T>(
+      String key,
+      T Function(Map<String, Object?>) decode,
+    ) {
+      final source = data[key];
+      if (source is! List || source.length > 5000) {
+        throw FormatException('Invalid Web workspace collection: $key');
+      }
+      return [
+        for (final element in source)
+          if (element is Map)
+            decode(Map<String, Object?>.from(element))
+          else
+            throw FormatException('Invalid Web workspace item: $key'),
+      ];
+    }
+
+    final notes = readRows('notes', Note.fromMap);
+    final collections = readRows('collections', NoteCollection.fromMap);
+    final rules = readRows('rules', WorkflowRule.fromMap);
+    final runs = readRows('runs', WorkflowRun.fromMap);
+
+    void uniqueIds(Iterable<String> ids, String label) {
+      final seen = <String>{};
+      for (final id in ids) {
+        if (id.trim().isEmpty || id.length > 256 || !seen.add(id)) {
+          throw FormatException('Duplicate or invalid $label identifier');
+        }
+      }
+    }
+
+    uniqueIds(notes.map((note) => note.id), 'note');
+    uniqueIds(collections.map((item) => item.id), 'collection');
+    uniqueIds(rules.map((item) => item.id), 'automation rule');
+    uniqueIds(runs.map((item) => item.id), 'automation receipt');
+    if (rules.length > 100 || runs.length > 500) {
+      throw const FormatException('Unbounded Web automation snapshot');
+    }
+    return WebWorkspaceSnapshot(
+      notes: notes,
+      collections: collections,
+      rules: rules,
+      runs: runs,
+    );
+  }
+}
+
+/// Two-slot checksummed journal built on the existing shared_preferences Web
+/// adapter (browser localStorage). This is suitable for bounded text-first
+/// workspaces, not large archives or a full SQLite/IndexedDB replacement.
+///
+/// Each complete update is written to the alternate slot. The previous
+/// acknowledged snapshot remains available if a write or checksum fails.
+/// The new UI state is published only after a successful verified write.
+class WebWorkspaceStore {
+  WebWorkspaceStore(this._prefs);
+
+  static const _keyA = 'notes.web.workspace.v1.a';
+  static const _keyB = 'notes.web.workspace.v1.b';
+  static const _schema = 1;
+
+  // Conservative two-slot browser quota. The size applies to each encoded
+  // snapshot, not to media/binary payloads (which are not supported here).
+  static const maxSnapshotBytes = 750000;
+  static const maxImportBytes = 900000;
+
+  final SharedPreferences _prefs;
+  int _sequence = 0;
+  bool recoveredPrevious = false;
+
+  WebWorkspaceSnapshot load() {
+    final a = _prefs.getString(_keyA);
+    final b = _prefs.getString(_keyB);
+    recoveredPrevious = false;
+    if (a == null && b == null) {
+      _sequence = 0;
+      return WebWorkspaceSnapshot.empty();
+    }
+
+    final valid = <_StoredWorkspace>[];
+    for (final candidate in [a, b]) {
+      if (candidate == null) continue;
+      try {
+        valid.add(_StoredWorkspace.decode(candidate));
+      } on FormatException {
+        recoveredPrevious = true;
+      } on TypeError {
+        recoveredPrevious = true;
+      } on ArgumentError {
+        recoveredPrevious = true;
+      }
+    }
+    if (valid.isEmpty) {
+      throw const FormatException(
+        'Archivio Web non leggibile. Nessun dato è stato sovrascritto. '
+        'Importa un backup valido prima di modificare lo spazio.',
+      );
+    }
+    valid.sort((a, b) => a.sequence.compareTo(b.sequence));
+    final current = valid.last;
+    _sequence = current.sequence;
+    return current.snapshot;
+  }
+
+  Future<void> save(WebWorkspaceSnapshot snapshot) async {
+    final sequence = _sequence + 1;
+    final encoded = _StoredWorkspace.encode(snapshot, sequence);
+    if (utf8.encode(encoded).length > maxSnapshotBytes) {
+      throw StateError(
+        'Spazio Web locale troppo grande. Esporta i dati: '
+        'questa versione non gestisce archivi di grandi dimensioni.',
+      );
+    }
+    final key = sequence.isOdd ? _keyA : _keyB;
+    final written = await _prefs.setString(key, encoded);
+    if (!written || _prefs.getString(key) != encoded) {
+      throw StateError('Salvataggio browser non verificato.');
+    }
+    _sequence = sequence;
+    recoveredPrevious = false;
+  }
+
+  static String exportJson(WebWorkspaceSnapshot snapshot) {
+    final payload = jsonEncode(snapshot.toMap());
+    if (utf8.encode(payload).length > maxSnapshotBytes) {
+      throw StateError('Il workspace supera il limite di export Web.');
+    }
+    return jsonEncode({
+      'format': 'notes-web-workspace',
+      'schema': _schema,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'sha256': sha256.convert(utf8.encode(payload)).toString(),
+      'payload': payload,
+    });
+  }
+
+  static WebWorkspaceSnapshot importJson(String raw) {
+    if (utf8.encode(raw).length > maxImportBytes) {
+      throw const FormatException('Backup Web troppo grande');
+    }
+    final root = jsonDecode(raw);
+    if (root is! Map ||
+        root['format'] != 'notes-web-workspace' ||
+        root['schema'] != _schema ||
+        root['payload'] is! String ||
+        root['sha256'] is! String) {
+      throw const FormatException('Formato o schema di backup non supportato');
+    }
+    final payload = root['payload'] as String;
+    final expected = sha256.convert(utf8.encode(payload)).toString();
+    if (root['sha256'] != expected) {
+      throw const FormatException('Checksum del backup non valido');
+    }
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map) {
+      throw const FormatException('Snapshot non valido');
+    }
+    return WebWorkspaceSnapshot.fromMap(Map<String, Object?>.from(decoded));
+  }
+}
+
+class _StoredWorkspace {
+  const _StoredWorkspace(this.sequence, this.snapshot);
+  final int sequence;
+  final WebWorkspaceSnapshot snapshot;
+
+  static String encode(WebWorkspaceSnapshot snapshot, int sequence) {
+    final payload = jsonEncode(snapshot.toMap());
+    return jsonEncode({
+      'schema': 1,
+      'sequence': sequence,
+      'payload': payload,
+      'sha256': sha256.convert(utf8.encode(payload)).toString(),
+    });
+  }
+
+  static _StoredWorkspace decode(String raw) {
+    final root = jsonDecode(raw);
+    if (root is! Map ||
+        root['schema'] != 1 ||
+        root['sequence'] is! int ||
+        (root['sequence'] as int) < 1 ||
+        root['payload'] is! String ||
+        root['sha256'] is! String) {
+      throw const FormatException('Invalid local Web journal envelope');
+    }
+    final payload = root['payload'] as String;
+    if (root['sha256'] != sha256.convert(utf8.encode(payload)).toString()) {
+      throw const FormatException('Corrupt Web journal checksum');
+    }
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map) {
+      throw const FormatException('Invalid Web journal snapshot');
+    }
+    return _StoredWorkspace(
+      root['sequence'] as int,
+      WebWorkspaceSnapshot.fromMap(Map<String, Object?>.from(decoded)),
+    );
+  }
+}
