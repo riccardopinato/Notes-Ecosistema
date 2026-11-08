@@ -61,3 +61,38 @@ abstract final class SmartInboxProjectAction {
       recorded.updatedAt == current.updatedAt &&
       recorded.position == current.position;
 }
+
+
+/// QA-only compensation around a *non-atomic* cross-store write.
+///
+/// The source Note/Shared Spaces DB and project SQLite store do NOT share a
+/// transaction. Post-write revalidation can catch a change during an awaited
+/// writer and conditionally undo its exact receipt, but does not eliminate the
+/// final post-check race. Keep the production flag OFF until serialization.
+abstract final class SmartInboxProjectCommitGuard {
+  static Future<ProjectItemLink> execute({
+    required Future<ProjectItemLink> Function() write,
+    required Future<bool> Function() validateAfterWrite,
+    required Future<bool> Function(ProjectItemLink) undoIfUnchanged,
+  }) async {
+    final receipt = await write();
+    var valid = false;
+    try {
+      valid = await validateAfterWrite();
+    } catch (_) {
+      // A failed fresh read is never interpreted as authorization.
+    }
+    if (valid) return receipt;
+
+    var compensated = false;
+    try {
+      compensated = await undoIfUnchanged(receipt);
+    } catch (_) {
+      // The exact receipt must be recovered manually if this fails.
+    }
+    if (!compensated) {
+      throw const FormatException('SMART_INBOX_COMPENSATION_UNCONFIRMED');
+    }
+    throw const FormatException('SMART_INBOX_RACE_ABORTED_AND_UNDONE');
+  }
+}
