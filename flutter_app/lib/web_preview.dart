@@ -8,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'src/data/web_workspace_storage.dart';
 import 'src/domain/app_locale.dart';
 import 'src/domain/diary.dart';
 import 'src/domain/editing.dart';
@@ -121,15 +122,80 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   String? _libraryCollectionId;
   String? _plannerTaskId;
 
-  final List<NoteCollection> _collections = [
-    const NoteCollection(id: 'work', name: 'Lavoro'),
-    const NoteCollection(id: 'study', name: 'Studio'),
-    const NoteCollection(id: 'ideas', name: 'Idee'),
-  ];
+  WebWorkspaceSnapshot _workspace = WebWorkspaceSnapshot.empty();
+  WebWorkspaceStore? _store;
+  Future<void> _writes = Future<void>.value();
+  bool _ready = false;
+  bool _storageBlocked = false;
+  bool _recoveredPrevious = false;
+  String? _storageError;
 
-  late List<Note> _notes = _seedNotes();
-  List<WorkflowRule> _automationRules = _seedAutomationRules();
-  final List<WorkflowRun> _automationRuns = [];
+  List<Note> get _notes => _workspace.notes;
+  List<NoteCollection> get _collections => _workspace.collections;
+  List<WorkflowRule> get _automationRules => _workspace.rules;
+  List<WorkflowRun> get _automationRuns => _workspace.runs;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadLocalWorkspace());
+  }
+
+  Future<void> _loadLocalWorkspace() async {
+    WebWorkspaceStore? store;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      store = WebWorkspaceStore(prefs);
+      final restored = store.load();
+      if (!mounted) return;
+      setState(() {
+        _store = store;
+        _workspace = restored;
+        _ready = true;
+        _recoveredPrevious = store!.recoveredPrevious;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _store = store;
+        _ready = true;
+        _storageBlocked = true;
+        _storageError = error.toString();
+      });
+    }
+  }
+
+  Future<bool> _mutate(
+    WebWorkspaceSnapshot Function(WebWorkspaceSnapshot) transform,
+  ) {
+    final current = _writes.then((_) async {
+      if (_store == null || !_ready || _storageBlocked) return false;
+      try {
+        final updated = transform(_workspace);
+        await _store!.save(updated);
+        if (!mounted) return true;
+        setState(() {
+          _workspace = updated;
+          _storageError = null;
+          _recoveredPrevious = false;
+        });
+        return true;
+      } catch (error) {
+        if (mounted) {
+          setState(() => _storageError = error.toString());
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Salvataggio non riuscito. I dati precedenti restano conservati.'),
+            ),
+          );
+        }
+        return false;
+      }
+    });
+    _writes = current.then((_) {});
+    return current;
+  }
 
   static const _labels = [
     'Home',
@@ -152,27 +218,29 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   }
 
   Future<void> _save(Note note) async {
-    final before = _notes.where((item) => item.id == note.id).firstOrNull;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final evaluation = WorkflowAutomations.evaluate(
-      before: before,
-      incoming: note,
-      rules: _automationRules,
-      validCollectionIds: _collections.map((item) => item.id).toSet(),
-      now: now,
-    );
-    setState(() {
-      final index = _notes.indexWhere((item) => item.id == evaluation.note.id);
+    final persisted = await _mutate((current) {
+      final before =
+          current.notes.where((item) => item.id == note.id).firstOrNull;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final evaluation = WorkflowAutomations.evaluate(
+        before: before,
+        incoming: note,
+        rules: current.rules,
+        validCollectionIds: current.collections.map((item) => item.id).toSet(),
+        now: now,
+      );
+      final updatedNotes = [...current.notes];
+      final index =
+          updatedNotes.indexWhere((item) => item.id == evaluation.note.id);
       if (index < 0) {
-        _notes = [evaluation.note, ..._notes];
+        updatedNotes.insert(0, evaluation.note);
       } else {
-        final next = [..._notes];
-        next[index] = evaluation.note;
-        _notes = next;
+        updatedNotes[index] = evaluation.note;
       }
+      final updatedRuns = [...current.runs];
       if (evaluation.trigger != null) {
         for (final rule in evaluation.appliedRules) {
-          _automationRuns.insert(
+          updatedRuns.insert(
             0,
             WorkflowRun(
               id: const Uuid().v4(),
@@ -184,63 +252,57 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
             ),
           );
         }
-        if (_automationRuns.length > 40) {
-          _automationRuns.removeRange(40, _automationRuns.length);
-        }
       }
+      if (updatedRuns.length > 40) {
+        updatedRuns.removeRange(40, updatedRuns.length);
+      }
+      return current.copyWith(notes: updatedNotes, runs: updatedRuns);
     });
+    if (!persisted) {
+      throw StateError('Il salvataggio locale non è riuscito: riprova.');
+    }
+  }
+
+  void _saveQuietly(Note note) {
+    unawaited(_save(note).catchError((Object _) {
+      // The mutation already presented a persistent storage warning.
+    }));
   }
 
   void _favorite(String id) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          favorite: !note.favorite,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      favorite: !note.favorite,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   void _pin(String id, bool value) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          pinned: value,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      pinned: value,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   void _archive(String id, bool value) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          archived: value,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      archived: value,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   void _trash(String id) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          deletedAt: DateTime.now().millisecondsSinceEpoch,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      deletedAt: DateTime.now().millisecondsSinceEpoch,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   Future<void> _restore(String id) async {
@@ -255,63 +317,78 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   }
 
   Future<void> _deleteForever(String id) async {
-    setState(() => _notes = _notes.where((note) => note.id != id).toList());
+    await _mutate((current) => current.copyWith(
+          notes: current.notes.where((note) => note.id != id).toList(),
+          runs: current.runs.where((run) => run.noteId != id).toList(),
+        ));
   }
 
   Future<int> _bulkEdit(List<Note> selected, BulkChange change) async {
-    final updated = planBulkEdit(
-      selected,
-      change,
-      DateTime.now().millisecondsSinceEpoch,
-    );
-    final byId = {for (final note in updated) note.id: note};
-    setState(() {
-      _notes = [
-        for (final note in _notes) byId[note.id] ?? note,
-      ];
+    var updatedCount = 0;
+    final saved = await _mutate((current) {
+      final ids = selected.map((note) => note.id).toSet();
+      final liveSelected = current.notes.where((note) => ids.contains(note.id));
+      final updated = planBulkEdit(
+        liveSelected.toList(),
+        change,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      updatedCount = updated.length;
+      final byId = {for (final note in updated) note.id: note};
+      return current.copyWith(
+        notes: [
+          for (final note in current.notes) byId[note.id] ?? note,
+        ],
+      );
     });
-    return updated.length;
+    return saved ? updatedCount : 0;
   }
 
   Future<void> _renameCollection(
     NoteCollection collection,
     String name,
   ) async {
-    final index = _collections.indexWhere((item) => item.id == collection.id);
-    if (index < 0 || name.trim().isEmpty) return;
-    setState(() {
-      _collections[index] = NoteCollection(
-        id: collection.id,
-        name: name.trim(),
-      );
-    });
+    if (name.trim().isEmpty) return;
+    await _mutate((current) => current.copyWith(
+          collections: [
+            for (final item in current.collections)
+              item.id == collection.id
+                  ? NoteCollection(id: item.id, name: name.trim())
+                  : item,
+          ],
+        ));
   }
 
   Future<void> _deleteCollection(NoteCollection collection) async {
-    setState(() {
-      _collections.removeWhere((item) => item.id == collection.id);
-      _notes = [
-        for (final note in _notes)
-          if (note.collectionId == collection.id)
-            note.copyWith(
-              collectionId: null,
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            )
-          else
-            note,
-      ];
-      if (_libraryCollectionId == collection.id) _libraryCollectionId = null;
-    });
+    final saved = await _mutate((current) => current.copyWith(
+          collections: current.collections
+              .where((item) => item.id != collection.id)
+              .toList(),
+          notes: [
+            for (final note in current.notes)
+              if (note.collectionId == collection.id)
+                note.copyWith(
+                  collectionId: null,
+                  updatedAt: DateTime.now().millisecondsSinceEpoch,
+                )
+              else
+                note,
+          ],
+        ));
+    if (saved && mounted && _libraryCollectionId == collection.id) {
+      setState(() => _libraryCollectionId = null);
+    }
   }
 
   Future<void> _createCollection(String name) async {
     final clean = name.trim();
     if (clean.isEmpty) return;
-    setState(() {
-      _collections.add(
-        NoteCollection(id: const Uuid().v4(), name: clean),
-      );
-    });
+    await _mutate((current) => current.copyWith(
+          collections: [
+            ...current.collections,
+            NoteCollection(id: const Uuid().v4(), name: clean),
+          ],
+        ));
   }
 
   Future<void> _copyStableLink(String id) async {
@@ -333,7 +410,20 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         ),
       ),
     );
-    if (result != null) await _save(result);
+    if (result != null) {
+      try {
+        await _save(result);
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Salvataggio fallito. L’editor si riapre per riprovare.'),
+          ),
+        );
+        await _openEditor(result);
+      }
+    }
   }
 
   Future<void> _openNote(Note note) async {
@@ -717,18 +807,18 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           runs: _automationRuns,
           collections: _collections,
           onToggle: (id, value) {
-            setState(() {
-              _automationRules = [
-                for (final rule in _automationRules)
-                  if (rule.id == id)
-                    rule.copyWith(
-                      enabled: value,
-                      updatedAt: DateTime.now().millisecondsSinceEpoch,
-                    )
-                  else
-                    rule,
-              ];
-            });
+            unawaited(_mutate((current) => current.copyWith(
+                  rules: [
+                    for (final rule in current.rules)
+                      if (rule.id == id)
+                        rule.copyWith(
+                          enabled: value,
+                          updatedAt: DateTime.now().millisecondsSinceEpoch,
+                        )
+                      else
+                        rule,
+                  ],
+                )).then((_) {}));
           },
         ),
       ),
@@ -782,6 +872,155 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     );
   }
 
+  Future<void> _exportWorkspace() async {
+    final serialized = WebWorkspaceStore.exportJson(_workspace);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Esporta backup Web'),
+        content: SizedBox(
+          width: 480,
+          height: 240,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Backup JSON con checksum. Salvalo fuori dal browser. '
+                'Non contiene media esterni e la copia negli appunti può essere '
+                'letta da altre applicazioni.',
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: SelectableText(serialized),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Chiudi'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              try {
+                await Clipboard.setData(ClipboardData(text: serialized));
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Backup JSON copiato: salvalo in un posto sicuro.'),
+                    ),
+                  );
+                }
+              } catch (_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Copia automatica non disponibile: seleziona il testo.'),
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('Copia backup'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importWorkspace() async {
+    final input = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Importa backup Web'),
+        content: SizedBox(
+          width: 480,
+          child: TextField(
+            controller: input,
+            minLines: 6,
+            maxLines: 12,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Incolla qui il backup JSON esportato da Notes Web',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, input.text),
+            child: const Text('Verifica backup'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (!mounted || text == null || text.trim().isEmpty) return;
+    late WebWorkspaceSnapshot candidate;
+    try {
+      candidate = WebWorkspaceStore.importJson(text.trim());
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Backup non valido o modificato: nessun dato sostituito.'),
+        ),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sostituire lo spazio Web?'),
+        content: Text(
+          'Backup valido: ${candidate.notes.length} note/attività, '
+          '${candidate.collections.length} raccolte. '
+          'Questa operazione sostituisce i dati di questo browser. '
+          'Esporta prima un backup dei dati attuali se vuoi conservarli.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Importa e sostituisci'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || _store == null) return;
+    if (_storageBlocked) {
+      try {
+        await _store!.recoverVerifiedBackup(candidate);
+        if (!mounted) return;
+        setState(() {
+          _workspace = candidate;
+          _storageBlocked = false;
+          _storageError = null;
+          _recoveredPrevious = false;
+        });
+      } catch (error) {
+        if (mounted) setState(() => _storageError = error.toString());
+      }
+    } else {
+      await _mutate((_) => candidate);
+    }
+  }
+
   Future<void> _settings() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -790,10 +1029,13 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const ListTile(
-              title: Text('Notes Ecosistema 0.56.3'),
+            ListTile(
+              title: const Text('Notes Ecosistema · Web locale'),
               subtitle: Text(
-                'Web Preview fedele · stato demo locale alla sessione browser.',
+                'Salvataggio nel browser: ${_workspace.notes.length} elementi. '
+                'Nessun account o sincronizzazione cloud. '
+                'Cancellando i dati del browser, perderai il workspace '
+                'senza un backup esportato.',
               ),
             ),
             ListTile(
@@ -844,15 +1086,30 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               leading: Icon(Icons.shield_outlined),
               title: Text('Local-first e private-by-default'),
               subtitle: Text(
-                'La preview non usa il database Android: simula lo stato in memoria.',
+                'Le note, le attività, le lavagne e le raccolte sono salvate '
+                'localmente in questo browser. I grandi allegati e gli '
+                'strumenti Android non sono ancora disponibili sul Web.',
               ),
             ),
-            const ListTile(
-              leading: Icon(Icons.file_download_outlined),
-              title: Text('Import / Export / Disaster Recovery'),
-              subtitle: Text(
-                'Flussi presenti nella release Android. Nel browser restano in modalità dimostrativa.',
-              ),
+            ListTile(
+              leading: const Icon(Icons.file_upload_outlined),
+              title: const Text('Esporta backup JSON'),
+              subtitle: const Text(
+                  'Copia una versione verificabile fuori dal browser'),
+              onTap: () {
+                Navigator.pop(context);
+                unawaited(_exportWorkspace());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.file_download_outlined),
+              title: const Text('Importa backup JSON'),
+              subtitle: const Text(
+                  'Verifica, mostra anteprima e sostituisce solo dopo conferma'),
+              onTap: () {
+                Navigator.pop(context);
+                unawaited(_importWorkspace());
+              },
             ),
             const ListTile(
               leading: Icon(Icons.sync_outlined),
@@ -869,6 +1126,42 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_storageBlocked) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Notes · Recupero dati Web')),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, size: 46),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Archivio locale non leggibile. I dati originali '
+                    'non sono stati sovrascritti.',
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(_storageError ?? ''),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _store == null ? null : _importWorkspace,
+                    child: const Text('Importa un backup valido'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final personalNotes = _personalNotes;
     final section = _labels[_index];
     final body = switch (_index) {
@@ -889,8 +1182,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           onStudy: _openStudy,
           onGraph: _openKnowledgeGraph,
           onAutomations: _openAutomations,
-          projectCount: 3,
-          sharedUnread: 2,
+          projectCount: 0,
+          sharedUnread: 0,
         ),
       1 => NotesScreen(
           notes: _notes,
@@ -986,7 +1279,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
               appBar: AppBar(
                 title: EditorialAppTitle(
                   section == 'Home' ? 'Il tuo spazio' : section,
-                  eyebrow: 'NOTES · WEB PREVIEW 0.56.3',
+                  eyebrow: 'NOTES · WEB LOCALE',
                 ),
                 actions: [
                   IconButton(
@@ -1006,50 +1299,68 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
                   ),
                 ],
               ),
-              body: wide
-                  ? Row(
-                      children: [
-                        NavigationRail(
-                          selectedIndex: _index,
-                          onDestinationSelected: _selectSection,
-                          labelType: NavigationRailLabelType.selected,
-                          destinations: const [
-                            NavigationRailDestination(
-                              icon: Icon(Icons.home_outlined),
-                              selectedIcon: Icon(Icons.home),
-                              label: Text('Home'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.description_outlined),
-                              selectedIcon: Icon(Icons.description),
-                              label: Text('Note'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.calendar_month_outlined),
-                              selectedIcon: Icon(Icons.calendar_month),
-                              label: Text('Diario'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.check_circle_outline),
-                              selectedIcon: Icon(Icons.check_circle),
-                              label: Text('Attività'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.group_work_outlined),
-                              selectedIcon: Icon(Icons.group_work),
-                              label: Text('Spazi'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.search),
-                              label: Text('Cerca'),
-                            ),
-                          ],
+              body: Column(
+                children: [
+                  if (_recoveredPrevious || _storageError != null)
+                    MaterialBanner(
+                      content: Text(_storageError ??
+                          'Ripristinata l\'ultima copia locale integra. Esporta un backup.'),
+                      leading: const Icon(Icons.warning_amber_outlined),
+                      actions: [
+                        TextButton(
+                          onPressed: _exportWorkspace,
+                          child: const Text('Esporta'),
                         ),
-                        const VerticalDivider(width: 1),
-                        Expanded(child: body),
                       ],
-                    )
-                  : body,
+                    ),
+                  Expanded(
+                    child: wide
+                        ? Row(
+                            children: [
+                              NavigationRail(
+                                selectedIndex: _index,
+                                onDestinationSelected: _selectSection,
+                                labelType: NavigationRailLabelType.selected,
+                                destinations: const [
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.home_outlined),
+                                    selectedIcon: Icon(Icons.home),
+                                    label: Text('Home'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.description_outlined),
+                                    selectedIcon: Icon(Icons.description),
+                                    label: Text('Note'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.calendar_month_outlined),
+                                    selectedIcon: Icon(Icons.calendar_month),
+                                    label: Text('Diario'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.check_circle_outline),
+                                    selectedIcon: Icon(Icons.check_circle),
+                                    label: Text('Attività'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.group_work_outlined),
+                                    selectedIcon: Icon(Icons.group_work),
+                                    label: Text('Spazi'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.search),
+                                    label: Text('Cerca'),
+                                  ),
+                                ],
+                              ),
+                              const VerticalDivider(width: 1),
+                              Expanded(child: body),
+                            ],
+                          )
+                        : body,
+                  ),
+                ],
+              ),
               floatingActionButton: (_index == 4 || _index == 5 || _index == 2)
                   ? null
                   : FloatingActionButton.extended(
@@ -1099,256 +1410,6 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         ),
       ),
     );
-  }
-
-  static List<WorkflowRule> _seedAutomationRules() {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    return [
-      WorkflowRule(
-        id: 'web-auto-1',
-        name: 'Tagga nuove note di lavoro',
-        enabled: true,
-        trigger: WorkflowTrigger.itemCreated,
-        subject: WorkflowSubject.note,
-        requiredTag: null,
-        titleContains: null,
-        actionKind: WorkflowActionKind.addTag,
-        actionValue: 'inbox',
-        createdAt: now - 2000,
-        updatedAt: now - 2000,
-      ),
-      WorkflowRule(
-        id: 'web-auto-2',
-        name: 'Priorità media ai nuovi task',
-        enabled: true,
-        trigger: WorkflowTrigger.itemCreated,
-        subject: WorkflowSubject.task,
-        requiredTag: null,
-        titleContains: null,
-        actionKind: WorkflowActionKind.setPriority,
-        actionValue: '2',
-        createdAt: now - 1000,
-        updatedAt: now - 1000,
-      ),
-    ];
-  }
-
-  static List<Note> _seedNotes() {
-    final now = DateTime.now();
-    final millis = now.millisecondsSinceEpoch;
-    final today = dateKey(now);
-    final tomorrow = dateKey(now.add(const Duration(days: 1)));
-    final yesterday = now.subtract(const Duration(days: 1));
-
-    TaskDetails task({
-      required String due,
-      required int priority,
-      required String time,
-      required int minutes,
-    }) {
-      return TaskDetails.empty().withEditorValues(
-        due: due,
-        priority: priority,
-        repeat: 'NONE',
-        linkedNoteId: null,
-        plannedDate: due,
-        plannedTime: time,
-        plannedMinutes: minutes,
-      );
-    }
-
-    var mindMap = WhiteboardOps.empty(WhiteboardMode.mindMap);
-    final root = mindMap.nodes.first.id;
-    mindMap = WhiteboardOps.addMindChild(
-      mindMap,
-      root,
-      text: 'Ricerca unificata',
-    );
-    mindMap = WhiteboardOps.addMindChild(
-      mindMap,
-      root,
-      text: 'Document Workspace',
-    );
-    mindMap = WhiteboardOps.addMindChild(
-      mindMap,
-      root,
-      text: 'Study Core',
-    );
-    mindMap = WhiteboardOps.autoLayoutMindMap(mindMap);
-
-    return [
-      Note(
-        id: 'strategy',
-        title: 'Product strategy · Notes',
-        body:
-            '# Obiettivo\n\nRendere Notes il centro di lavoro e conoscenza.\n\n'
-            '## Prossimi passi\n- [ ] Validare flussi Web\n- [ ] Rifinire collaborazione\n'
-            '- [x] Unified Retrieval\n\n> Local-first, private-by-default.',
-        collectionId: 'work',
-        favorite: true,
-        createdAt: millis - 86400000 * 9,
-        updatedAt: millis - 120000,
-        pinned: true,
-        archived: false,
-        tags: const ['prodotto', 'roadmap', 'knowledge'],
-      ),
-      Note(
-        id: 'retrieval',
-        title: 'Unified Retrieval',
-        body:
-            'FTS, metadata, relazioni, OCR, Study e annotazioni PDF convergono '
-            'in un unico livello di retrieval deterministico.\n\n'
-            'Il ranking privilegia titolo, tag, contenuto e recenza.',
-        collectionId: 'work',
-        favorite: false,
-        createdAt: millis - 86400000 * 5,
-        updatedAt: millis - 3600000,
-        pinned: false,
-        archived: false,
-        tags: const ['search', 'architecture'],
-      ),
-      Note(
-        id: 'study-note',
-        title: 'Economia internazionale · ripasso',
-        body: '## Vantaggio comparato\n\nIl costo opportunità determina la '
-            'specializzazione relativa.\n\n## Domande\n- Perché il commercio '
-            'può aumentare il benessere?\n- Quali sono i limiti del modello?',
-        collectionId: 'study',
-        favorite: true,
-        createdAt: millis - 86400000 * 14,
-        updatedAt: millis - 7200000,
-        pinned: false,
-        archived: false,
-        tags: const ['studio', 'economia'],
-      ),
-      Note(
-        id: 'diary-today',
-        title: 'Decisioni di oggi',
-        body: 'Ho chiuso il ciclo 0.47 → 0.52. La preview Web deve essere '
-            'una rappresentazione credibile del prodotto, non una demo separata.',
-        collectionId: 'ideas',
-        favorite: false,
-        createdAt: millis - 5400000,
-        updatedAt: millis - 1800000,
-        pinned: false,
-        archived: false,
-        tags: Diary.datedTags(const ['decisioni'], now),
-      ),
-      Note(
-        id: 'diary-yesterday',
-        title: 'Retrospettiva',
-        body: 'La lavagna e la mind map devono sempre aprirsi centrate sul '
-            'punto logico in cui nascono le nuove idee.',
-        collectionId: 'ideas',
-        favorite: false,
-        createdAt: millis - 86400000,
-        updatedAt: millis - 86400000,
-        pinned: false,
-        archived: false,
-        tags: Diary.datedTags(const ['retro'], yesterday),
-      ),
-      Note(
-        id: 'task-design',
-        title: 'Rifinire Product & UX Polish',
-        body:
-            'Verificare gerarchia, navigazione responsive e desktop shortcuts.',
-        collectionId: 'work',
-        favorite: false,
-        createdAt: millis - 7200000,
-        updatedAt: millis - 1800000,
-        pinned: false,
-        archived: false,
-        tags: const ['ux'],
-        taskJson: task(
-          due: today,
-          priority: 3,
-          time: '14:30',
-          minutes: 60,
-        ).encode(),
-      ),
-      Note(
-        id: 'task-study',
-        title: 'Ripasso Study Core',
-        body: 'Rivedere LearningItem e source snapshot.',
-        collectionId: 'study',
-        favorite: false,
-        createdAt: millis - 3600000,
-        updatedAt: millis - 1200000,
-        pinned: false,
-        archived: false,
-        tags: const ['studio'],
-        taskJson: task(
-          due: tomorrow,
-          priority: 2,
-          time: '10:00',
-          minutes: 45,
-        ).encode(),
-      ),
-      Note(
-        id: 'mindmap',
-        title: 'Architettura Notes',
-        body: WhiteboardCodec.encode(mindMap),
-        collectionId: 'ideas',
-        favorite: true,
-        createdAt: millis - 86400000 * 3,
-        updatedAt: millis - 2400000,
-        pinned: false,
-        archived: false,
-        tags: const ['visual', 'architecture'],
-        sketchJson: const VisualInfo(kind: VisualInfoKind.whiteboard).encode(),
-      ),
-      Note(
-        id: 'sketch',
-        title: 'Wireframe Home',
-        body: SketchCodec.encode(SketchDocument()),
-        collectionId: 'ideas',
-        favorite: false,
-        createdAt: millis - 86400000 * 2,
-        updatedAt: millis - 6000000,
-        pinned: false,
-        archived: false,
-        tags: const ['visual', 'wireframe'],
-        sketchJson: const VisualInfo(kind: VisualInfoKind.sketch).encode(),
-      ),
-      Note(
-        id: 'template-weekly',
-        title: 'Review personale',
-        body:
-            '# Settimana {{data}}\n\n## Completato\n\n## Da riprendere\n- [ ] '
-            '\n\n## Priorità prossima settimana',
-        collectionId: 'work',
-        favorite: false,
-        createdAt: millis - 86400000 * 20,
-        updatedAt: millis - 86400000 * 6,
-        pinned: false,
-        archived: false,
-        tags: const ['modello', 'review'],
-      ),
-      Note(
-        id: 'archive-example',
-        title: 'Spec precedente',
-        body: 'Documento archiviato mantenuto per consultazione.',
-        collectionId: 'work',
-        favorite: false,
-        createdAt: millis - 86400000 * 40,
-        updatedAt: millis - 86400000 * 30,
-        pinned: false,
-        archived: true,
-        tags: const ['archive'],
-      ),
-      Note(
-        id: 'trash-example',
-        title: 'Bozza eliminata',
-        body: 'Esempio nel cestino universale.',
-        favorite: false,
-        createdAt: millis - 86400000 * 4,
-        updatedAt: millis - 86400000 * 4,
-        deletedAt: millis - 86400000,
-        pinned: false,
-        archived: false,
-        tags: const ['bozza'],
-      ),
-    ];
   }
 }
 
@@ -1981,10 +2042,10 @@ class _WebStudyScreenState extends State<_WebStudyScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: _MetricPreview(
-                  value: 12,
-                  label: 'Elementi totali',
+                  value: sources.length,
+                  label: 'Elementi visibili',
                 ),
               ),
             ],

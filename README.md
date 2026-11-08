@@ -4,6 +4,23 @@ Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** p
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
 
+## Web locale — Step 1 (Notes browser workspace)
+
+L'entry point `flutter_app/lib/web_preview.dart` conserva ora in modo
+persistente, nel **browser corrente**, note, task, diario, visual document,
+raccolte e regole della preview tramite snapshot con versioning e checksum.
+Impostazioni → Esporta/Importa backup JSON consente una copia manuale
+verificabile, con conferma esplicita prima della sostituzione.
+
+**Limite importante:** è una persistenza locale bounded su
+`shared_preferences_web`/localStorage (non ancora IndexedDB/SQLite Web).
+Non è una sincronizzazione cloud né la parità completa dei moduli Android:
+i grandi allegati e alcuni flussi Project/Study/Shared Spaces restano
+dimostrativi o non disponibili su Web. La cancellazione dei dati del browser
+può eliminare il workspace: esportare copie fuori dal browser.
+
+Dettagli e gate: `flutter_app/WEB_PERSISTENCE_STEP1_2026_11_09.md`.
+
 ## 0.56.3 — Native Needle Runtime Activation
 
 - Needle 3 20L è ora il primo provider **Structured Intelligence** quando Notes Plus è attivo e il model pack è installato;
