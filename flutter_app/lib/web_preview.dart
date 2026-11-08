@@ -142,9 +142,10 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   }
 
   Future<void> _loadLocalWorkspace() async {
-    final prefs = await SharedPreferences.getInstance();
-    final store = WebWorkspaceStore(prefs);
+    WebWorkspaceStore? store;
     try {
+      final prefs = await SharedPreferences.getInstance();
+      store = WebWorkspaceStore(prefs);
       final restored = store.load();
       if (!mounted) return;
       setState(() {
@@ -216,7 +217,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   }
 
   Future<void> _save(Note note) async {
-    await _mutate((current) {
+    final persisted = await _mutate((current) {
       final before =
           current.notes.where((item) => item.id == note.id).firstOrNull;
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -255,58 +256,51 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       if (updatedRuns.length > 40) updatedRuns.removeRange(40, updatedRuns.length);
       return current.copyWith(notes: updatedNotes, runs: updatedRuns);
     });
+    if (!persisted) {
+      throw StateError('Il salvataggio locale non è riuscito: riprova.');
+    }
+  }
+
+  void _saveQuietly(Note note) {
+    unawaited(_save(note).catchError((Object _) {
+      // The mutation already presented a persistent storage warning.
+    }));
   }
 
   void _favorite(String id) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          favorite: !note.favorite,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      favorite: !note.favorite,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   void _pin(String id, bool value) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          pinned: value,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      pinned: value,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   void _archive(String id, bool value) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          archived: value,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      archived: value,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   void _trash(String id) {
     final note = _notes.where((item) => item.id == id).firstOrNull;
     if (note == null) return;
-    unawaited(
-      _save(
-        note.copyWith(
-          deletedAt: DateTime.now().millisecondsSinceEpoch,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      ),
-    );
+    _saveQuietly(note.copyWith(
+      deletedAt: DateTime.now().millisecondsSinceEpoch,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   Future<void> _restore(String id) async {
@@ -414,7 +408,19 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         ),
       ),
     );
-    if (result != null) await _save(result);
+    if (result != null) {
+      try {
+        await _save(result);
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Salvataggio fallito. L’editor si riapre per riprovare.'),
+          ),
+        );
+        await _openEditor(result);
+      }
+    }
   }
 
   Future<void> _openNote(Note note) async {
@@ -1138,7 +1144,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
                   SelectableText(_storageError ?? ''),
                   const SizedBox(height: 16),
                   FilledButton(
-                    onPressed: _importWorkspace,
+                    onPressed: _store == null ? null : _importWorkspace,
                     child: const Text('Importa un backup valido'),
                   ),
                 ],
