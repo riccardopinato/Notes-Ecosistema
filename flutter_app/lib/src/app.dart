@@ -2540,58 +2540,63 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
     final noteIds = recovery.snapshot.notes.map((note) => note.id).toSet();
     final sharedIds =
         recovery.sharedSpaces.spaces.map((space) => space.id).toSet();
-    // Content-addressed originals must survive until the journal is cleared.
+    // Exactly the eleven journaled store phases, in canonical order. Tests
+    // inject failures at the same boundaries; no QA fault hook is exposed here.
+    // RecoveryTransaction outside this method retains the undo/rollback role.
     final store = await AttachmentStore.open();
-    for (final entry in recovery.assets.entries) {
-      await store.put(entry.key, entry.value);
-    }
-
-    // put() flushes file content but its atomic rename needs a directory
-    // barrier. Failing here keeps the transaction pending for safe rollback.
-    await RecoveryJournal.persistAttachmentDirectory(store.root);
-
-    await ref.read(databaseProvider).restoreExact(
-          snapshot: recovery.snapshot,
-          revisions: recovery.revisions,
-          blocks: recovery.blocks,
-        );
-    await ref.read(propertyStoreProvider).restoreBackupExact(
-          recovery.properties,
-          noteIds: noteIds,
-        );
-    await ref.read(knowledgeStoreProvider).restoreBackupExact(
-          recovery.knowledge,
-          noteIds: noteIds,
-        );
-    await ref.read(derivativeStoreProvider).restoreBackupExact(
-          recovery.derivatives,
-          noteIds: noteIds,
-        );
-    await ref.read(sharedSpacesProvider.notifier).restoreExact(
-          recovery.sharedSpaces,
-        );
-    await ref.read(projectStoreProvider).restoreBackupExact(
-          recovery.projects,
-          noteIds: noteIds,
-          sharedSpaceIds: sharedIds,
-        );
-    await ref.read(studyStoreProvider).restoreBackupExact(
-          recovery.study,
-          noteIds: noteIds,
-        );
-    await ref.read(documentStoreProvider).restoreBackupExact(
-          recovery.documents,
-          noteIds: noteIds,
-          assetKeys: recovery.assets.keys.toSet(),
-        );
-    await ref.read(importProvenanceStoreProvider).restoreBackupExact(
-          recovery.importProvenance,
-          noteIds: noteIds,
-        );
-    await ref.read(workflowAutomationStoreProvider).restoreBackupExact(
-          recovery.automations,
-          noteIds: noteIds,
-        );
+    await RecoveryWriteSequence.run({
+      'assets': () async {
+        for (final entry in recovery.assets.entries) {
+          await store.put(entry.key, entry.value);
+        }
+        // Durable directory entries after CAS rename and before the DB swap.
+        await RecoveryJournal.persistAttachmentDirectory(store.root);
+      },
+      'notes': () => ref.read(databaseProvider).restoreExact(
+            snapshot: recovery.snapshot,
+            revisions: recovery.revisions,
+            blocks: recovery.blocks,
+          ),
+      'properties': () => ref.read(propertyStoreProvider).restoreBackupExact(
+            recovery.properties,
+            noteIds: noteIds,
+          ),
+      'knowledge': () => ref.read(knowledgeStoreProvider).restoreBackupExact(
+            recovery.knowledge,
+            noteIds: noteIds,
+          ),
+      'derivatives': () => ref.read(derivativeStoreProvider).restoreBackupExact(
+            recovery.derivatives,
+            noteIds: noteIds,
+          ),
+      'shared': () => ref.read(sharedSpacesProvider.notifier).restoreExact(
+            recovery.sharedSpaces,
+          ),
+      'projects': () => ref.read(projectStoreProvider).restoreBackupExact(
+            recovery.projects,
+            noteIds: noteIds,
+            sharedSpaceIds: sharedIds,
+          ),
+      'study': () => ref.read(studyStoreProvider).restoreBackupExact(
+            recovery.study,
+            noteIds: noteIds,
+          ),
+      'documents': () => ref.read(documentStoreProvider).restoreBackupExact(
+            recovery.documents,
+            noteIds: noteIds,
+            assetKeys: recovery.assets.keys.toSet(),
+          ),
+      'imports': () =>
+          ref.read(importProvenanceStoreProvider).restoreBackupExact(
+                recovery.importProvenance,
+                noteIds: noteIds,
+              ),
+      'automations': () =>
+          ref.read(workflowAutomationStoreProvider).restoreBackupExact(
+                recovery.automations,
+                noteIds: noteIds,
+              ),
+    });
 
     await ref.read(workspaceProvider.notifier).refresh();
     await ref.read(workflowAutomationProvider.notifier).refresh();
