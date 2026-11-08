@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -145,8 +146,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
       }
 
       if (persisted) {
-        if (result.details.reminderAt != null) {
-          await _run(ReminderBridge.requestPermission);
+        if (!kIsWeb && result.details.reminderAt != null) {
+          await _run(() async {
+            await ReminderBridge.requestPermission();
+          });
         }
         return;
       }
@@ -1074,7 +1077,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
           ? ''
           : '${reminderInstant.hour.toString().padLeft(2, '0')}:${reminderInstant.minute.toString().padLeft(2, '0')}',
     );
-    final reminderZone = initial.reminderZone ?? await ReminderBridge.zoneId();
+    final reminderZone = initial.reminderZone ??
+        (kIsWeb ? 'UTC' : await ReminderBridge.zoneId());
     if (!mounted) {
       title.dispose();
       body.dispose();
