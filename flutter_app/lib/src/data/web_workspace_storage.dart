@@ -160,6 +160,42 @@ class WebWorkspaceStore {
   }
 
   Future<void> save(WebWorkspaceSnapshot snapshot) async {
+    // A snapshot must be decodable before it can become an acknowledged write.
+    WebWorkspaceSnapshot.fromMap(snapshot.toMap());
+
+    // A second tab may have changed the workspace since this instance loaded.
+    // Reject stale writes rather than silently clobbering acknowledged data.
+    final expectedSequence = _sequence;
+    await _prefs.reload();
+    final candidates = [
+      _prefs.getString(_keyA),
+      _prefs.getString(_keyB),
+    ];
+    final sequences = <int>[];
+    for (final raw in candidates) {
+      if (raw == null) continue;
+      try {
+        sequences.add(_StoredWorkspace.decode(raw).sequence);
+      } on FormatException {
+        // A corrupt alternate journal slot can be ignored if another is valid.
+      } on ArgumentError {
+        // Invalid persisted model fields must not be trusted.
+      } on TypeError {
+        // Invalid persisted model fields must not be trusted.
+      }
+    }
+    if (sequences.isEmpty && candidates.any((raw) => raw != null)) {
+      throw const FormatException('Nessuno snapshot browser integro');
+    }
+    final newest = sequences.isEmpty
+        ? 0
+        : (sequences..sort()).last;
+    if (newest != expectedSequence) {
+      throw StateError(
+        'Workspace modificato in un’altra scheda. '
+        'Ricarica la pagina prima di salvare; nessuna modifica è stata applicata.',
+      );
+    }
     final sequence = _sequence + 1;
     final encoded = _StoredWorkspace.encode(snapshot, sequence);
     if (utf8.encode(encoded).length > maxSnapshotBytes) {
@@ -178,6 +214,7 @@ class WebWorkspaceStore {
   }
 
   static String exportJson(WebWorkspaceSnapshot snapshot) {
+    WebWorkspaceSnapshot.fromMap(snapshot.toMap());
     final payload = jsonEncode(snapshot.toMap());
     if (utf8.encode(payload).length > maxSnapshotBytes) {
       throw StateError('Il workspace supera il limite di export Web.');
