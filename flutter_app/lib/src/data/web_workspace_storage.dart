@@ -187,9 +187,7 @@ class WebWorkspaceStore {
     if (sequences.isEmpty && candidates.any((raw) => raw != null)) {
       throw const FormatException('Nessuno snapshot browser integro');
     }
-    final newest = sequences.isEmpty
-        ? 0
-        : (sequences..sort()).last;
+    final newest = sequences.isEmpty ? 0 : (sequences..sort()).last;
     if (newest != expectedSequence) {
       throw StateError(
         'Workspace modificato in un’altra scheda. '

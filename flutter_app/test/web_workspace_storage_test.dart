@@ -67,7 +67,8 @@ void main() {
   test('Deletion and empty snapshot stay empty after refresh', () async {
     final repo = await store();
     repo.load();
-    await repo.save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('one')]));
+    await repo
+        .save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('one')]));
     await repo.save(WebWorkspaceSnapshot.empty());
     expect((await store()).load().notes, isEmpty);
   });
@@ -75,8 +76,10 @@ void main() {
   test('Checksum failure restores previous acknowledged slot', () async {
     final repo = await store();
     repo.load();
-    await repo.save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('a')]));
-    await repo.save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('b')]));
+    await repo
+        .save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('a')]));
+    await repo
+        .save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('b')]));
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('notes.web.workspace.v1.b', '{"broken":true}');
     final recovered = await store();
@@ -88,7 +91,8 @@ void main() {
     expect((await store()).load().notes.single.id, 'c');
   });
 
-  test('Two invalid slots fail closed without seeding or overwriting', () async {
+  test('Two invalid slots fail closed without seeding or overwriting',
+      () async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('notes.web.workspace.v1.a', 'damaged');
     await prefs.setString('notes.web.workspace.v1.b', 'damaged');
@@ -160,7 +164,8 @@ void main() {
   test('Size guard leaves prior journal state untouched', () async {
     final repo = await store();
     repo.load();
-    await repo.save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('ok')]));
+    await repo
+        .save(WebWorkspaceSnapshot.empty().copyWith(notes: [sample('ok')]));
     final oversized = WebWorkspaceSnapshot.empty().copyWith(
       notes: [sample('huge', body: 'x' * WebWorkspaceStore.maxSnapshotBytes)],
     );

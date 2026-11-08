@@ -185,7 +185,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           setState(() => _storageError = error.toString());
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Salvataggio non riuscito. I dati precedenti restano conservati.'),
+              content: Text(
+                  'Salvataggio non riuscito. I dati precedenti restano conservati.'),
             ),
           );
         }
@@ -225,8 +226,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         before: before,
         incoming: note,
         rules: current.rules,
-        validCollectionIds:
-            current.collections.map((item) => item.id).toSet(),
+        validCollectionIds: current.collections.map((item) => item.id).toSet(),
         now: now,
       );
       final updatedNotes = [...current.notes];
@@ -253,7 +253,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           );
         }
       }
-      if (updatedRuns.length > 40) updatedRuns.removeRange(40, updatedRuns.length);
+      if (updatedRuns.length > 40)
+        updatedRuns.removeRange(40, updatedRuns.length);
       return current.copyWith(notes: updatedNotes, runs: updatedRuns);
     });
     if (!persisted) {
@@ -415,7 +416,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Salvataggio fallito. L’editor si riapre per riprovare.'),
+            content:
+                Text('Salvataggio fallito. L’editor si riapre per riprovare.'),
           ),
         );
         await _openEditor(result);
@@ -909,7 +911,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Backup JSON copiato: salvalo in un posto sicuro.'),
+                      content: Text(
+                          'Backup JSON copiato: salvalo in un posto sicuro.'),
                     ),
                   );
                 }
@@ -917,7 +920,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Copia automatica non disponibile: seleziona il testo.'),
+                      content: Text(
+                          'Copia automatica non disponibile: seleziona il testo.'),
                     ),
                   );
                 }
@@ -969,7 +973,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Backup non valido o modificato: nessun dato sostituito.'),
+          content:
+              Text('Backup non valido o modificato: nessun dato sostituito.'),
         ),
       );
       return;
@@ -1088,7 +1093,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
             ListTile(
               leading: const Icon(Icons.file_upload_outlined),
               title: const Text('Esporta backup JSON'),
-              subtitle: const Text('Copia una versione verificabile fuori dal browser'),
+              subtitle: const Text(
+                  'Copia una versione verificabile fuori dal browser'),
               onTap: () {
                 Navigator.pop(context);
                 unawaited(_exportWorkspace());
@@ -1097,7 +1103,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
             ListTile(
               leading: const Icon(Icons.file_download_outlined),
               title: const Text('Importa backup JSON'),
-              subtitle: const Text('Verifica, mostra anteprima e sostituisce solo dopo conferma'),
+              subtitle: const Text(
+                  'Verifica, mostra anteprima e sostituisce solo dopo conferma'),
               onTap: () {
                 Navigator.pop(context);
                 unawaited(_importWorkspace());
@@ -1307,49 +1314,49 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
                     ),
                   Expanded(
                     child: wide
-                  ? Row(
-                      children: [
-                        NavigationRail(
-                          selectedIndex: _index,
-                          onDestinationSelected: _selectSection,
-                          labelType: NavigationRailLabelType.selected,
-                          destinations: const [
-                            NavigationRailDestination(
-                              icon: Icon(Icons.home_outlined),
-                              selectedIcon: Icon(Icons.home),
-                              label: Text('Home'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.description_outlined),
-                              selectedIcon: Icon(Icons.description),
-                              label: Text('Note'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.calendar_month_outlined),
-                              selectedIcon: Icon(Icons.calendar_month),
-                              label: Text('Diario'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.check_circle_outline),
-                              selectedIcon: Icon(Icons.check_circle),
-                              label: Text('Attività'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.group_work_outlined),
-                              selectedIcon: Icon(Icons.group_work),
-                              label: Text('Spazi'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(Icons.search),
-                              label: Text('Cerca'),
-                            ),
-                          ],
-                        ),
-                        const VerticalDivider(width: 1),
-                        Expanded(child: body),
-                      ],
-                    )
-                  : body,
+                        ? Row(
+                            children: [
+                              NavigationRail(
+                                selectedIndex: _index,
+                                onDestinationSelected: _selectSection,
+                                labelType: NavigationRailLabelType.selected,
+                                destinations: const [
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.home_outlined),
+                                    selectedIcon: Icon(Icons.home),
+                                    label: Text('Home'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.description_outlined),
+                                    selectedIcon: Icon(Icons.description),
+                                    label: Text('Note'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.calendar_month_outlined),
+                                    selectedIcon: Icon(Icons.calendar_month),
+                                    label: Text('Diario'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.check_circle_outline),
+                                    selectedIcon: Icon(Icons.check_circle),
+                                    label: Text('Attività'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.group_work_outlined),
+                                    selectedIcon: Icon(Icons.group_work),
+                                    label: Text('Spazi'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.search),
+                                    label: Text('Cerca'),
+                                  ),
+                                ],
+                              ),
+                              const VerticalDivider(width: 1),
+                              Expanded(child: body),
+                            ],
+                          )
+                        : body,
                   ),
                 ],
               ),
@@ -1403,7 +1410,6 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
       ),
     );
   }
-
 }
 
 class _WebEditorScreen extends StatefulWidget {
