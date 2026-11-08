@@ -253,8 +253,9 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
           );
         }
       }
-      if (updatedRuns.length > 40)
+      if (updatedRuns.length > 40) {
         updatedRuns.removeRange(40, updatedRuns.length);
+      }
       return current.copyWith(notes: updatedNotes, runs: updatedRuns);
     });
     if (!persisted) {
