@@ -72,13 +72,13 @@ abstract final class SmartInboxProjectAction {
 abstract final class SmartInboxProjectCommitGuard {
   static Future<ProjectItemLink> execute({
     required Future<ProjectItemLink> Function() write,
-    required Future<bool> Function() validateAfterWrite,
+    required Future<bool> Function(ProjectItemLink) validateAfterWrite,
     required Future<bool> Function(ProjectItemLink) undoIfUnchanged,
   }) async {
     final receipt = await write();
     var valid = false;
     try {
-      valid = await validateAfterWrite();
+      valid = await validateAfterWrite(receipt);
     } catch (_) {
       // A failed fresh read is never interpreted as authorization.
     }
