@@ -62,7 +62,6 @@ abstract final class SmartInboxProjectAction {
       recorded.position == current.position;
 }
 
-
 /// QA-only compensation around a *non-atomic* cross-store write.
 ///
 /// The source Note/Shared Spaces DB and project SQLite store do NOT share a
