@@ -122,6 +122,41 @@ void main() {
     );
   });
 
+  test('A stale second tab cannot overwrite an acknowledged first-tab edit',
+      () async {
+    final first = await store();
+    final second = await store();
+    first.load();
+    second.load();
+    await first.save(
+      WebWorkspaceSnapshot.empty().copyWith(notes: [sample('tab-a')]),
+    );
+    await expectLater(
+      second.save(
+        WebWorkspaceSnapshot.empty().copyWith(notes: [sample('tab-b')]),
+      ),
+      throwsStateError,
+    );
+    expect((await store()).load().notes.single.id, 'tab-a');
+  });
+
+  test('Invalid oversized collection is rejected before acknowledgment',
+      () async {
+    final repo = await store();
+    repo.load();
+    await repo.save(
+      WebWorkspaceSnapshot.empty().copyWith(notes: [sample('safe')]),
+    );
+    final invalid = WebWorkspaceSnapshot.empty().copyWith(
+      collections: [
+        for (var i = 0; i <= 5000; i++)
+          NoteCollection(id: 'c$i', name: 'Collection'),
+      ],
+    );
+    await expectLater(repo.save(invalid), throwsFormatException);
+    expect((await store()).load().notes.single.id, 'safe');
+  });
+
   test('Size guard leaves prior journal state untouched', () async {
     final repo = await store();
     repo.load();
