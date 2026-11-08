@@ -152,7 +152,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
         _store = store;
         _workspace = restored;
         _ready = true;
-        _recoveredPrevious = store.recoveredPrevious;
+        _recoveredPrevious = store!.recoveredPrevious;
       });
     } catch (error) {
       if (!mounted) return;
