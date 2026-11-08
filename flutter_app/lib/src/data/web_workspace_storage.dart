@@ -227,7 +227,8 @@ class WebWorkspaceStore {
       _prefs.getString(_keyB),
     ];
     if (candidates.every((raw) => raw == null)) {
-      throw StateError('Archivio iniziale vuoto: usare il normale salvataggio.');
+      throw StateError(
+          'Archivio iniziale vuoto: usare il normale salvataggio.');
     }
     for (final raw in candidates) {
       if (raw == null) continue;
