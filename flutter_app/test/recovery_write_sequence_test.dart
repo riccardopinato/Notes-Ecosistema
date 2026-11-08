@@ -25,14 +25,18 @@ void main() {
     var called = false;
     final incomplete = <String, Future<void> Function()>{
       for (final stage in RecoveryWriteSequence.stages.skip(1))
-        stage: () async { called = true; },
+        stage: () async {
+          called = true;
+        },
     };
     await expectLater(
       RecoveryWriteSequence.run(incomplete),
       throwsFormatException,
     );
     expect(called, isFalse);
-    incomplete['unknown-store'] = () async { called = true; };
+    incomplete['unknown-store'] = () async {
+      called = true;
+    };
     await expectLater(
       RecoveryWriteSequence.run(incomplete),
       throwsFormatException,
@@ -76,8 +80,8 @@ void main() {
         throwsStateError,
       );
       expect(visited.last, failedAt);
-      expect(visited.length,
-          RecoveryWriteSequence.stages.indexOf(failedAt) + 1);
+      expect(
+          visited.length, RecoveryWriteSequence.stages.indexOf(failedAt) + 1);
       expect(data.values, everyElement(0));
       expect(await journal.hasPending, isFalse);
     }
