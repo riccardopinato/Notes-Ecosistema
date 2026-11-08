@@ -211,6 +211,50 @@ class WebWorkspaceStore {
     recoveredPrevious = false;
   }
 
+  /// Explicit recovery after a valid, user-confirmed backup import.
+  ///
+  /// Ordinary saves still fail closed when both journal slots are corrupt.
+  /// This operation never silently overwrites readable browser data.
+  Future<void> recoverVerifiedBackup(WebWorkspaceSnapshot snapshot) async {
+    WebWorkspaceSnapshot.fromMap(snapshot.toMap());
+    final encoded = _StoredWorkspace.encode(snapshot, 1);
+    if (utf8.encode(encoded).length > maxSnapshotBytes) {
+      throw StateError('Backup troppo grande per lo spazio Web locale.');
+    }
+    await _prefs.reload();
+    final candidates = [
+      _prefs.getString(_keyA),
+      _prefs.getString(_keyB),
+    ];
+    if (candidates.every((raw) => raw == null)) {
+      throw StateError('Archivio iniziale vuoto: usare il normale salvataggio.');
+    }
+    for (final raw in candidates) {
+      if (raw == null) continue;
+      try {
+        _StoredWorkspace.decode(raw);
+        throw StateError(
+          'Esiste già una copia locale valida: ricarica la pagina '
+          'prima di importare questo backup.',
+        );
+      } on FormatException {
+        // Confirmed recovery deliberately ignores only unreadable slots.
+      } on ArgumentError {
+        // Invalid journal fields cannot be used to block safe recovery.
+      } on TypeError {
+        // Invalid journal fields cannot be used to block safe recovery.
+      }
+    }
+    final written = await _prefs.setString(_keyA, encoded);
+    if (!written || _prefs.getString(_keyA) != encoded) {
+      throw StateError('Scrittura di recupero non verificata.');
+    }
+    // The restored slot is already valid; clear any damaged alternate.
+    await _prefs.remove(_keyB);
+    _sequence = 1;
+    recoveredPrevious = false;
+  }
+
   static String exportJson(WebWorkspaceSnapshot snapshot) {
     WebWorkspaceSnapshot.fromMap(snapshot.toMap());
     final payload = jsonEncode(snapshot.toMap());

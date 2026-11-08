@@ -161,6 +161,38 @@ void main() {
     expect((await store()).load().notes.single.id, 'safe');
   });
 
+  test('Explicit verified import recovers two corrupted journal slots',
+      () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('notes.web.workspace.v1.a', 'damaged');
+    await prefs.setString('notes.web.workspace.v1.b', 'damaged');
+    final repo = await store();
+    expect(() => repo.load(), throwsFormatException);
+    final verified = WebWorkspaceStore.importJson(
+      WebWorkspaceStore.exportJson(
+        WebWorkspaceSnapshot.empty().copyWith(notes: [sample('restored')]),
+      ),
+    );
+    await repo.recoverVerifiedBackup(verified);
+    final loaded = (await store()).load();
+    expect(loaded.notes.single.id, 'restored');
+  });
+
+  test('Recovery override refuses to replace a readable journal', () async {
+    final repo = await store();
+    repo.load();
+    await repo.save(
+      WebWorkspaceSnapshot.empty().copyWith(notes: [sample('current')]),
+    );
+    await expectLater(
+      repo.recoverVerifiedBackup(
+        WebWorkspaceSnapshot.empty().copyWith(notes: [sample('other')]),
+      ),
+      throwsStateError,
+    );
+    expect((await store()).load().notes.single.id, 'current');
+  });
+
   test('Size guard leaves prior journal state untouched', () async {
     final repo = await store();
     repo.load();

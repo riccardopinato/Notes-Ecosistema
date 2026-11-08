@@ -101,12 +101,13 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _editTask(Note? note, {String? initialDue}) async {
-    final result = await _taskDialog(note, initialDue: initialDue);
-    if (result == null || !mounted) return;
-    await _run(() async {
+    var draftSource = note;
+    var requestedDue = initialDue;
+    while (mounted) {
+      final result = await _taskDialog(draftSource, initialDue: requestedDue);
+      if (result == null || !mounted) return;
       final now = DateTime.now().millisecondsSinceEpoch;
-      final existing = note;
-      final saved = existing == null
+      final saved = draftSource == null
           ? Note(
               id: const Uuid().v4(),
               title: result.title,
@@ -119,17 +120,42 @@ class _PlannerScreenState extends State<PlannerScreen> {
               tags: const [],
               taskJson: result.details.encode(),
             )
-          : existing.copyWith(
+          : draftSource.copyWith(
               title: result.title,
               body: result.body,
               taskJson: result.details.encode(),
               updatedAt: now,
             );
-      await widget.onSave(saved);
-      if (result.details.reminderAt != null) {
-        await ReminderBridge.requestPermission();
+
+      if (_busy) return;
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+      var persisted = false;
+      try {
+        await widget.onSave(saved);
+        persisted = true;
+      } catch (error) {
+        if (mounted) {
+          setState(() => _error = userErrorText(error));
+        }
+      } finally {
+        if (mounted) setState(() => _busy = false);
       }
-    });
+
+      if (persisted) {
+        if (result.details.reminderAt != null) {
+          await _run(ReminderBridge.requestPermission);
+        }
+        return;
+      }
+      if (!mounted) return;
+      // Retry only after another explicit Save. Never discard edited fields,
+      // reminders, subtasks or the newly allocated task identity.
+      draftSource = saved;
+      requestedDue = null;
+    }
   }
 
   Future<void> _toggle(Note note, bool completed) async {

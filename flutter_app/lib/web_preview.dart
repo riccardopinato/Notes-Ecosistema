@@ -1005,7 +1005,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     if (confirmed != true || !mounted || _store == null) return;
     if (_storageBlocked) {
       try {
-        await _store!.save(candidate);
+        await _store!.recoverVerifiedBackup(candidate);
         if (!mounted) return;
         setState(() {
           _workspace = candidate;
