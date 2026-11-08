@@ -708,7 +708,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
           }
           return link;
         },
-        validateAfterWrite: () async {
+        validateAfterWrite: (receipt) async {
           final persisted = await database.loadNote(source.id);
           final liveProject = await store.loadProject(projectId);
           final linked = (await store.loadLinks(projectId))
@@ -737,7 +737,7 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               liveProject.sharedSpaceId == null &&
               visible.any((project) => project.id == projectId) &&
               linked.length == 1 &&
-              SmartInboxProjectAction.canUndo(linked.single, linked.single);
+              SmartInboxProjectAction.canUndo(receipt, linked.single);
         },
         undoIfUnchanged: (link) => store.detachIfUnchanged(link),
       );
