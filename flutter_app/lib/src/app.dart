@@ -693,14 +693,54 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
       if (await _smartInboxConnectionScope() != connection) {
         throw const FormatException('Account GitHub cambiato.');
       }
-      // Existing canonical project store, now with an exact insertion
-      // receipt created inside a single project SQLite transaction.
-      final inserted = await ref
-          .read(projectWorkspaceProvider.notifier)
-          .attachIfAbsentForSmartInbox(projectId, source.id);
-      if (inserted == null) {
-        throw const FormatException('Nota già collegata a questo progetto.');
-      }
+      // An extra QA-only post-commit fence catches asynchronous changes
+      // that occurred DURING the project SQLite writer, then compensates by
+      // deleting ONLY the exact inserted receipt. This does not make the
+      // independent Note, Shared Spaces and Project stores atomic.
+      final inserted = await SmartInboxProjectCommitGuard.execute(
+        write: () async {
+          final link = await ref
+              .read(projectWorkspaceProvider.notifier)
+              .attachIfAbsentForSmartInbox(projectId, source.id);
+          if (link == null) {
+            throw const FormatException(
+                'Nota già collegata a questo progetto.');
+          }
+          return link;
+        },
+        validateAfterWrite: () async {
+          final persisted = await database.loadNote(source.id);
+          final liveProject = await store.loadProject(projectId);
+          final linked = (await store.loadLinks(projectId))
+              .where((link) => link.noteId == source.id)
+              .toList(growable: false);
+          final currentConnection = await _smartInboxConnectionScope();
+          final current = ref.read(workspaceProvider);
+          final shared = ref.read(sharedSpacesProvider);
+          final visible = SmartInboxProjectAction.privateTargets(
+            ref.read(projectWorkspaceProvider).projects,
+          );
+          return persisted != null &&
+              !current.loading &&
+              current.error == null &&
+              SmartInboxProjectAction.validSource(source, current.notes) &&
+              SmartInboxSourcePreview.sameCanonicalRevision(
+                  source, persisted) &&
+              !shared.loading &&
+              shared.error == null &&
+              shared.identity?.id == owner &&
+              !shared.spaces.any(
+                  (space) => space.contentIds.contains(source.id)) &&
+              currentConnection == connection &&
+              liveProject != null &&
+              liveProject.isActive &&
+              liveProject.sharedSpaceId == null &&
+              visible.any((project) => project.id == projectId) &&
+              linked.length == 1 &&
+              SmartInboxProjectAction.canUndo(linked.single, linked.single);
+        },
+        undoIfUnchanged: (link) => store.detachIfUnchanged(link),
+      );
       final receiptId = const Uuid().v4();
       _smartInboxProjectUndo[receiptId] =
           (link: inserted, owner: owner, connection: connection);
