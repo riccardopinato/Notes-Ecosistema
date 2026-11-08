@@ -729,8 +729,8 @@ class _WorkspaceShellState extends ConsumerState<WorkspaceShell>
               !shared.loading &&
               shared.error == null &&
               shared.identity?.id == owner &&
-              !shared.spaces.any(
-                  (space) => space.contentIds.contains(source.id)) &&
+              !shared.spaces
+                  .any((space) => space.contentIds.contains(source.id)) &&
               currentConnection == connection &&
               liveProject != null &&
               liveProject.isActive &&
