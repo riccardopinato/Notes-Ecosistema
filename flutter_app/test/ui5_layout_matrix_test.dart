@@ -66,7 +66,8 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.byKey(const ValueKey('ui5-home-root')), findsOneWidget);
           expect(tester.takeException(), isNull,
-              reason: 'No render exceptions/overflows at $width dp, scale $scale');
+              reason:
+                  'No render exceptions/overflows at $width dp, scale $scale');
         });
       }
     }
