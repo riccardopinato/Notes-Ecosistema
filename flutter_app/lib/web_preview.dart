@@ -2029,7 +2029,7 @@ class _WebStudyScreenState extends State<_WebStudyScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: _MetricPreview(
                   value: sources.length,
                   label: 'Elementi visibili',
