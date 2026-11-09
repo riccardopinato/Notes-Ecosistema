@@ -1,5 +1,11 @@
 # Notes Ecosistema — Roadmap
 
+## 2026-11-09 — Template catalog Step4 (free native gallery)
+
+- Existing `TemplatesScreen` is extended with `Catalogo` (free built-in templates) vs `I miei` (existing `PersonalTemplates.catalog`) in [PR #97](https://github.com/riccardopinato/Notes-Ecosistema/pull/97). The Step3 Book Tracker remains a normal editable Note via the established `onUse` writer.
+- No paid store, purchase history, product SKU, new model database, silent import, billing or external Notion assets. [Scoped source and QA contract](docs/TEMPLATE_NOTION/UX_STEP4_FREE_CATALOG.md).
+- Exact-head `verify`, `verify-web`, `build-web` and source review gate the merge; real-device/account/backup behavior remains NOT VERIFIED until specific evidence.
+
 ## 2026-11-04 — Action-first audit follow-up (four-source crosswalk)
 
 **Scope approved for incremental implementation**: complete local, deterministic, explainable workflows using canonical Note/Task/Project and existing permission-aware writers. **No new cloud/AI dependency, second planner, automatic task mutations or unreviewed OSS code.** External research cites AI Valley, Hugging Face, GitHub JSON Canvas and GitLab as product/standards references, **not** installed providers. Audit context: 4 November 2026.
