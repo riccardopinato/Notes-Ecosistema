@@ -137,8 +137,10 @@ abstract final class PageTemplates {
     bool includeToRead = true,
   }) {
     final cleanTitle = title.trim();
-    if (cleanTitle.isEmpty || cleanTitle.length > 90) {
-      throw const FormatException('Inserisci un titolo tra 1 e 90 caratteri.');
+    // The UI enforces 90 user-perceived characters via TextField.maxLength.
+    // String.length counts UTF-16 units and would reject valid emoji titles.
+    if (cleanTitle.isEmpty) {
+      throw const FormatException('Inserisci un titolo.');
     }
     final sections = <String>[
       if (includeToRead) '## Da leggere\n- [ ] Aggiungi un titolo',
