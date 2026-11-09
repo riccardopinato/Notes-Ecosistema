@@ -22,6 +22,7 @@ class TemplatesScreen extends StatefulWidget {
 class _TemplatesScreenState extends State<TemplatesScreen> {
   final _query = TextEditingController();
   bool _reset = true;
+  bool _showPersonal = false;
   String? _expanded;
 
   @override
@@ -116,6 +117,27 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               labelText: 'Cerca modelli',
             ),
           ),
+          const SizedBox(height: 12),
+          SegmentedButton<bool>(
+            key: const ValueKey<String>('templates-step4-view'),
+            segments: const <ButtonSegment<bool>>[
+              ButtonSegment<bool>(
+                value: false,
+                label: Text('Catalogo'),
+                icon: Icon(Icons.auto_awesome_outlined),
+              ),
+              ButtonSegment<bool>(
+                value: true,
+                label: Text('I miei'),
+                icon: Icon(Icons.bookmarks_outlined),
+              ),
+            ],
+            selected: <bool>{_showPersonal},
+            onSelectionChanged: (selected) => setState(() {
+              _showPersonal = selected.first;
+              _expanded = null;
+            }),
+          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Azzera checklist completate'),
@@ -126,9 +148,15 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             onChanged: (value) => setState(() => _reset = value),
           ),
           const SizedBox(height: 10),
+          if (!_showPersonal) ...[
           Text(
-            'Modelli pronti',
+            'Catalogo gratuito',
             style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Modelli pronti da usare nelle tue note. '
+            'Nessun acquisto, abbonamento o accesso a un altro servizio.',
           ),
           const SizedBox(height: 8),
           if (_query.text.trim().isEmpty ||
@@ -168,9 +196,11 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               },
             ),
           ),
+          ],
+          if (_showPersonal) ...[
           const SizedBox(height: 16),
           Text(
-            'Modelli personali',
+            'I miei modelli',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
@@ -203,6 +233,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 onEdit: () => widget.onEdit(note),
               ),
             ),
+          ],
           const SizedBox(height: 12),
           Text(
             'Variabili disponibili: {{data}}, {{ora}}, {{giorno}}. '
