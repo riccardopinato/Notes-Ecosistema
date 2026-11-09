@@ -50,7 +50,8 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Crea una nota privata, modificabile come tutte le altre.'),
+                    const Text(
+                        'Crea una nota privata, modificabile come tutte le altre.'),
                     const SizedBox(height: 12),
                     TextField(
                       controller: titleController,
@@ -69,7 +70,8 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text('Anteprima', style: Theme.of(context).textTheme.titleSmall),
+                    Text('Anteprima',
+                        style: Theme.of(context).textTheme.titleSmall),
                     const SizedBox(height: 8),
                     SelectableText(preview.body),
                   ],
