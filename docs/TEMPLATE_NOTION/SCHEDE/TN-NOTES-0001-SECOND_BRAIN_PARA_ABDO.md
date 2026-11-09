@@ -55,3 +55,7 @@ La scheda del Marketplace presenta un'organizzazione PARA (`Projects`, `Areas`, 
 - Aggiornare questa scheda e `CATALOGO.json` mantenendo l'ID, poi confrontare con il codice corrente.
 
 **Origine delle osservazioni**: [catalogo centrale pubblico](https://github.com/riccardopinato/Idee-app-Archivi-riferimenti/blob/main/17-RICERCA-TEMPLATE-UX/SCHEDE/TPLUX-REF-0001-SECOND_BRAIN_PARA_ABDO.md), non ispezione integrale della pagina Notion privata. Nessun dato di acquisto o template commerciale salvato nel repository.
+
+## Aggiornamento 09/11 — Export ricevuto e verificato (E2 parziale)
+
+Esaminato lo ZIP Notion del Second Brain: **42 file, 25 Markdown e 17 CSV**. Esempi nei database: 6 progetti, 4 aree, 4 risorse e 6 task. I CSV contengono proprietà di status, date, priorità e progressi e riferimenti esportati fra record. Questo **verifica la struttura tabellare**, ma non dimostra formule/rollup originali, configurazione dei pulsanti, viste runtime, funzionamento cloud o identità esatta della variante. La descrizione precedente dello stato E1 resta come cronologia: **stato corrente E2_EXPORT_STRUCTURE_VERIFIED, limitatamente a export strutturale**.
