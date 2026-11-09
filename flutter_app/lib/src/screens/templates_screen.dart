@@ -149,90 +149,90 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           ),
           const SizedBox(height: 10),
           if (!_showPersonal) ...[
-          Text(
-            'Catalogo gratuito',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Modelli pronti da usare nelle tue note. '
-            'Nessun acquisto, abbonamento o accesso a un altro servizio.',
-          ),
-          const SizedBox(height: 8),
-          if (_query.text.trim().isEmpty ||
-              'libreria personale'.contains(_query.text.trim().toLowerCase()))
-            _TemplateCard(
-              keyName: 'builtin:book_tracker',
-              title: 'Libreria personale · Gratuito',
-              body: PageTemplates.bookTracker().body,
-              expanded: _expanded == 'builtin:book_tracker',
-              onPreview: () => setState(() {
-                _expanded = _expanded == 'builtin:book_tracker'
-                    ? null
-                    : 'builtin:book_tracker';
-              }),
-              onUse: _useBookTracker,
+            Text(
+              'Catalogo gratuito',
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-          ...PageTemplates.all.map(
-            (template) => _TemplateCard(
-              keyName: 'builtin:${template.key}',
-              title: template.name,
-              body: template.body,
-              expanded: _expanded == 'builtin:${template.key}',
-              onPreview: () => setState(() {
-                _expanded = _expanded == 'builtin:${template.key}'
-                    ? null
-                    : 'builtin:${template.key}';
-              }),
-              onUse: () {
-                final content = PersonalTemplates.instantiate(
-                  template.title,
-                  template.body,
-                  const [],
-                  DateTime.now(),
-                  reset: _reset,
-                );
-                widget.onUse(content);
-              },
+            const SizedBox(height: 8),
+            const Text(
+              'Modelli pronti da usare nelle tue note. '
+              'Nessun acquisto, abbonamento o accesso a un altro servizio.',
             ),
-          ),
-          ],
-          if (_showPersonal) ...[
-          const SizedBox(height: 16),
-          Text(
-            'I miei modelli',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          if (personal.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                'Nessun modello personale. Da una nota usa “Salva come modello”.',
-              ),
-            )
-          else
-            ...personal.map(
-              (note) => _TemplateCard(
-                keyName: 'personal:${note.id}',
-                title: note.title.isEmpty ? 'Modello personale' : note.title,
-                body: note.body,
-                expanded: _expanded == 'personal:${note.id}',
+            const SizedBox(height: 8),
+            if (_query.text.trim().isEmpty ||
+                'libreria personale'.contains(_query.text.trim().toLowerCase()))
+              _TemplateCard(
+                keyName: 'builtin:book_tracker',
+                title: 'Libreria personale · Gratuito',
+                body: PageTemplates.bookTracker().body,
+                expanded: _expanded == 'builtin:book_tracker',
                 onPreview: () => setState(() {
-                  _expanded = _expanded == 'personal:${note.id}'
+                  _expanded = _expanded == 'builtin:book_tracker'
                       ? null
-                      : 'personal:${note.id}';
+                      : 'builtin:book_tracker';
                 }),
-                onUse: () => widget.onUse(
-                  PersonalTemplates.from(
-                    note,
+                onUse: _useBookTracker,
+              ),
+            ...PageTemplates.all.map(
+              (template) => _TemplateCard(
+                keyName: 'builtin:${template.key}',
+                title: template.name,
+                body: template.body,
+                expanded: _expanded == 'builtin:${template.key}',
+                onPreview: () => setState(() {
+                  _expanded = _expanded == 'builtin:${template.key}'
+                      ? null
+                      : 'builtin:${template.key}';
+                }),
+                onUse: () {
+                  final content = PersonalTemplates.instantiate(
+                    template.title,
+                    template.body,
+                    const [],
                     DateTime.now(),
                     reset: _reset,
-                  ),
-                ),
-                onEdit: () => widget.onEdit(note),
+                  );
+                  widget.onUse(content);
+                },
               ),
             ),
+          ],
+          if (_showPersonal) ...[
+            const SizedBox(height: 16),
+            Text(
+              'I miei modelli',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            if (personal.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  'Nessun modello personale. Da una nota usa “Salva come modello”.',
+                ),
+              )
+            else
+              ...personal.map(
+                (note) => _TemplateCard(
+                  keyName: 'personal:${note.id}',
+                  title: note.title.isEmpty ? 'Modello personale' : note.title,
+                  body: note.body,
+                  expanded: _expanded == 'personal:${note.id}',
+                  onPreview: () => setState(() {
+                    _expanded = _expanded == 'personal:${note.id}'
+                        ? null
+                        : 'personal:${note.id}';
+                  }),
+                  onUse: () => widget.onUse(
+                    PersonalTemplates.from(
+                      note,
+                      DateTime.now(),
+                      reset: _reset,
+                    ),
+                  ),
+                  onEdit: () => widget.onEdit(note),
+                ),
+              ),
           ],
           const SizedBox(height: 12),
           Text(
