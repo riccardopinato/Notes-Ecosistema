@@ -131,6 +131,28 @@ abstract final class PersonalTemplates {
 }
 
 abstract final class PageTemplates {
+  /// A single editable Notes document; never a second books database.
+  static TemplateContent bookTracker({
+    String title = 'La mia biblioteca',
+    bool includeToRead = true,
+  }) {
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty || cleanTitle.length > 90) {
+      throw const FormatException('Inserisci un titolo tra 1 e 90 caratteri.');
+    }
+    final sections = <String>[
+      if (includeToRead) '## Da leggere\n- [ ] Aggiungi un titolo',
+      '## In lettura\nTitolo: ___\nAutore: ___\nAppunti: ___',
+      '## Conclusi\nTitolo: ___\nCosa mi è rimasto: ___',
+    ];
+    return PersonalTemplates.instantiate(
+      cleanTitle,
+      sections.join('\n\n'),
+      const <String>['lettura'],
+      DateTime.now(),
+    );
+  }
+
   static const all = [
     PageTemplate('meeting', 'Riunione', 'Riunione',
         '# Obiettivo\\n\\n## Appunti\\n\\n## Decisioni\\n\\n## Prossime azioni\\n- [ ] '),
