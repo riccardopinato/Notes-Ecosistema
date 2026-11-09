@@ -32,72 +32,69 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   }
 
   Future<void> _useBookTracker() async {
-    final titleController = TextEditingController(text: 'La mia biblioteca');
+    var draftTitle = 'La mia biblioteca';
     var includeToRead = true;
-    try {
-      final selected = await showDialog<TemplateContent>(
-        context: context,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (context, setDialogState) {
-            final title = titleController.text.trim();
-            final preview = PageTemplates.bookTracker(
-              title: title.isEmpty ? 'La mia biblioteca' : title,
-              includeToRead: includeToRead,
-            );
-            return AlertDialog(
-              title: const Text('Libreria personale'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                        'Crea una nota privata, modificabile come tutte le altre.'),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: titleController,
-                      maxLength: 90,
-                      decoration: const InputDecoration(
-                        labelText: 'Titolo della nota',
-                      ),
-                      onChanged: (_) => setDialogState(() {}),
+    final selected = await showDialog<TemplateContent>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final title = draftTitle.trim();
+          final preview = PageTemplates.bookTracker(
+            title: title.isEmpty ? 'La mia biblioteca' : title,
+            includeToRead: includeToRead,
+          );
+          return AlertDialog(
+            title: const Text('Libreria personale'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                      'Crea una nota privata, modificabile come tutte le altre.'),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    initialValue: draftTitle,
+                    maxLength: 90,
+                    decoration: const InputDecoration(
+                      labelText: 'Titolo della nota',
                     ),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Includi "Da leggere"'),
-                      value: includeToRead,
-                      onChanged: (value) => setDialogState(
-                        () => includeToRead = value ?? false,
-                      ),
+                    onChanged: (value) =>
+                        setDialogState(() => draftTitle = value),
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Includi "Da leggere"'),
+                    value: includeToRead,
+                    onChanged: (value) => setDialogState(
+                      () => includeToRead = value ?? false,
                     ),
-                    const SizedBox(height: 12),
-                    Text('Anteprima',
-                        style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 8),
-                    SelectableText(preview.body),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Anteprima',
+                      style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: 8),
+                  SelectableText(preview.body),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Annulla'),
-                ),
-                FilledButton(
-                  onPressed: title.isEmpty
-                      ? null
-                      : () => Navigator.pop(dialogContext, preview),
-                  child: const Text('Crea nota'),
-                ),
-              ],
-            );
-          },
-        ),
-      );
-      if (mounted && selected != null) widget.onUse(selected);
-    } finally {
-      titleController.dispose();
-    }
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Annulla'),
+              ),
+              FilledButton(
+                onPressed: title.isEmpty
+                    ? null
+                    : () => Navigator.pop(dialogContext, preview),
+                child: const Text('Crea nota'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (mounted && selected != null) widget.onUse(selected);
   }
 
   @override
