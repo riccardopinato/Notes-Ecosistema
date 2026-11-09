@@ -7,7 +7,8 @@ import 'package:notes_ecosistema/src/domain/quick_capture.dart';
 import 'package:notes_ecosistema/src/domain/templates.dart';
 
 void main() {
-  test('Book Tracker creates one editable note payload without extra models', () {
+  test('Book Tracker creates one editable note payload without extra models',
+      () {
     final withQueue = PageTemplates.bookTracker();
     expect(withQueue.title, 'La mia biblioteca');
     expect(withQueue.body, contains('## Da leggere'));
