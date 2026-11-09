@@ -38,3 +38,7 @@ Il registro strutturato `CATALOGO.json` replica **solo le associazioni locali a 
 ## Idea monetizzazione: Template Store interno
 
 [**TPL-STORE-2026-01 — idea valida da valutare**](https://github.com/riccardopinato/Idee-app-Archivi-riferimenti/blob/main/17-RICERCA-TEMPLATE-UX/IDEA_STORE_TEMPLATE_INTERNO_2026-11-09.md): template **originali** per Notes, acquisto una tantum, prezzo ipotetico **€3,99**, preview, ripristino acquisti e preset gratuiti. **BACKLOG / non implementato**: niente SKU, IAP, nuova schermata né pagamento. Gli export di terzi non sono rivendibili automaticamente.
+
+## Maxi-step 2 — UX pilota Book Tracker
+
+[Progetto UX nativo Notes](UX_STEP2/README.md) · [prototipo HTML navigabile](UX_STEP2/PROTOTIPO_BOOK_TRACKER.html) — dati inventati, nessun writer, acquisto o feature approvata.
