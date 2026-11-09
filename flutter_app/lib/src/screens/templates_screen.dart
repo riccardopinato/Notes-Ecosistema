@@ -32,14 +32,13 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   }
 
   Future<void> _useBookTracker() async {
-    final titleController = TextEditingController(text: 'La mia biblioteca');
+    var draftTitle = 'La mia biblioteca';
     var includeToRead = true;
-    try {
-      final selected = await showDialog<TemplateContent>(
+    final selected = await showDialog<TemplateContent>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) {
-            final title = titleController.text.trim();
+            final title = draftTitle.trim();
             final preview = PageTemplates.bookTracker(
               title: title.isEmpty ? 'La mia biblioteca' : title,
               includeToRead: includeToRead,
@@ -54,13 +53,14 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                     const Text(
                         'Crea una nota privata, modificabile come tutte le altre.'),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: titleController,
+                    TextFormField(
+                      initialValue: draftTitle,
                       maxLength: 90,
                       decoration: const InputDecoration(
                         labelText: 'Titolo della nota',
                       ),
-                      onChanged: (_) => setDialogState(() {}),
+                      onChanged: (value) =>
+                          setDialogState(() => draftTitle = value),
                     ),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
@@ -94,10 +94,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           },
         ),
       );
-      if (mounted && selected != null) widget.onUse(selected);
-    } finally {
-      titleController.dispose();
-    }
+    if (mounted && selected != null) widget.onUse(selected);
   }
 
   @override
