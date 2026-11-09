@@ -9,6 +9,11 @@ Catalogo **di ricerca** per i template Notion utili a **Notes-Ecosistema**. Le s
 | TN-NOTES-0001 | Second Brain (PARA Dashboard), Abdo Karamallah | Second Brain · PARA · knowledge / progetti | TPLUX-REF-0001 | **E2 export strutturale**: 25 MD / 17 CSV; formule runtime non verificate | **PROPOSTA** | [Analisi Notes](SCHEDE/TN-NOTES-0001-SECOND_BRAIN_PARA_ABDO.md) |
 | TN-NOTES-0002 | Book Tracker, Mindful Setups | Biblioteca / Knowledge | TPLUX-REF-0004 | **E2 export strutturale**: 61 file; rivendita originale vietata | **PROPOSTA** | [Analisi Notes](SCHEDE/TN-NOTES-0002-BOOK_TRACKER.md) |
 
+| TN-NOTES-0003 | Grade Tracker | Coursework / Study | TPLUX-REF-0015 | E2 export structurale | PRIMARY — proposta, non integrata | [Scheda](SCHEDE/TN-NOTES-0003.md) |
+| TN-NOTES-0004 | Social Media Content Calendar | Content / Editorial Planning | TPLUX-REF-0016 | E2 export structurale | PRIMARY_CANDIDATE — proposta, non integrata | [Scheda](SCHEDE/TN-NOTES-0004.md) |
+| TN-NOTES-0005 | Ideas OS | Idea Capture / Knowledge | TPLUX-REF-0017 | E2 export structurale | PRIMARY — proposta, non integrata | [Scheda](SCHEDE/TN-NOTES-0005.md) |
+| TN-NOTES-0006 | Design Brief | Project Brief / Template | TPLUX-REF-0010 | E2 export structurale | SECONDARY — proposta, non integrata | [Scheda](SCHEDE/TN-NOTES-0006.md) |
+
 Il registro strutturato `CATALOGO.json` replica **solo le associazioni locali a Notes**, non sostituisce l'archivio centrale dei riferimenti e delle capability.
 
 ## Metodo di classificazione

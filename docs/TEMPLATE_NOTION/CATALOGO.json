@@ -38,6 +38,66 @@
       "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
       "license_gate": "PERSONAL_USE_ONLY_NO_UNAUTHORIZED_RESALE",
       "source_baseline": "ff5f885278c94064377075e43fae7fc1314d44fd"
+    },
+    {
+      "id": "TN-NOTES-0003",
+      "master_ref": "TPLUX-REF-0015",
+      "title": "Grade Tracker",
+      "category": "Coursework / Study",
+      "record": "SCHEDE/TN-NOTES-0003.md",
+      "evidence_level": "E2_EXPORT_STRUCTURE_VERIFIED",
+      "internal_content_verified": true,
+      "product_status": "RESEARCH_PROPOSAL",
+      "app_fit": "PRIMARY",
+      "reuse_mode": "ORIGINAL_APP_NATIVE_PATTERN_ONLY",
+      "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
+      "source_audit_url": "https://github.com/riccardopinato/Idee-app-Archivi-riferimenti/blob/main/17-RICERCA-TEMPLATE-UX/LOTTO_NOTION_2026_11_09_12_ZIP.md",
+      "source_baseline": "5bda5b7bc6ae117cc55d85567e5e669b369baeb3"
+    },
+    {
+      "id": "TN-NOTES-0004",
+      "master_ref": "TPLUX-REF-0016",
+      "title": "Social Media Content Calendar",
+      "category": "Content / Editorial Planning",
+      "record": "SCHEDE/TN-NOTES-0004.md",
+      "evidence_level": "E2_EXPORT_STRUCTURE_VERIFIED",
+      "internal_content_verified": true,
+      "product_status": "RESEARCH_PROPOSAL",
+      "app_fit": "PRIMARY_CANDIDATE",
+      "reuse_mode": "ORIGINAL_APP_NATIVE_PATTERN_ONLY",
+      "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
+      "source_audit_url": "https://github.com/riccardopinato/Idee-app-Archivi-riferimenti/blob/main/17-RICERCA-TEMPLATE-UX/LOTTO_NOTION_2026_11_09_12_ZIP.md",
+      "source_baseline": "5bda5b7bc6ae117cc55d85567e5e669b369baeb3"
+    },
+    {
+      "id": "TN-NOTES-0005",
+      "master_ref": "TPLUX-REF-0017",
+      "title": "Ideas OS",
+      "category": "Idea Capture / Knowledge",
+      "record": "SCHEDE/TN-NOTES-0005.md",
+      "evidence_level": "E2_EXPORT_STRUCTURE_VERIFIED",
+      "internal_content_verified": true,
+      "product_status": "RESEARCH_PROPOSAL",
+      "app_fit": "PRIMARY",
+      "reuse_mode": "ORIGINAL_APP_NATIVE_PATTERN_ONLY",
+      "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
+      "source_audit_url": "https://github.com/riccardopinato/Idee-app-Archivi-riferimenti/blob/main/17-RICERCA-TEMPLATE-UX/LOTTO_NOTION_2026_11_09_12_ZIP.md",
+      "source_baseline": "5bda5b7bc6ae117cc55d85567e5e669b369baeb3"
+    },
+    {
+      "id": "TN-NOTES-0006",
+      "master_ref": "TPLUX-REF-0010",
+      "title": "Design Brief",
+      "category": "Project Brief / Template",
+      "record": "SCHEDE/TN-NOTES-0006.md",
+      "evidence_level": "E2_EXPORT_STRUCTURE_VERIFIED",
+      "internal_content_verified": true,
+      "product_status": "RESEARCH_PROPOSAL",
+      "app_fit": "SECONDARY",
+      "reuse_mode": "ORIGINAL_APP_NATIVE_PATTERN_ONLY",
+      "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
+      "source_audit_url": "https://github.com/riccardopinato/Idee-app-Archivi-riferimenti/blob/main/17-RICERCA-TEMPLATE-UX/LOTTO_NOTION_2026_11_09_12_ZIP.md",
+      "source_baseline": "5bda5b7bc6ae117cc55d85567e5e669b369baeb3"
     }
   ]
 }
