@@ -14,13 +14,30 @@
       "source_url": "https://byabdo.notion.site/Second-Brain-PARA-Dashboard-f258a32233ba4b758b8f47d0ca24f7f6",
       "marketplace_url": "https://www.notion.com/templates/second-brain-para-dashboard",
       "record": "SCHEDE/TN-NOTES-0001-SECOND_BRAIN_PARA_ABDO.md",
-      "evidence_level": "E1_PUBLIC_MARKETPLACE",
-      "internal_content_verified": false,
+      "evidence_level": "E2_EXPORT_STRUCTURE_VERIFIED",
+      "internal_content_verified": true,
       "product_status": "RESEARCH_PROPOSAL",
       "app_fit": "PRIMARY",
       "reuse_mode": "PATTERN_REFERENCE_ONLY",
       "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
-      "source_baseline": "2780847a0779573ab54d0d68a088e4f552e2840a"
+      "source_baseline": "2780847a0779573ab54d0d68a088e4f552e2840a",
+      "export_scope": "25 Markdown + 17 CSV; rows and properties only, no formula definitions or live button tests"
+    },
+    {
+      "id": "TN-NOTES-0002",
+      "master_ref": "TPLUX-REF-0004",
+      "title": "Book Tracker",
+      "author": "Mindful Setups",
+      "category": "Reading / Knowledge / Collections",
+      "record": "SCHEDE/TN-NOTES-0002-BOOK_TRACKER.md",
+      "evidence_level": "E2_EXPORT_STRUCTURE_VERIFIED",
+      "internal_content_verified": true,
+      "product_status": "RESEARCH_PROPOSAL",
+      "app_fit": "PRIMARY",
+      "reuse_mode": "PATTERN_REFERENCE_ONLY_NO_RESALE",
+      "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
+      "license_gate": "PERSONAL_USE_ONLY_NO_UNAUTHORIZED_RESALE",
+      "source_baseline": "ff5f885278c94064377075e43fae7fc1314d44fd"
     }
   ]
 }
