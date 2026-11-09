@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "application": "Notes-Ecosistema",
+  "catalogue_type": "public_research_index",
+  "updated_at": "2026-11-09",
+  "master_reference": "riccardopinato/Idee-app-Archivi-riferimenti/17-RICERCA-TEMPLATE-UX",
+  "entries": [
+    {
+      "id": "TN-NOTES-0001",
+      "master_ref": "TPLUX-REF-0001",
+      "title": "Second Brain (PARA Dashboard)",
+      "author": "Abdo Karamallah",
+      "category": "Second Brain / PARA / Projects / Knowledge",
+      "source_url": "https://byabdo.notion.site/Second-Brain-PARA-Dashboard-f258a32233ba4b758b8f47d0ca24f7f6",
+      "marketplace_url": "https://www.notion.com/templates/second-brain-para-dashboard",
+      "record": "SCHEDE/TN-NOTES-0001-SECOND_BRAIN_PARA_ABDO.md",
+      "evidence_level": "E1_PUBLIC_MARKETPLACE",
+      "internal_content_verified": false,
+      "product_status": "RESEARCH_PROPOSAL",
+      "app_fit": "PRIMARY",
+      "reuse_mode": "PATTERN_REFERENCE_ONLY",
+      "implementation_status": "NOT_IMPLEMENTED_FROM_THIS_SOURCE",
+      "source_baseline": "2780847a0779573ab54d0d68a088e4f552e2840a"
+    }
+  ]
+}

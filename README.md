@@ -4,6 +4,11 @@ Notes Ecosistema è un workspace **Flutter, local-first e private-by-default** p
 
 La linea Kotlin 0.25 è congelata nella branch `kotlin-legacy-0.25`. Lo sviluppo attivo è in `flutter_app/`.
 
+## Template Notion — catalogo di ricerca
+
+[**Apri Template Notion**](docs/TEMPLATE_NOTION/README.md): raccolta per Notes dei template Notion analizzati, con schede, evidenza, opportunità di UX e confronto con il codice. Primo riferimento: **Second Brain (PARA Dashboard)**. È documentazione di ricerca, **non un nuovo menu o un import di template nell'app**. I template per la vita personale hanno invece una sezione separata in Anna's Diary.
+
+
 ## Web locale — Step 1 (Notes browser workspace)
 
 L'entry point `flutter_app/lib/web_preview.dart` conserva ora in modo
