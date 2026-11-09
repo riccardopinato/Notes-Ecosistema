@@ -64,8 +64,11 @@ void main() {
       id: '11111111-1111-1111-1111-111111111111',
       title: content.title,
       body: content.body,
+      favorite: false,
       createdAt: 1,
       updatedAt: 2,
+      pinned: false,
+      archived: false,
       tags: content.tags,
     );
     final backup = BackupSnapshot(
@@ -74,7 +77,9 @@ void main() {
       drafts: const <BackupDraft>[],
     );
 
-    final restored = BackupCodec.decode(BackupCodec.encode(backup, exportedAt: 3));
+    final restored = BackupCodec.decode(
+      BackupCodec.encode(backup, exportedAt: 3),
+    );
     expect(restored.notes, hasLength(1));
     expect(restored.notes.single.title, 'Libri 📚');
     expect(restored.notes.single.body, content.body);
