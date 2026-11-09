@@ -7,6 +7,23 @@ import 'package:notes_ecosistema/src/domain/quick_capture.dart';
 import 'package:notes_ecosistema/src/domain/templates.dart';
 
 void main() {
+  test('Book Tracker creates one editable note payload without extra models',
+      () {
+    final withQueue = PageTemplates.bookTracker();
+    expect(withQueue.title, 'La mia biblioteca');
+    expect(withQueue.body, contains('## Da leggere'));
+    expect(withQueue.body, contains('## In lettura'));
+    expect(withQueue.body, contains('## Conclusi'));
+    expect(withQueue.tags, ['lettura']);
+    final withoutQueue = PageTemplates.bookTracker(
+      title: '  Libri del 2026  ',
+      includeToRead: false,
+    );
+    expect(withoutQueue.title, 'Libri del 2026');
+    expect(withoutQueue.body, isNot(contains('## Da leggere')));
+    expect(() => PageTemplates.bookTracker(title: '  '), throwsFormatException);
+  });
+
   test('Personal templates expand variables and reset completed checks', () {
     final content = PersonalTemplates.instantiate(
       'Riunione {{data}}',

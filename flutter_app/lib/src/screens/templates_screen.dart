@@ -30,6 +30,75 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     super.dispose();
   }
 
+  Future<void> _useBookTracker() async {
+    final titleController = TextEditingController(text: 'La mia biblioteca');
+    var includeToRead = true;
+    try {
+      final selected = await showDialog<TemplateContent>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            final title = titleController.text.trim();
+            final preview = PageTemplates.bookTracker(
+              title: title.isEmpty ? 'La mia biblioteca' : title,
+              includeToRead: includeToRead,
+            );
+            return AlertDialog(
+              title: const Text('Libreria personale'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                        'Crea una nota privata, modificabile come tutte le altre.'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: titleController,
+                      maxLength: 90,
+                      decoration: const InputDecoration(
+                        labelText: 'Titolo della nota',
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Includi "Da leggere"'),
+                      value: includeToRead,
+                      onChanged: (value) => setDialogState(
+                        () => includeToRead = value ?? false,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text('Anteprima',
+                        style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    SelectableText(preview.body),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Annulla'),
+                ),
+                FilledButton(
+                  onPressed: title.isEmpty
+                      ? null
+                      : () => Navigator.pop(dialogContext, preview),
+                  child: const Text('Crea nota'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      if (mounted && selected != null) widget.onUse(selected);
+    } finally {
+      titleController.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final personal = PersonalTemplates.catalog(widget.notes, _query.text);
@@ -62,6 +131,20 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
+          if (_query.text.trim().isEmpty ||
+              'libreria personale'.contains(_query.text.trim().toLowerCase()))
+            _TemplateCard(
+              keyName: 'builtin:book_tracker',
+              title: 'Libreria personale · Gratuito',
+              body: PageTemplates.bookTracker().body,
+              expanded: _expanded == 'builtin:book_tracker',
+              onPreview: () => setState(() {
+                _expanded = _expanded == 'builtin:book_tracker'
+                    ? null
+                    : 'builtin:book_tracker';
+              }),
+              onUse: _useBookTracker,
+            ),
           ...PageTemplates.all.map(
             (template) => _TemplateCard(
               keyName: 'builtin:${template.key}',
