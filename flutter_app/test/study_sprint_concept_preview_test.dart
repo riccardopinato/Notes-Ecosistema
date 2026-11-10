@@ -7,6 +7,8 @@ import 'package:notes_ecosistema/src/screens/templates_screen.dart';
 void main() {
   testWidgets('Study Sprint concept is interactive but cannot write a note',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1300));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final writes = <TemplateContent>[];
     await tester.pumpWidget(MaterialApp(
         home: TemplatesScreen(
@@ -28,6 +30,7 @@ void main() {
             .onPressed,
         isNull);
     await tester.ensureVisible(find.byType(CheckboxListTile).last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(CheckboxListTile).last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('study-sprint-simulate')));
