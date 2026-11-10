@@ -37,13 +37,12 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(confirm);
         await tester.pumpAndSettle();
-        await tester.ensureVisible(
-            find.byKey(const ValueKey('study-sprint-simulate')));
+        await tester
+            .ensureVisible(find.byKey(const ValueKey('study-sprint-simulate')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('study-sprint-simulate')));
         await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('study-sprint-done')),
-            findsOneWidget);
+        expect(find.byKey(const ValueKey('study-sprint-done')), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }
