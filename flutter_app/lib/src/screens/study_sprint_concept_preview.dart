@@ -174,7 +174,12 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
                       simulated = false;
                     }),
                     child: Text(translated([
-                      'Indietro', 'Back', 'Atrás', 'Retour', 'Zurück', 'Voltar'
+                      'Indietro',
+                      'Back',
+                      'Atrás',
+                      'Retour',
+                      'Zurück',
+                      'Voltar'
                     ])),
                   ),
                 if (step < 3)
@@ -182,16 +187,24 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
                     key: const ValueKey('study-sprint-next'),
                     onPressed: () => setState(() => step++),
                     child: Text(translated([
-                      'Avanti', 'Next', 'Siguiente', 'Suivant',
-                      'Weiter', 'Próximo'
+                      'Avanti',
+                      'Next',
+                      'Siguiente',
+                      'Suivant',
+                      'Weiter',
+                      'Próximo'
                     ])),
                   )
                 else
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(translated([
-                      'Chiudi', 'Close', 'Cerrar', 'Fermer',
-                      'Schließen', 'Fechar'
+                      'Chiudi',
+                      'Close',
+                      'Cerrar',
+                      'Fermer',
+                      'Schließen',
+                      'Fechar'
                     ])),
                   ),
               ],
