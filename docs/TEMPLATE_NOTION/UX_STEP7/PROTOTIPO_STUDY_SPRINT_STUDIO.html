@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notes · Study Sprint Studio — prototipo di ricerca</title>
+<style>
+:root{color-scheme:light;font:15px/1.55 system-ui,-apple-system,sans-serif;color:#17212b;background:#f6f4ef;--ink:#3559e0;--stroke:#d9dfe9;--panel:#fffdfa}
+*{box-sizing:border-box}body{margin:0}.frame{max-width:920px;margin:auto;padding:24px}.notice{border:1px dashed #9eacc9;padding:11px 15px;border-radius:14px;background:#f0f4ff;font-size:13px}header{display:flex;align-items:start;justify-content:space-between;gap:14px}h1{font-size:clamp(28px,4.6vw,43px);letter-spacing:-.045em;margin:22px 0 6px;line-height:1.1}h2{font-size:24px;margin:0 0 12px;line-height:1.2}h3{font-size:16px;margin:0 0 4px}.muted{color:#536071}.pill{display:inline-block;border-radius:50px;padding:5px 10px;background:#e3eaff;color:#2943a4;font-weight:650;font-size:12px;margin-top:25px}.shell{display:grid;grid-template-columns:minmax(200px,250px) 1fr;gap:18px;margin-top:25px}.rail{background:#e9edf6;border-radius:22px;padding:19px}.rail strong{display:block;margin-bottom:15px}.step{display:block;width:100%;text-align:left;border:1px solid transparent;background:transparent;color:#263346;padding:12px;border-radius:12px;margin:5px 0;cursor:pointer;font:inherit;min-height:45px}.step.current{background:white;border-color:var(--stroke);font-weight:700}.surface{min-width:0;background:var(--panel);border:1px solid var(--stroke);padding:25px;border-radius:24px;box-shadow:0 10px 30px #1b36600a;min-height:480px}section[hidden]{display:none}.tile{background:#f2f5fb;border:1px solid #e1e7f2;padding:14px 16px;border-radius:14px;margin:10px 0}.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:block;width:100%;border-radius:12px;border:1px solid #abb7c9;padding:12px;background:white;color:#17212b;font:inherit;min-height:46px;margin:7px 0 16px}label{font-weight:600;display:block;margin-top:8px}.check{display:flex;gap:10px;align-items:center;min-height:44px}.check input{width:18px;height:18px}.cta,.quiet{padding:11px 17px;border-radius:12px;font:inherit;cursor:pointer;min-height:46px;border:1px solid var(--ink)}.cta{background:var(--ink);color:white}.cta:disabled{opacity:.5;cursor:not-allowed}.quiet{background:transparent;color:var(--ink)}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px}.preview{white-space:pre-wrap;font:14px/1.55 ui-monospace,Consolas,monospace;background:white;border:1px solid var(--stroke);padding:18px;border-radius:15px;overflow-wrap:anywhere}.warning{color:#6c4b12;background:#fff8e9;border-radius:12px;padding:10px 12px;font-size:13px}.status{font-weight:700;color:#126240;min-height:24px}footer{font-size:12px;margin:18px 0;color:#5f6671}@media(max-width:630px){.frame{padding:12px}.shell{grid-template-columns:1fr;margin-top:14px}.rail{padding:10px;display:flex;gap:5px;overflow:auto;align-items:center}.rail strong{display:none}.step{width:auto;flex:1;white-space:nowrap;text-align:center;font-size:12px;padding:10px 5px}.surface{padding:18px;min-height:410px}.split{grid-template-columns:1fr}h1{margin-top:15px}}
+</style></head>
+<body><div class="frame">
+<div class="notice" role="note"><strong>PROTOTIPO INTERATTIVO · UX DA APPROVARE</strong> — Contenuti sintetici, nessun accesso a Note, Task, account o dispositivi. Nessun acquisto o salvataggio.</div>
+<header><div><h1>Study Sprint Studio</h1><p class="muted">Un percorso di studio in Notes, a partire da una fonte scelta da te.</p></div><span class="pill">CONCEPT · NON ACQUISTABILE</span></header>
+<div class="shell">
+<nav class="rail" aria-label="Percorso del template"><strong>Il tuo percorso</strong>
+<button type="button" class="step current" data-step="discover">01 · Scopri</button>
+<button type="button" class="step" data-step="setup">02 · Prepara</button>
+<button type="button" class="step" data-step="preview">03 · Anteprima</button>
+<button type="button" class="step" data-step="confirm">04 · Conferma</button></nav>
+<main class="surface">
+<section id="discover"><h2>Studiare, senza perdere il filo</h2><p class="muted">Collega il materiale che possiedi a un percorso chiaro. Non è un assistente AI e non crea risposte automaticamente.</p>
+<div class="tile"><h3>① Fonte</h3>Una pagina o un riferimento scelto e citato da te.</div>
+<div class="tile"><h3>② Domande manuali</h3>Uno spazio per riflettere, invece di quiz inventati.</div>
+<div class="tile"><h3>③ Ripasso</h3>Checkpoint che decidi tu, senza notifiche forzate.</div>
+<div class="actions"><button class="cta" type="button" data-step="setup">Personalizza percorso</button></div></section>
+<section id="setup" hidden><h2>Imposta il tuo sprint</h2>
+<label for="topic">Titolo dello studio</label><input id="topic" class="field" maxlength="100" value="Fondamenti di economia" autocomplete="off">
+<label for="source">Fonte di partenza (titolo o riferimento manuale)</label><input id="source" class="field" maxlength="150" value="Appunti del corso" autocomplete="off">
+<label for="chapters">Argomenti (uno per riga)</label><textarea class="field" id="chapters" rows="3" maxlength="500">Domanda e offerta
+Mercati e concorrenza</textarea>
+<label class="check"><input type="checkbox" id="questions" checked> Prepara spazi per le mie domande</label>
+<label class="check"><input type="checkbox" id="checkpoints" checked> Includi checkpoint di ripasso, senza promemoria</label>
+<div class="actions"><button type="button" class="quiet" data-step="discover">Indietro</button><button type="button" class="cta" data-step="preview">Mostra anteprima</button></div></section>
+<section id="preview" hidden><h2>Come apparirà in Notes</h2><p class="muted">Questo è il contenuto <strong>dimostrativo</strong> di una normale nota, modificabile nell'editor reale.</p>
+<pre id="sample" class="preview"></pre>
+<p class="warning">I Task selezionati sarebbero creati solo dopo un consenso specifico e una verifica del writer canonico. Questo prototipo non crea alcun record.</p>
+<div class="actions"><button type="button" class="quiet" data-step="setup">Modifica</button><button type="button" class="cta" data-step="confirm">Rivedi modifiche</button></div></section>
+<section id="confirm" hidden><h2>Controlla prima di creare</h2><div class="tile"><strong>Destinazione:</strong> Notes · contenuto personale</div>
+<div class="tile"><strong>Proposta di modifica:</strong><p id="diff"></p></div>
+<p class="muted">Versione futura: la conferma dovrà verificare proprietario, quota, revisione, rollback e assenza di duplicati. Nessuna scrittura prima dell'approvazione esplicita.</p>
+<label class="check"><input type="checkbox" id="approve"> Ho letto le modifiche simulate</label>
+<div class="actions"><button class="quiet" type="button" data-step="preview">Indietro</button><button class="cta" id="simulate" type="button" disabled>Simula creazione</button></div><p class="status" role="status" id="status"></p></section>
+</main></div><footer>Studio originale · Nessun pacchetto di terzi importato · Manifest Core: notes_study_sprint_studio_research.json · UI HTML solo per revisione, non è un runtime Flutter.</footer>
+</div><script>
+const sections=[...document.querySelectorAll('main section')],steps=[...document.querySelectorAll('[data-step]')],nav=[...document.querySelectorAll('nav [data-step]')];
+function go(id){sections.forEach(x=>x.hidden=x.id!==id);nav.forEach(x=>x.classList.toggle('current',x.dataset.step===id));if(id==='preview'||id==='confirm')render();document.getElementById('status').textContent='';}
+function cleanLines(){return document.getElementById('chapters').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,8);}
+function render(){const topic=document.getElementById('topic').value.trim()||'Studio senza titolo',source=document.getElementById('source').value.trim()||'Fonte da indicare';const lines=cleanLines();const q=document.getElementById('questions').checked,c=document.getElementById('checkpoints').checked;
+const parts=['# '+topic,'','Fonte dichiarata: '+source,'','## Argomenti',...lines.map(x=>'- '+x)];if(q)parts.push('','## Domande scritte da me','- Quale concetto voglio chiarire?');if(c)parts.push('','## Ripasso','- [ ] Rivedere gli appunti','- [ ] Rispondere alle domande');document.getElementById('sample').textContent=parts.join('\n');document.getElementById('diff').textContent='1 nota modificabile; '+(q?'sezione domande; ':'')+(c?'sezione ripasso; ':'')+'0 Task creati automaticamente; nessuna notifica.';}
+steps.forEach(x=>x.addEventListener('click',()=>go(x.dataset.step)));
+document.getElementById('approve').addEventListener('change',e=>document.getElementById('simulate').disabled=!e.target.checked);
+document.getElementById('simulate').addEventListener('click',()=>{document.getElementById('status').textContent='Simulazione completata: nessun dato è stato salvato.';});
+</script></body></html>
