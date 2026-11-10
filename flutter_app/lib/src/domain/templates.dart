@@ -157,13 +157,13 @@ abstract final class PageTemplates {
 
   static const all = [
     PageTemplate('meeting', 'Riunione', 'Riunione',
-        '# Obiettivo\\n\\n## Appunti\\n\\n## Decisioni\\n\\n## Prossime azioni\\n- [ ] '),
+        '# Obiettivo\n\n## Appunti\n\n## Decisioni\n\n## Prossime azioni\n- [ ] '),
     PageTemplate('project', 'Progetto', 'Nuovo progetto',
-        '# Risultato desiderato\\n\\n## Materiali e collegamenti\\n\\n## Prossimi passi\\n- [ ] \\n\\n## Decisioni\\n'),
+        '# Risultato desiderato\n\n## Materiali e collegamenti\n\n## Prossimi passi\n- [ ] \n\n## Decisioni\n'),
     PageTemplate('study', 'Studio', 'Sessione di studio',
-        '# Argomento\\n\\n## Concetti chiave\\n\\n## Domande\\n\\n## Riepilogo\\n'),
+        '# Argomento\n\n## Concetti chiave\n\n## Domande\n\n## Riepilogo\n'),
     PageTemplate('review', 'Revisione settimanale', 'Revisione settimanale',
-        '# Cosa ho completato\\n\\n## Cosa ho imparato\\n\\n## Da riprendere\\n- [ ] \\n\\n## Priorità della prossima settimana\\n'),
+        '# Cosa ho completato\n\n## Cosa ho imparato\n\n## Da riprendere\n- [ ] \n\n## Priorità della prossima settimana\n'),
   ];
 
   static PageTemplate daily(DateTime date) {
@@ -173,7 +173,7 @@ abstract final class PageTemplates {
       'daily',
       'Diario di oggi',
       'Diario · $key',
-      '# $key\\n\\n## Oggi conta\\n- [ ] \\n\\n## Appunti della giornata\\n\\n## Una cosa da ricordare\\n',
+      '# $key\n\n## Oggi conta\n- [ ] \n\n## Appunti della giornata\n\n## Una cosa da ricordare\n',
     );
   }
 }
