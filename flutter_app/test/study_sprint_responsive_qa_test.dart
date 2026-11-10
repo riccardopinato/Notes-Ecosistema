@@ -11,13 +11,13 @@ void main() {
         addTearDown(() => tester.binding.setSurfaceSize(null));
         await tester.pumpWidget(
           MaterialApp(
-            home: MediaQuery(
-              data: MediaQueryData(
-                size: Size(width, 760),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
                 textScaler: TextScaler.linear(scale),
               ),
-              child: const StudySprintConceptPreview(),
+              child: child!,
             ),
+            home: const StudySprintConceptPreview(),
           ),
         );
         expect(find.byKey(const ValueKey('study-sprint-native-preview')),
