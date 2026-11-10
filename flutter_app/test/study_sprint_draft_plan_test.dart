@@ -42,7 +42,9 @@ void main() {
       ).prepareForEditor(userConfirmed: true),
       throwsFormatException,
     );
-    expect(() => valid(List<String>.filled(501, 'a').join()).prepareForEditor(userConfirmed: true),
+    expect(
+        () => valid(List<String>.filled(501, 'a').join())
+            .prepareForEditor(userConfirmed: true),
         throwsFormatException);
   });
 }
