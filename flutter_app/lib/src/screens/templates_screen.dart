@@ -101,13 +101,15 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   Widget build(BuildContext context) {
     final personal = PersonalTemplates.catalog(widget.notes, _query.text);
     final search = _query.text.trim().toLowerCase();
-    final visibleBuiltins = PageTemplates.all.where(
-      (template) =>
-          search.isEmpty ||
-          template.name.toLowerCase().contains(search) ||
-          template.title.toLowerCase().contains(search) ||
-          template.body.toLowerCase().contains(search),
-    ).toList(growable: false);
+    final visibleBuiltins = PageTemplates.all
+        .where(
+          (template) =>
+              search.isEmpty ||
+              template.name.toLowerCase().contains(search) ||
+              template.title.toLowerCase().contains(search) ||
+              template.body.toLowerCase().contains(search),
+        )
+        .toList(growable: false);
     final showBookTracker =
         search.isEmpty || 'libreria personale'.contains(search);
 
