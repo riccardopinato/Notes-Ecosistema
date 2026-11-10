@@ -168,54 +168,54 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Wrap(
-              key: const ValueKey('study-sprint-actions'),
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (step > 0)
-                  TextButton(
-                    key: const ValueKey('study-sprint-back'),
-                    onPressed: () => setState(() {
-                      step--;
-                      simulated = false;
-                    }),
-                    child: Text(translated([
-                      'Indietro',
-                      'Back',
-                      'Atrás',
-                      'Retour',
-                      'Zurück',
-                      'Voltar'
-                    ])),
-                  ),
-                if (step < 3)
-                  FilledButton(
-                    key: const ValueKey('study-sprint-next'),
-                    onPressed: () => setState(() => step++),
-                    child: Text(translated([
-                      'Avanti',
-                      'Next',
-                      'Siguiente',
-                      'Suivant',
-                      'Weiter',
-                      'Próximo'
-                    ])),
-                  )
-                else
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(translated([
-                      'Chiudi',
-                      'Close',
-                      'Cerrar',
-                      'Fermer',
-                      'Schließen',
-                      'Fechar'
-                    ])),
-                  ),
-              ],
-            ),
+            key: const ValueKey('study-sprint-actions'),
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (step > 0)
+                TextButton(
+                  key: const ValueKey('study-sprint-back'),
+                  onPressed: () => setState(() {
+                    step--;
+                    simulated = false;
+                  }),
+                  child: Text(translated([
+                    'Indietro',
+                    'Back',
+                    'Atrás',
+                    'Retour',
+                    'Zurück',
+                    'Voltar'
+                  ])),
+                ),
+              if (step < 3)
+                FilledButton(
+                  key: const ValueKey('study-sprint-next'),
+                  onPressed: () => setState(() => step++),
+                  child: Text(translated([
+                    'Avanti',
+                    'Next',
+                    'Siguiente',
+                    'Suivant',
+                    'Weiter',
+                    'Próximo'
+                  ])),
+                )
+              else
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(translated([
+                    'Chiudi',
+                    'Close',
+                    'Cerrar',
+                    'Fermer',
+                    'Schließen',
+                    'Fechar'
+                  ])),
+                ),
+            ],
+          ),
         ),
       ),
     );
