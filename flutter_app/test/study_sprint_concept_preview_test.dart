@@ -14,11 +14,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('study-sprint-native-preview')), findsOneWidget);
     for (var index = 0; index < 3; index++) {
+      await tester.ensureVisible(find.byKey(const ValueKey('study-sprint-next')));
       await tester.tap(find.byKey(const ValueKey('study-sprint-next')));
       await tester.pumpAndSettle();
     }
     expect(tester.widget<FilledButton>(
       find.byKey(const ValueKey('study-sprint-simulate'))).onPressed, isNull);
+    await tester.ensureVisible(find.byType(CheckboxListTile).last);
     await tester.tap(find.byType(CheckboxListTile).last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('study-sprint-simulate')));
