@@ -1,6 +1,6 @@
 # UX Step 7 — Study Sprint Studio (Notes-Ecosistema)
 
-**Stato:** UX_DRAFT_PENDING_APPROVAL / non installabile / NON ACQUISTABILE. **Data:** 10/11/2026. **Factory pinned:** App-Factory-Core@2953e9b50f5f43fbd5a1702cb41785a4235592a5 (Master 27 / Index 29).
+**Stato:** UX_APPROVED_PROVISIONAL (decisione utente 10/11/2026) / non installabile / NON ACQUISTABILE. **Data:** 10/11/2026. **Factory pinned:** App-Factory-Core@2953e9b50f5f43fbd5a1702cb41785a4235592a5 (Master 27 / Index 29).
 
 [Prototipo HTML navigabile — SOLO dati sintetici](PROTOTIPO_STUDY_SPRINT_STUDIO.html) · Riferimento manifest già validato: [notes_study_sprint_studio_research.json](https://github.com/riccardopinato/App-Factory-Core/blob/main/contracts/template_engine_v1/examples/notes_study_sprint_studio_research.json).
 
@@ -26,6 +26,6 @@
 - Verificare che i prompt e le sezioni originali producano un valore **materialmente distinto** dall'attuale Notes Studio Free prima di vendere un pack.
 - Accessibilità: 320/360dp, tablet, ingrandimento 200%, tastiera, target 44–48dp, focus/reader, reduced motion; localizzazioni IT/EN/ES/FR/DE/PT **da produrre nel runtime** (mock HTML solo IT).
 - Test adapter futuri: cancel prima del commit = zero scritture, retry stesso request ID senza duplicati, revision/owner mismatch, limite quota, errore al secondo writer, rollback, offline + import/export/backup.
-- **Approvazione utente necessaria prima di Flutter/premium:** almeno flusso, posizionamento, valore Free-vs-Premium e identità dei dati. Nessun piano Store/prodotti acquistabili approvato.
+- **Decisione UX ricevuta:** prototipo approvato provvisoriamente il 10/11/2026. La revisione resta aperta. L'approvazione del prototipo non prova il valore commerciale né autorizza SKU, billing o una release. Prima dell'adapter Flutter reale servono il gate di Product Bible, l'owner dei dati e i test di scrittura/rollback.
 
 **Evidenza di questo step:** solo file HTML/CSS/JS locale senza chiamate network, storage o API app. La verifica PR docs non è test Flutter/device, né certificazione Golden/Donor E5. Anna's Diary è una proposta distinta e indipendente.
