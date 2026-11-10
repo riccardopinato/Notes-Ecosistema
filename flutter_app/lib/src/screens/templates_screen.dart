@@ -113,6 +113,9 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         .toList(growable: false);
     final showBookTracker =
         search.isEmpty || 'libreria personale'.contains(search);
+    final showStudySprint = search.isEmpty ||
+        'study sprint studio'.contains(search) ||
+        'studio a tappe'.contains(search);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Modelli')),
@@ -169,8 +172,9 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               'Nessun acquisto, abbonamento o accesso a un altro servizio.',
             ),
             const SizedBox(height: 8),
-            Card(
-              key: const ValueKey('study-sprint-concept-card'),
+            if (showStudySprint)
+              Card(
+                key: const ValueKey('study-sprint-concept-card'),
               child: ListTile(
                 title: const Text('Study Sprint Studio · Concept'),
                 subtitle: const Text('Anteprima nativa · non acquistabile · nessun salvataggio'),
@@ -218,7 +222,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 },
               ),
             ),
-            if (!showBookTracker && visibleBuiltins.isEmpty)
+            if (!showBookTracker && !showStudySprint && visibleBuiltins.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Text('Nessun modello trovato nel catalogo.'),
