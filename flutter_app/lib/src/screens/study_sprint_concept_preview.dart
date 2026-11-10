@@ -5,13 +5,15 @@ class StudySprintConceptPreview extends StatefulWidget {
   const StudySprintConceptPreview({super.key});
 
   @override
-  State<StudySprintConceptPreview> createState() => _StudySprintConceptPreviewState();
+  State<StudySprintConceptPreview> createState() =>
+      _StudySprintConceptPreviewState();
 }
 
 class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
   final title = TextEditingController(text: 'Fondamenti di economia');
   final source = TextEditingController(text: 'Appunti del corso');
-  final topics = TextEditingController(text: 'Domanda e offerta\nMercati\nInflazione');
+  final topics =
+      TextEditingController(text: 'Domanda e offerta\nMercati\nInflazione');
   int step = 0;
   bool questions = true;
   bool checkpoints = true;
@@ -33,18 +35,33 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
   }
 
   String get sample {
-    final cleaned = topics.text.split(RegExp(r'\r?\n'))
-        .map((s) => s.trim()).where((s) => s.isNotEmpty).take(8);
+    final cleaned = topics.text
+        .split(RegExp(r'\r?\n'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .take(8);
     return [
-      '# ' + (title.text.trim().isEmpty ? 'Studio senza titolo' : title.text.trim()),
+      '# ' +
+          (title.text.trim().isEmpty
+              ? 'Studio senza titolo'
+              : title.text.trim()),
       '',
-      'Fonte dichiarata: ' + (source.text.trim().isEmpty ? 'Da indicare' : source.text.trim()),
+      'Fonte dichiarata: ' +
+          (source.text.trim().isEmpty ? 'Da indicare' : source.text.trim()),
       '',
       '## Argomenti',
       ...cleaned.map((s) => '- ' + s),
-      if (questions) ...['', '## Domande scritte da me', '- Quale concetto voglio chiarire?'],
-      if (checkpoints) ...['', '## Ripasso', '- [ ] Rivedere gli appunti',
-        '- [ ] Rispondere alle domande'],
+      if (questions) ...[
+        '',
+        '## Domande scritte da me',
+        '- Quale concetto voglio chiarire?'
+      ],
+      if (checkpoints) ...[
+        '',
+        '## Ripasso',
+        '- [ ] Rivedere gli appunti',
+        '- [ ] Rispondere alle domande'
+      ],
     ].join('\n');
   }
 
@@ -57,37 +74,58 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
           key: const ValueKey('study-sprint-native-preview'),
           padding: const EdgeInsets.all(16),
           children: [
-            Text(translated(['Concept · non acquistabile', 'Concept · not for sale',
-              'Concepto · no disponible', 'Concept · non disponible',
-              'Konzept · nicht erhältlich', 'Conceito · indisponível']),
-              style: Theme.of(context).textTheme.labelLarge),
+            Text(
+                translated([
+                  'Concept · non acquistabile',
+                  'Concept · not for sale',
+                  'Concepto · no disponible',
+                  'Concept · non disponible',
+                  'Konzept · nicht erhältlich',
+                  'Conceito · indisponível'
+                ]),
+                style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 12),
-            Text(translated(['Da una fonte scelta da te. Nessuna AI o task automatico.',
+            Text(translated([
+              'Da una fonte scelta da te. Nessuna AI o task automatico.',
               'From your chosen source. No AI or automatic tasks.',
               'Desde tu fuente. Sin IA ni tareas automáticas.',
               'Depuis votre source. Sans IA ni tâches automatiques.',
               'Mit deiner Quelle. Ohne KI oder automatische Aufgaben.',
-              'Com a sua fonte. Sem IA nem tarefas automáticas.'])),
+              'Com a sua fonte. Sem IA nem tarefas automáticas.'
+            ])),
             const SizedBox(height: 16),
             Text((step + 1).toString() + ' / 4',
-              style: Theme.of(context).textTheme.titleMedium),
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             if (step == 0)
               const Text('Fonte · Argomenti · Domande personali · Ripasso'),
             if (step == 1) ...[
-              TextField(key: const ValueKey('study-sprint-title'),
-                controller: title, maxLength: 100,
-                decoration: const InputDecoration(labelText: 'Titolo / Study title')),
-              TextField(controller: source, maxLength: 150,
-                decoration: const InputDecoration(labelText: 'Fonte / Source')),
-              TextField(controller: topics, minLines: 3, maxLines: 8, maxLength: 500,
-                decoration: const InputDecoration(labelText: 'Argomenti / Topics (max 8)')),
-              CheckboxListTile(value: questions,
-                title: const Text('Domande personali / Personal questions'),
-                onChanged: (v) => setState(() => questions = v ?? false)),
-              CheckboxListTile(value: checkpoints,
-                title: const Text('Ripasso / Review (no notifications)'),
-                onChanged: (v) => setState(() => checkpoints = v ?? false)),
+              TextField(
+                  key: const ValueKey('study-sprint-title'),
+                  controller: title,
+                  maxLength: 100,
+                  decoration:
+                      const InputDecoration(labelText: 'Titolo / Study title')),
+              TextField(
+                  controller: source,
+                  maxLength: 150,
+                  decoration:
+                      const InputDecoration(labelText: 'Fonte / Source')),
+              TextField(
+                  controller: topics,
+                  minLines: 3,
+                  maxLines: 8,
+                  maxLength: 500,
+                  decoration: const InputDecoration(
+                      labelText: 'Argomenti / Topics (max 8)')),
+              CheckboxListTile(
+                  value: questions,
+                  title: const Text('Domande personali / Personal questions'),
+                  onChanged: (v) => setState(() => questions = v ?? false)),
+              CheckboxListTile(
+                  value: checkpoints,
+                  title: const Text('Ripasso / Review (no notifications)'),
+                  onChanged: (v) => setState(() => checkpoints = v ?? false)),
             ],
             if (step == 2) ...[
               const Text('Anteprima / Preview · nota non salvata'),
@@ -99,33 +137,40 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
               const SizedBox(height: 12),
               SelectableText(sample),
               CheckboxListTile(
-                value: acknowledged,
-                title: const Text('Ho letto la simulazione / I reviewed the preview'),
-                onChanged: (v) => setState(() => acknowledged = v ?? false)),
+                  value: acknowledged,
+                  title: const Text(
+                      'Ho letto la simulazione / I reviewed the preview'),
+                  onChanged: (v) => setState(() => acknowledged = v ?? false)),
               FilledButton(
-                key: const ValueKey('study-sprint-simulate'),
-                onPressed: !acknowledged ? null : () =>
-                  setState(() => simulated = true),
-                child: const Text('Simula creazione / Simulate')),
+                  key: const ValueKey('study-sprint-simulate'),
+                  onPressed: !acknowledged
+                      ? null
+                      : () => setState(() => simulated = true),
+                  child: const Text('Simula creazione / Simulate')),
               if (simulated)
                 const Text('Simulazione completa: nessun dato salvato.',
-                  key: ValueKey('study-sprint-done')),
+                    key: ValueKey('study-sprint-done')),
             ],
             const SizedBox(height: 16),
             Row(children: [
               if (step > 0)
-                TextButton(key: const ValueKey('study-sprint-back'),
-                  onPressed: () => setState(() {
-                    step--; simulated = false;
-                  }), child: const Text('Indietro / Back')),
+                TextButton(
+                    key: const ValueKey('study-sprint-back'),
+                    onPressed: () => setState(() {
+                          step--;
+                          simulated = false;
+                        }),
+                    child: const Text('Indietro / Back')),
               const Spacer(),
               if (step < 3)
-                FilledButton(key: const ValueKey('study-sprint-next'),
-                  onPressed: () => setState(() => step++),
-                  child: const Text('Avanti / Next'))
+                FilledButton(
+                    key: const ValueKey('study-sprint-next'),
+                    onPressed: () => setState(() => step++),
+                    child: const Text('Avanti / Next'))
               else
-                TextButton(onPressed: () => Navigator.pop(context),
-                  child: const Text('Chiudi / Close')),
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Chiudi / Close')),
             ]),
           ],
         ),
