@@ -30,17 +30,26 @@ void main() {
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
         }
-        expect(find.byKey(const ValueKey('study-sprint-simulate')),
-            findsOneWidget);
+        final simulate = find.byKey(const ValueKey('study-sprint-simulate'));
+        await tester.scrollUntilVisible(
+          simulate,
+          150,
+          scrollable: find.byType(Scrollable).last,
+        );
+        await tester.pumpAndSettle();
+        expect(simulate, findsOneWidget);
         final confirm = find.byType(CheckboxListTile).last;
-        await tester.ensureVisible(confirm);
+        await tester.scrollUntilVisible(
+          confirm,
+          -100,
+          scrollable: find.byType(Scrollable).last,
+        );
         await tester.pumpAndSettle();
         await tester.tap(confirm);
         await tester.pumpAndSettle();
-        await tester
-            .ensureVisible(find.byKey(const ValueKey('study-sprint-simulate')));
+        await tester.ensureVisible(simulate);
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('study-sprint-simulate')));
+        await tester.tap(simulate);
         await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('study-sprint-done')), findsOneWidget);
         expect(tester.takeException(), isNull);
