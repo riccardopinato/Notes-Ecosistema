@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../domain/note.dart';
 import '../domain/templates.dart';
+import 'study_sprint_concept_preview.dart';
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({
@@ -112,6 +113,9 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         .toList(growable: false);
     final showBookTracker =
         search.isEmpty || 'libreria personale'.contains(search);
+    final showStudySprint = search.isEmpty ||
+        'study sprint studio'.contains(search) ||
+        'studio a tappe'.contains(search);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Modelli')),
@@ -168,6 +172,21 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               'Nessun acquisto, abbonamento o accesso a un altro servizio.',
             ),
             const SizedBox(height: 8),
+            if (showStudySprint)
+              Card(
+                key: const ValueKey('study-sprint-concept-card'),
+                child: ListTile(
+                  title: const Text('Study Sprint Studio · Concept'),
+                  subtitle: const Text(
+                      'Anteprima nativa · non acquistabile · nessun salvataggio'),
+                  trailing: const Icon(Icons.visibility_outlined),
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const StudySprintConceptPreview(),
+                    ),
+                  ),
+                ),
+              ),
             if (showBookTracker)
               _TemplateCard(
                 keyName: 'builtin:book_tracker',
@@ -204,7 +223,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 },
               ),
             ),
-            if (!showBookTracker && visibleBuiltins.isEmpty)
+            if (!showBookTracker && !showStudySprint && visibleBuiltins.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Text('Nessun modello trovato nel catalogo.'),
