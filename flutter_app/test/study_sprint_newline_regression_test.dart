@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_ecosistema/src/screens/study_sprint_concept_preview.dart';
 
 void main() {
-  testWidgets('Study Sprint uses real newlines and limits manual topics to eight',
+  testWidgets(
+      'Study Sprint uses real newlines and limits manual topics to eight',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1300));
     addTearDown(() => tester.binding.setSurfaceSize(null));
