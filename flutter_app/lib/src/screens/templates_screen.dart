@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../domain/note.dart';
 import '../domain/templates.dart';
+import 'study_sprint_concept_preview.dart';
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({
@@ -168,6 +169,19 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               'Nessun acquisto, abbonamento o accesso a un altro servizio.',
             ),
             const SizedBox(height: 8),
+            Card(
+              key: const ValueKey('study-sprint-concept-card'),
+              child: ListTile(
+                title: const Text('Study Sprint Studio · Concept'),
+                subtitle: const Text('Anteprima nativa · non acquistabile · nessun salvataggio'),
+                trailing: const Icon(Icons.visibility_outlined),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const StudySprintConceptPreview(),
+                  ),
+                ),
+              ),
+            ),
             if (showBookTracker)
               _TemplateCard(
                 keyName: 'builtin:book_tracker',
