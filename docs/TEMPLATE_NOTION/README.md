@@ -46,3 +46,7 @@ Il registro strutturato `CATALOGO.json` replica **solo le associazioni locali a 
 ## Step 7 — Primo concept originale Studio (design-only, 10/11/2026)
 
 [Study Sprint Studio — specifica UX e gate](UX_STEP7/README_STUDY_SPRINT_STUDIO.md) · [prototipo HTML interattivo](UX_STEP7/PROTOTIPO_STUDY_SPRINT_STUDIO.html). Il manifest centrale `notes_study_sprint_studio_research.json` resta `research_candidate`. **UX_DRAFT_PENDING_APPROVAL:** nessun adapter Flutter, prodotto Premium, SKU, import o dato scritto. L'attuale catalogo gratuito rimane immutato da questa proposta.
+
+## Step 8 — Preview Flutter nativa (senza distribuzione)
+
+[Study Sprint Studio · preview Flutter](UX_STEP8_STUDY_SPRINT_NATIVE_PREVIEW.md): card concept nel catalogo, percorso dimostrativo in memoria e zero scritture. Non è un template Premium installabile né un nuovo prodotto Store. Il manifest rimane `research_candidate`.
