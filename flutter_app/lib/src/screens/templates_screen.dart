@@ -100,6 +100,16 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   @override
   Widget build(BuildContext context) {
     final personal = PersonalTemplates.catalog(widget.notes, _query.text);
+    final search = _query.text.trim().toLowerCase();
+    final visibleBuiltins = PageTemplates.all.where(
+      (template) =>
+          search.isEmpty ||
+          template.name.toLowerCase().contains(search) ||
+          template.title.toLowerCase().contains(search) ||
+          template.body.toLowerCase().contains(search),
+    ).toList(growable: false);
+    final showBookTracker =
+        search.isEmpty || 'libreria personale'.contains(search);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Modelli')),
@@ -156,8 +166,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               'Nessun acquisto, abbonamento o accesso a un altro servizio.',
             ),
             const SizedBox(height: 8),
-            if (_query.text.trim().isEmpty ||
-                'libreria personale'.contains(_query.text.trim().toLowerCase()))
+            if (showBookTracker)
               _TemplateCard(
                 keyName: 'builtin:book_tracker',
                 title: 'Libreria personale · Gratuito',
@@ -170,7 +179,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 }),
                 onUse: _useBookTracker,
               ),
-            ...PageTemplates.all.map(
+            ...visibleBuiltins.map(
               (template) => _TemplateCard(
                 keyName: 'builtin:${template.key}',
                 title: template.name,
@@ -193,6 +202,11 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 },
               ),
             ),
+            if (!showBookTracker && visibleBuiltins.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Nessun modello trovato nel catalogo.'),
+              ),
           ],
           if (_showPersonal) ...[
             const SizedBox(height: 16),
