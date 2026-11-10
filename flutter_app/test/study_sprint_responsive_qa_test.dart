@@ -33,8 +33,8 @@ void main() {
         // The fixed navigation stays reachable even on 320dp / 2x.
         // Long-body scroll + confirmation is covered separately by the
         // full-size widget test; real screen-reader/physical QA stays open.
-        expect(find.byKey(const ValueKey('study-sprint-actions')),
-            findsOneWidget);
+        expect(
+            find.byKey(const ValueKey('study-sprint-actions')), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }
