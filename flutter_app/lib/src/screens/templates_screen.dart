@@ -175,17 +175,18 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             if (showStudySprint)
               Card(
                 key: const ValueKey('study-sprint-concept-card'),
-              child: ListTile(
-                title: const Text('Study Sprint Studio · Concept'),
-                subtitle: const Text('Anteprima nativa · non acquistabile · nessun salvataggio'),
-                trailing: const Icon(Icons.visibility_outlined),
-                onTap: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const StudySprintConceptPreview(),
+                child: ListTile(
+                  title: const Text('Study Sprint Studio · Concept'),
+                  subtitle: const Text(
+                      'Anteprima nativa · non acquistabile · nessun salvataggio'),
+                  trailing: const Icon(Icons.visibility_outlined),
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const StudySprintConceptPreview(),
+                    ),
                   ),
                 ),
               ),
-            ),
             if (showBookTracker)
               _TemplateCard(
                 keyName: 'builtin:book_tracker',
