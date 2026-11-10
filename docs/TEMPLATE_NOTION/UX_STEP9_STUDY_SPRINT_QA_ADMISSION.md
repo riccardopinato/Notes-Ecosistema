@@ -14,7 +14,7 @@ The existing Notes app has no dedicated `docs/PRODUCT_BIBLE.md` today; `README.m
 
 ## Automated QA added, pending exact-head CI
 
-- `flutter_app/test/study_sprint_responsive_qa_test.dart`: widths 320 / 360 / 600, text scaling 1x / 2x, full navigation and simulated confirmation, no Flutter exception.
+- `flutter_app/test/study_sprint_responsive_qa_test.dart`: widths 320 / 360 / 600, text scaling 1x / 2x, wizard navigation through four steps without Flutter exceptions. The long-body final confirmation at 2x text remains a separate manual/physical gate, no Flutter exception.
 - `flutter_app/test/study_sprint_draft_plan_test.dart`: explicit consent required, no implicit Tasks, strict eight-topic cap, CRLF and rejected inputs.
 - Reuse existing `study_sprint_concept_preview_test.dart` / `study_sprint_newline_regression_test.dart` and existing backup/compatibility tests; they do **not** prove a new saved Study Sprint note.
 - Action controls use `Wrap` rather than a fixed Row for 320dp + large text; simulation completion is announced as a semantics live region.
