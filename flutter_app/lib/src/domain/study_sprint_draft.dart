@@ -25,9 +25,14 @@ class StudySprintDraftPlan {
     }
     final name = title.trim();
     final source = declaredSource.trim();
-    if (name.isEmpty || name.length > 100 || name.contains('\n') ||
-        name.contains('\r') || source.isEmpty || source.length > 150 ||
-        source.contains('\n') || source.contains('\r') ||
+    if (name.isEmpty ||
+        name.length > 100 ||
+        name.contains('\n') ||
+        name.contains('\r') ||
+        source.isEmpty ||
+        source.length > 150 ||
+        source.contains('\n') ||
+        source.contains('\r') ||
         topicsInput.length > 500) {
       throw const FormatException('study_sprint_invalid_input');
     }
