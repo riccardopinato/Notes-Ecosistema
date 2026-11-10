@@ -17,7 +17,8 @@ void main() {
     expect(daily.body, contains('## Appunti della giornata'));
   });
 
-  testWidgets('Free catalog searches all built-in models, not only Book Tracker',
+  testWidgets(
+      'Free catalog searches all built-in models, not only Book Tracker',
       (tester) async {
     final created = <TemplateContent>[];
     await tester.pumpWidget(
