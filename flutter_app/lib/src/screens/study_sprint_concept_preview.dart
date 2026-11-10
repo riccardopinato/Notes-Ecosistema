@@ -41,16 +41,12 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
         .where((s) => s.isNotEmpty)
         .take(8);
     return [
-      '# ' +
-          (title.text.trim().isEmpty
-              ? 'Studio senza titolo'
-              : title.text.trim()),
+      '# ${title.text.trim().isEmpty ? 'Studio senza titolo' : title.text.trim()}',
       '',
-      'Fonte dichiarata: ' +
-          (source.text.trim().isEmpty ? 'Da indicare' : source.text.trim()),
+      'Fonte dichiarata: ${source.text.trim().isEmpty ? 'Da indicare' : source.text.trim()}',
       '',
       '## Argomenti',
-      ...cleaned.map((s) => '- ' + s),
+      ...cleaned.map((s) => '- $s'),
       if (questions) ...[
         '',
         '## Domande scritte da me',
@@ -94,7 +90,7 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
               'Com a sua fonte. Sem IA nem tarefas automáticas.'
             ])),
             const SizedBox(height: 16),
-            Text((step + 1).toString() + ' / 4',
+            Text('${step + 1} / 4',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             if (step == 0)
