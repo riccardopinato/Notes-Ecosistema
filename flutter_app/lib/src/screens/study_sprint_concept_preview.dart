@@ -160,7 +160,14 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
                 ),
             ],
             const SizedBox(height: 16),
-            Wrap(
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Wrap(
               key: const ValueKey('study-sprint-actions'),
               alignment: WrapAlignment.end,
               spacing: 8,
@@ -209,7 +216,6 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
                   ),
               ],
             ),
-          ],
         ),
       ),
     );
