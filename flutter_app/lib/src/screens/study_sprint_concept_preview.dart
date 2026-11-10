@@ -144,30 +144,58 @@ class _StudySprintConceptPreviewState extends State<StudySprintConceptPreview> {
                       : () => setState(() => simulated = true),
                   child: const Text('Simula creazione / Simulate')),
               if (simulated)
-                const Text('Simulazione completa: nessun dato salvato.',
-                    key: ValueKey('study-sprint-done')),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    translated([
+                      'Simulazione completa: nessun dato salvato.',
+                      'Simulation complete: no data saved.',
+                      'Simulación completa: no se guardaron datos.',
+                      'Simulation terminée : aucune donnée sauvegardée.',
+                      'Simulation abgeschlossen: keine Daten gespeichert.',
+                      'Simulação concluída: nenhum dado guardado.'
+                    ]),
+                    key: const ValueKey('study-sprint-done'),
+                  ),
+                ),
             ],
             const SizedBox(height: 16),
-            Row(children: [
-              if (step > 0)
-                TextButton(
+            Wrap(
+              key: const ValueKey('study-sprint-actions'),
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (step > 0)
+                  TextButton(
                     key: const ValueKey('study-sprint-back'),
                     onPressed: () => setState(() {
-                          step--;
-                          simulated = false;
-                        }),
-                    child: const Text('Indietro / Back')),
-              const Spacer(),
-              if (step < 3)
-                FilledButton(
+                      step--;
+                      simulated = false;
+                    }),
+                    child: Text(translated([
+                      'Indietro', 'Back', 'Atrás', 'Retour', 'Zurück', 'Voltar'
+                    ])),
+                  ),
+                if (step < 3)
+                  FilledButton(
                     key: const ValueKey('study-sprint-next'),
                     onPressed: () => setState(() => step++),
-                    child: const Text('Avanti / Next'))
-              else
-                TextButton(
+                    child: Text(translated([
+                      'Avanti', 'Next', 'Siguiente', 'Suivant',
+                      'Weiter', 'Próximo'
+                    ])),
+                  )
+                else
+                  TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Chiudi / Close')),
-            ]),
+                    child: Text(translated([
+                      'Chiudi', 'Close', 'Cerrar', 'Fermer',
+                      'Schließen', 'Fechar'
+                    ])),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
