@@ -88,16 +88,22 @@ def slots(page):
     )
 
 
-def mutate_slot(page, suffix, raw):
+def mutate_slot(page, suffix, marker):
+    # Preserve SharedPreferences' own localStorage envelope; corrupt only
+    # a checksummed payload value, not the plugin's outer JSON encoding.
     return page.evaluate(
-        """({suffix, raw}) => {
+        """({suffix, marker}) => {
           const key = Object.keys(localStorage)
             .find(k => k.endsWith('notes.web.workspace.v1.' + suffix));
           if (!key) throw Error('Journal slot not found: ' + suffix);
-          localStorage.setItem(key, raw);
+          const original = localStorage.getItem(key);
+          if (!original || !original.includes(marker)) {
+            throw Error('Expected synthetic marker absent: ' + marker);
+          }
+          localStorage.setItem(key, original.replace(marker, marker + '-DAMAGED'));
           return key;
         }""",
-        {"suffix": suffix, "raw": raw},
+        {"suffix": suffix, "marker": marker},
     )
 
 
@@ -161,7 +167,7 @@ def main():
             record("NBR-07-tampered-backup", check_tampered)
 
             def check_fallback():
-                mutate_slot(page, "b", "definitely-corrupt")
+                mutate_slot(page, "b", "Synthetic Beta")
                 page.reload(wait_until="domcontentloaded")
                 page.wait_for_function("typeof window.notesWorkspaceQa === 'function'")
                 recovered = expect_ok(invoke(page, "load"))
@@ -170,7 +176,7 @@ def main():
             record("NBR-08-corrupt-newest-fallback", check_fallback)
 
             def check_both_corrupt():
-                mutate_slot(page, "a", "also-corrupt")
+                mutate_slot(page, "a", "Synthetic Alpha")
                 before = slots(page)
                 page.reload(wait_until="domcontentloaded")
                 page.wait_for_function("typeof window.notesWorkspaceQa === 'function'")
