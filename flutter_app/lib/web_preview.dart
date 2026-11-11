@@ -879,7 +879,8 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     if (!mounted) return;
     if (!_ready || _storageBlocked) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Archivio Web non leggibile: export bloccato.')),
+        const SnackBar(
+            content: Text('Archivio Web non leggibile: export bloccato.')),
       );
       return;
     }
