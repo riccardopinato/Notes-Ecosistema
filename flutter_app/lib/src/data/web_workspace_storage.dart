@@ -125,6 +125,13 @@ class WebWorkspaceStore {
   int _sequence = 0;
   bool recoveredPrevious = false;
 
+  /// Reload the browser backing store before first read. SharedPreferences
+  /// caches values; another tab may have committed after this tab opened.
+  Future<WebWorkspaceSnapshot> loadFresh() async {
+    await _prefs.reload();
+    return load();
+  }
+
   WebWorkspaceSnapshot load() {
     final a = _prefs.getString(_keyA);
     final b = _prefs.getString(_keyB);
@@ -204,8 +211,15 @@ class WebWorkspaceStore {
     }
     final key = sequence.isOdd ? _keyA : _keyB;
     final written = await _prefs.setString(key, encoded);
+    // Reading the SharedPreferences cache alone is not a persistence check.
+    // A fresh read also detects a competing writer replacing this slot.
+    await _prefs.reload();
     if (!written || _prefs.getString(key) != encoded) {
       throw StateError('Salvataggio browser non verificato.');
+    }
+    final receipt = _StoredWorkspace.decode(_prefs.getString(key)!);
+    if (receipt.sequence != sequence) {
+      throw StateError('Sequenza del salvataggio Web inattesa.');
     }
     _sequence = sequence;
     recoveredPrevious = false;
@@ -247,11 +261,21 @@ class WebWorkspaceStore {
       }
     }
     final written = await _prefs.setString(_keyA, encoded);
+    await _prefs.reload();
     if (!written || _prefs.getString(_keyA) != encoded) {
       throw StateError('Scrittura di recupero non verificata.');
     }
-    // The restored slot is already valid; clear any damaged alternate.
+    // The alternate slot is damaged, but deleting it must not delete A.
+    // Never acknowledge recovery until the surviving slot is readable.
+    final receipt = _StoredWorkspace.decode(_prefs.getString(_keyA)!);
+    if (receipt.sequence != 1) {
+      throw StateError('Sequenza di recupero Web inattesa.');
+    }
     await _prefs.remove(_keyB);
+    await _prefs.reload();
+    if (_prefs.getString(_keyA) != encoded || _prefs.getString(_keyB) != null) {
+      throw StateError('Pulizia del recupero Web non verificata.');
+    }
     _sequence = 1;
     recoveredPrevious = false;
   }
@@ -312,6 +336,10 @@ class _StoredWorkspace {
   }
 
   static _StoredWorkspace decode(String raw) {
+    // Untrusted browser data must be bounded before JSON parsing.
+    if (utf8.encode(raw).length > WebWorkspaceStore.maxSnapshotBytes) {
+      throw const FormatException('Web journal exceeds the allowed size');
+    }
     final root = jsonDecode(raw);
     if (root is! Map ||
         root['schema'] != 1 ||
