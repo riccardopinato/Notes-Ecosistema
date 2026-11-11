@@ -3,7 +3,7 @@
 import 'dart:convert';
 import 'dart:js_interop';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/data/web_workspace_storage.dart';
@@ -117,11 +117,6 @@ Future<void> main() async {
   notesWorkspaceQa = ((JSString request) {
     return _handle(request.toDart).then((response) => response.toJS).toJS;
   }).toJS;
-  runApp(
-    const MaterialApp(
-      home: Scaffold(
-        body: Center(child: Text('Notes Web Storage QA — synthetic only')),
-      ),
-    ),
-  );
+  // No MaterialApp or rendered UI: this isolated entrypoint tests only the
+  // browser storage plugin and the production WebWorkspaceStore contract.
 }

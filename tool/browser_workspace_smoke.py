@@ -108,7 +108,7 @@ def main():
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            a = browser.new_context()
+            a = browser.new_context(locale="en-US")
             page = a.new_page()
             open_app(page)
             record("NBR-01-empty", lambda: (
@@ -139,7 +139,7 @@ def main():
                 assert "Synthetic Beta" in obj["payload"]
             record("NBR-04-export-hash", check_export)
 
-            b = browser.new_context()
+            b = browser.new_context(locale="en-US")
             page_b = b.new_page()
             open_app(page_b)
             record("NBR-05-clean-import", lambda: (
