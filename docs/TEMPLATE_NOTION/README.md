@@ -50,3 +50,7 @@ Il registro strutturato `CATALOGO.json` replica **solo le associazioni locali a 
 ## Step 8 — Preview Flutter nativa (senza distribuzione)
 
 [Study Sprint Studio · preview Flutter](UX_STEP8_STUDY_SPRINT_NATIVE_PREVIEW.md): card concept nel catalogo, percorso dimostrativo in memoria e zero scritture. Non è un template Premium installabile né un nuovo prodotto Store. Il manifest rimane `research_candidate`.
+
+## Step 9 — Source QA, editor adapter e Product Admission Gate
+
+[Studio Step9: ammissione e prove](UX_STEP9_STUDY_SPRINT_QA_ADMISSION.md) — layout/accessibilità, matrice CI e adapter puro `StudySprintDraftPlan` per il writer canonico esistente. Il catalogo rimane `research_candidate`, senza installazione, salvataggio diretto o monetizzazione. Il repository Notes non ha ancora una Product Bible autonoma: nessuna promozione prodotto è presunta.
