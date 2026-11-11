@@ -115,9 +115,7 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   _store = WebWorkspaceStore(prefs);
   notesWorkspaceQa = ((JSString request) {
-    return _handle(request.toDart)
-        .then((response) => response.toJS)
-        .toJS;
+    return _handle(request.toDart).then((response) => response.toJS).toJS;
   }).toJS;
   runApp(
     const MaterialApp(
