@@ -45,10 +45,37 @@ def expect_error(result, contains):
 
 
 def open_app(page):
-    page.goto(URL, wait_until="domcontentloaded", timeout=90000)
-    page.wait_for_function(
-        "typeof window.notesWorkspaceQa === 'function'", timeout=90000
+    diagnostics = []
+    page.on("pageerror", lambda error: diagnostics.append(f"JS_ERROR {error}"))
+    page.on(
+        "console",
+        lambda message: diagnostics.append(f"CONSOLE {message.type}: {message.text}")
+        if message.type in ("error", "warning") else None,
     )
+    page.on(
+        "requestfailed",
+        lambda request: diagnostics.append(f"REQUEST_FAILED {request.url}"),
+    )
+    response = page.goto(URL, wait_until="domcontentloaded", timeout=30000)
+    try:
+        page.wait_for_function(
+            "typeof window.notesWorkspaceQa === 'function'", timeout=30000
+        )
+    except Exception as error:
+        body = page.locator("body").inner_text(timeout=5000)[:500]
+        state = page.evaluate(
+            """() => ({
+              readyState: document.readyState,
+              scripts: Array.from(document.scripts).map(s => s.src || 'inline'),
+              bodyText: document.body?.innerText?.slice(0,300) || '',
+              flutterElements: document.querySelectorAll('flutter-view').length,
+              bridge: typeof window.notesWorkspaceQa
+            })"""
+        )
+        raise RuntimeError(
+            f"QA bridge not available: status={response.status if response else None}; "
+            f"state={state}; body={body!r}; browser={diagnostics[-20:]}"
+        ) from error
 
 
 def slots(page):
