@@ -26,6 +26,16 @@ Future<WebWorkspaceStore> store() async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('Fresh loading reloads storage before returning a snapshot', () async {
+    final first = await store();
+    first.load();
+    await first.save(
+      WebWorkspaceSnapshot.empty().copyWith(notes: [sample('fresh')]),
+    );
+    final second = await store();
+    expect((await second.loadFresh()).notes.single.id, 'fresh');
+  });
+
   test('Fresh browser starts empty, with no demo content', () async {
     final repo = await store();
     final snapshot = repo.load();
@@ -89,6 +99,22 @@ void main() {
       WebWorkspaceSnapshot.empty().copyWith(notes: [sample('c')]),
     );
     expect((await store()).load().notes.single.id, 'c');
+  });
+
+  test('Oversized journal slot is rejected before JSON decode', () async {
+    final repo = await store();
+    repo.load();
+    await repo.save(
+      WebWorkspaceSnapshot.empty().copyWith(notes: [sample('intact')]),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'notes.web.workspace.v1.b',
+      'x' * (WebWorkspaceStore.maxSnapshotBytes + 1),
+    );
+    final recovered = await store();
+    expect((await recovered.loadFresh()).notes.single.id, 'intact');
+    expect(recovered.recoveredPrevious, isTrue);
   });
 
   test('Two invalid slots fail closed without seeding or overwriting',
@@ -176,6 +202,8 @@ void main() {
     await repo.recoverVerifiedBackup(verified);
     final loaded = (await store()).load();
     expect(loaded.notes.single.id, 'restored');
+    await prefs.reload();
+    expect(prefs.getString('notes.web.workspace.v1.b'), isNull);
   });
 
   test('Recovery override refuses to replace a readable journal', () async {

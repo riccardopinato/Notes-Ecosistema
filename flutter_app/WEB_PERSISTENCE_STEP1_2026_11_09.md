@@ -66,3 +66,13 @@ WASM database while preserving the versioned snapshot contract.
 GitHub Actions green proves the source/build pipeline, not browser-profile
 persistence or full product parity. Browser smoke verification is a separate
 gate, as is independent Golden certification.
+
+## Step 2 — 11 November 2026: Web journal readback and recovery hardening
+
+- Startup now reloads the browser-backed `SharedPreferences` before reading either journal slot. This reduces stale-cache reads when switching browser tabs; it does **not** implement atomic multi-tab locking.
+- Normal commits reload the backing store after `setString`, check the exact encoded receipt and decode its bounded, checksummed sequence before acknowledging the new UI snapshot. A readback failure is surfaced rather than treated as success.
+- Confirmed recovery from two corrupt slots similarly verifies the surviving journal and the removal of the bad alternate. JSON parsing rejects oversized local journal strings before decoding.
+- Export waits for the existing serialized write queue and refuses to export a placeholder when storage was blocked or unreadable.
+- Added unit coverage for startup refresh, oversized corrupt-slot fallback and recovery cleanup. Browser-origin persistence, power loss, cross-tab write races, quota enforcement and external-file backup still require actual browser QA.
+- **Limits unchanged:** localStorage 750,000 bytes per encoded snapshot, JSON manual export/import, no IndexedDB, media parity, multi-device sync or atomic cross-tab CAS. SharedPreferences reload + readback cannot guarantee two simultaneously writing tabs are serialized; use one editing tab per browser profile until a transactional store is separately designed.
+- This is a bounded repair, **not** certification of the Web workspace or activation of a new product feature. Exact-head `verify-web`, `verify`, `build-web` and browser smoke evidence remain separate gates.

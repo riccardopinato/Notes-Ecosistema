@@ -146,7 +146,7 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
     try {
       final prefs = await SharedPreferences.getInstance();
       store = WebWorkspaceStore(prefs);
-      final restored = store.load();
+      final restored = await store.loadFresh();
       if (!mounted) return;
       setState(() {
         _store = store;
@@ -873,8 +873,26 @@ class _WebWorkspaceShellState extends State<_WebWorkspaceShell> {
   }
 
   Future<void> _exportWorkspace() async {
-    final serialized = WebWorkspaceStore.exportJson(_workspace);
+    // Export the last acknowledged snapshot, never an empty placeholder while
+    // startup/recovery is blocked or a queued mutation is still pending.
+    await _writes;
     if (!mounted) return;
+    if (!_ready || _storageBlocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Archivio Web non leggibile: export bloccato.')),
+      );
+      return;
+    }
+    late final String serialized;
+    try {
+      serialized = WebWorkspaceStore.exportJson(_workspace);
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossibile verificare il backup Web.')),
+      );
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
